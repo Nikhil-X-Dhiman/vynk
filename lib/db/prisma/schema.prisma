@@ -15,8 +15,89 @@ datasource db {
 }
 
 model User {
-  id  Int  @id @default(autoincrement())
-  firstName String @map("first_name")
+  id  String  @id @default(uuid())
+  username String @unique
+  phone String @unique
+  email String? @unique
+  passwordHash  String @map("password_hash")
+  avatarUrl String? @map("avatar_url")
+  status String?
+  lastSeen DateTime? @default(now()) @map("last_seen")
+  chats ChatParticipant[]
+  messages Message[] @relation("SentMessages")
+  messageStatuses MessageStatus[]
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("users")
+}
+
+model Chat {
+  id  String @id @default(uuid())
+  type  ChatType @default(private)
+  name  String?
+  createdBy String?
+  participants ChatParticipant[]
+  messages Message[]
+  createdAt DateTime @default(now())
+}
+
+model ChatParticipant {
+  id String @id @default(uuid())
+  chat Chat @relation(fields: [chatId], references: [id])
+  chatId String
+  user User @relation(fields: [userId], references: [id])
+  userId String
+  role  Role  @default(member)
+  joinedAt  DateTime  @default(now())
+}
+
+model Message {
+  id String @id @default(uuid())
+  chat Chat @relation(fields: [chatId], references: [id])
+  chatId String
+  sender User @relation("SentMessages", fields: [senderId], references: [id])
+  senderId String
+  type Media @default(text)
+  content String?
+  mediaUrl String?
+  replyTo  String?
+  createdAt DateTime @default(now())
+  updateAt DateTime @updatedAt
+  deleted Boolean @default(false)
+  statuses  MessageStatus[]
+}
+
+model MessageStatus {
+  id String @id @default(uuid())
+  message Message @relation(fields: [messageId], references: [id])
+  messageId String
+  user User @relation(fields: [userId], references: [id])
+  userId String
+  status Status @default(pending)
+  updatedAt DateTime @default(now())
+}
+
+enum ChatType {
+  private
+  group
+}
+
+enum Role {
+  member
+  admin
+}
+
+enum Status {
+  pending
+  sent
+  delivered
+  seen
+}
+
+enum Media {
+  text
+  image
+  video
+  file
 }
