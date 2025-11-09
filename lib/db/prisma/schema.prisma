@@ -6,10 +6,17 @@
 
 generator kysely {
   provider = "prisma-kysely"
-  output   = "@/lib/db/types"
+  output   = "../types"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+model User {
+  id  Int  @id @default(autoincrement())
+  firstName String @map("first_name")
+
+  @@map("users")
 }
