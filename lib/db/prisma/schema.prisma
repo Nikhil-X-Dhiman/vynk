@@ -14,71 +14,105 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// User ↔ Conversation (many-to-many, via ConversationParticipants)
+
+// Conversation ↔ Message (one-to-many)
+
+// User ↔ Message (one-to-many; each message has one sender)
+
+// Message ↔ MessageStatus (one-to-many)
+
 model User {
-  id  String  @id @default(uuid())
-  username String @unique
-  phone String @unique
-  email String? @unique
-  passwordHash  String @map("password_hash")
-  avatarUrl String? @map("avatar_url")
-  status String?
-  lastSeen DateTime? @default(now()) @map("last_seen")
-  chats ChatParticipant[]
-  messages Message[] @relation("SentMessages")
-  messageStatuses MessageStatus[]
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id                       String                     @id @default(uuid())
+  phoneNumber              String?                    @unique @map("phone_number")
+  countryCode              String?                    @map("country_code")
+  username                 String
+  email                    String?
+  emailOtp                 String?                    @map("email_otp")
+  OtpExpiry                DateTime?                  @map("otp_expiry")
+  profilePicture           String?                    @map("profile_picture")
+  about                    String?
+  lastSeen                 DateTime?                  @map("last_seen")
+  isOnline                 Boolean                    @default(false) @map("is_online")
+  isVerified               Boolean                    @default(false) @map("is_verified")
+  consent                  Boolean                    @default(false)
+  createdAt                DateTime                   @default(now()) @map("created_at")
+  updatedAt                DateTime                   @updatedAt @map("updated_at")
+  conversation             Conversation[]
+  // relations
+  conversationParticipants ConversationParticipants[]
+  messageSent              Message[]                  @relation("UserMessages")
+  messageStatuses          MessageStatus[]
+  reactedMessages          Message[]                  @relation("MessageReactions")
 
   @@map("users")
 }
 
-model Chat {
-  id  String @id @default(uuid())
-  type  ChatType @default(private)
-  name  String?
-  createdBy String?
-  participants ChatParticipant[]
-  messages Message[]
-  createdAt DateTime @default(now())
+model Conversation {
+  id           String                     @id @default(uuid())
+  participants ConversationParticipants[]
+  type         ConversationType           @default(private)
+  name         String?
+  createdByRel User                       @relation(fields: [createdBy], references: [id])
+  createdBy    String                     @map("created_by")
+  messages     Message[]                  @relation("ConversationMessages")
+  createdAt    DateTime                   @default(now()) @map("created_at")
+
+  // lastMessage Message? @relation("LastMessage", fields: [lastMessageId], references: [id])
+  // lastMessageId String?
+  unReadCount Int      @default(0) @map("un_read_count")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("conversations")
 }
 
-model ChatParticipant {
-  id String @id @default(uuid())
-  chat Chat @relation(fields: [chatId], references: [id])
-  chatId String
-  user User @relation(fields: [userId], references: [id])
-  userId String
-  role  Role  @default(member)
-  joinedAt  DateTime  @default(now())
+model ConversationParticipants {
+  id             String       @id @default(uuid())
+  covnersation   Conversation @relation(fields: [conversationId], references: [id])
+  conversationId String       @map("conversation_id")
+  user           User         @relation(fields: [userId], references: [id])
+  userId         String       @map("user_id")
+  role           Role         @default(member)
+  joinedAt       DateTime     @default(now()) @map("joined_at")
 }
 
 model Message {
-  id String @id @default(uuid())
-  chat Chat @relation(fields: [chatId], references: [id])
-  chatId String
-  sender User @relation("SentMessages", fields: [senderId], references: [id])
-  senderId String
-  type Media @default(text)
-  content String?
-  mediaUrl String?
-  replyTo  String?
-  createdAt DateTime @default(now())
-  updateAt DateTime @updatedAt
-  deleted Boolean @default(false)
-  statuses  MessageStatus[]
+  id             String       @id @default(uuid())
+  conversation   Conversation @relation("ConversationMessages", fields: [conversationId], references: [id])
+  conversationId String       @map("conversation_id")
+  senderRel      User         @relation("UserMessages", fields: [senderId], references: [id])
+  senderId       String       @map("sender_id")
+  contentType    Media        @default(text) @map("content_type")
+  content        String?
+  mediaUrl       String?      @map("media_url")
+  reactionUser   User?        @relation("MessageReactions", fields: [reactionUserId], references: [id])
+  reactionUserId String?      @map("reaction_user_id")
+  reactionEmoji  String?      @map("reaction_emoji")
+  replyTo        String?      @map("reply_to")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  deleted        Boolean      @default(false)
+
+  messageStatuses MessageStatus[]
+  // lastMessageFor Conversation? @relation("LastMessage")
 }
 
 model MessageStatus {
-  id String @id @default(uuid())
-  message Message @relation(fields: [messageId], references: [id])
-  messageId String
-  user User @relation(fields: [userId], references: [id])
-  userId String
-  status Status @default(pending)
-  updatedAt DateTime @default(now())
+  id        String   @id @default(uuid())
+  message   Message  @relation(fields: [messageId], references: [id])
+  messageId String   @map("message_id")
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String   @map("user_id")
+  status    Status   @default(pending)
+  updatedAt DateTime @default(now()) @map("updated_at")
 }
 
-enum ChatType {
+// model Status {
+//   id String @id @default(uuid())
+
+// }
+
+enum ConversationType {
   private
   group
 }
@@ -88,6 +122,13 @@ enum Role {
   admin
 }
 
+enum Media {
+  text
+  image
+  video
+  file
+}
+
 enum Status {
   pending
   sent
@@ -95,9 +136,90 @@ enum Status {
   seen
 }
 
-enum Media {
-  text
-  image
-  video
-  file
-}
+// model User {
+//   id  String  @id @default(uuid())
+//   username String @unique
+//   phone String @unique
+//   email String? @unique
+//   passwordHash  String @map("password_hash")
+//   avatarUrl String? @map("avatar_url")
+//   status String?
+//   lastSeen DateTime? @default(now()) @map("last_seen")
+//   chats ChatParticipant[]
+//   messages Message[] @relation("SentMessages")
+//   messageStatuses MessageStatus[]
+//   createdAt DateTime @default(now()) @map("created_at")
+//   updatedAt DateTime @updatedAt @map("updated_at")
+
+//   @@map("users")
+// }
+
+// model Chat {
+//   id  String @id @default(uuid())
+//   type  ChatType @default(private)
+//   name  String?
+//   createdBy String?
+//   participants ChatParticipant[]
+//   messages Message[]
+//   createdAt DateTime @default(now())
+// }
+
+// model ChatParticipant {
+//   id String @id @default(uuid())
+//   chat Chat @relation(fields: [chatId], references: [id])
+//   chatId String
+//   user User @relation(fields: [userId], references: [id])
+//   userId String
+//   role  Role  @default(member)
+//   joinedAt  DateTime  @default(now())
+// }
+
+// model Message {
+//   id String @id @default(uuid())
+//   chat Chat @relation(fields: [chatId], references: [id])
+//   chatId String
+//   sender User @relation("SentMessages", fields: [senderId], references: [id])
+//   senderId String
+//   type Media @default(text)
+//   content String?
+//   mediaUrl String?
+//   replyTo  String?
+//   createdAt DateTime @default(now())
+//   updateAt DateTime @updatedAt
+//   deleted Boolean @default(false)
+//   statuses  MessageStatus[]
+// }
+
+// model MessageStatus {
+//   id String @id @default(uuid())
+//   message Message @relation(fields: [messageId], references: [id])
+//   messageId String
+//   user User @relation(fields: [userId], references: [id])
+//   userId String
+//   status Status @default(pending)
+//   updatedAt DateTime @default(now())
+// }
+
+// enum ChatType {
+//   private
+//   group
+// }
+
+// enum Role {
+//   member
+//   admin
+// }
+
+// enum Status {
+//   pending
+//   sent
+//   delivered
+//   seen
+// }
+
+// enum Media {
+//   text
+//   image
+//   video
+//   file
+// }
