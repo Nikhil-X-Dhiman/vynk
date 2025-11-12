@@ -1,3 +1,4 @@
+'use client';
 import { ToggleTheme } from '@/components/ToggleTheme';
 import { formOptions } from '@tanstack/react-form';
 // import Image from 'next/image';
@@ -12,7 +13,6 @@ import {
   Select,
   SelectContent,
   SelectGroup,
-  // SelectItem,
   SelectLabel,
   SelectTrigger,
   SelectValue,
@@ -20,7 +20,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import SelectCountryVirtualizer from '@/components/ui/SelectCountryVirtualizer';
-// import metadata from 'libphonenumber-js/metadata.full';
+import { useState } from 'react';
 
 interface Login {
   email: string;
@@ -37,16 +37,12 @@ export const formOpts = formOptions({
 });
 
 export default function Login() {
-  // const countries = Object.entries(metadata.countries).map(([code, data]) => ({
-  //   iso: code,
-  //   dialCode: `+${data[0]}`,
-  //   flag: String.fromCodePoint(
-  //     ...code
-  //       .toUpperCase()
-  //       .split('')
-  //       .map((char) => 127397 + char.charCodeAt(0)),
-  //   ),
-  // }));
+  const [selectedCode, setSelectedCode] = useState('+91');
+  const [open, setOpen] = useState(false);
+  const onSelectCountry = (code: string) => {
+    setSelectedCode(code);
+    setOpen(false);
+  };
 
   return (
     <>
@@ -61,21 +57,27 @@ export default function Login() {
         </CardHeader>
         <CardContent>
           <div className="flex">
-            <Select>
+            <Select
+              open={open}
+              value={selectedCode}
+              onOpenChange={setOpen}
+              onValueChange={setSelectedCode}
+            >
               <SelectTrigger>
-                <SelectValue placeholder="+1" />
+                <SelectValue placeholder={selectedCode}>
+                  {selectedCode}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
                   <SelectLabel>Country Code</SelectLabel>
-                  <SelectCountryVirtualizer />
+                  <SelectCountryVirtualizer onSelectCountry={onSelectCountry} />
                 </SelectGroup>
               </SelectContent>
             </Select>
             <Input type="tel" placeholder="Phone Number" />
           </div>
           <div className="flex items-center gap-4">
-            {/* <div className="flex-1 h-px bg-gray-300"></div> */}
             <hr className="flex-1 bg-gray-300" />
             <span className="px-2 text-gray-600">or</span>
             <hr className="flex-1 bg-gray-300" />
