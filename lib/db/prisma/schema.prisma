@@ -11,7 +11,7 @@ generator kysely {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = env("DATABASE_URL_APP")
 }
 
 // User ↔ Conversation (many-to-many, via ConversationParticipants)
@@ -28,8 +28,8 @@ model User {
   countryCode              String?                    @map("country_code")
   username                 String
   email                    String?
-  emailOtp                 String?                    @map("email_otp")
-  OtpExpiry                DateTime?                  @map("otp_expiry")
+  // emailOtp                 String?                    @map("email_otp")
+  // OtpExpiry                DateTime?                  @map("otp_expiry")
   profilePicture           String?                    @map("profile_picture")
   about                    String?
   lastSeen                 DateTime?                  @map("last_seen")
