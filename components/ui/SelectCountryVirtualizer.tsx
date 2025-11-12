@@ -1,10 +1,9 @@
 'use client';
 
-import React from 'react';
 import { countries } from '@/utils/countries-list';
 import { Icon } from '@iconify/react';
-import { SelectItem } from '@/components/ui/select';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import Image from 'next/image';
 import { useRef } from 'react';
 
 export default function SelectCountryVirtualizer() {
@@ -14,7 +13,8 @@ export default function SelectCountryVirtualizer() {
     count: countries.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 40, // item height
-    overscan: 5, // render a few extra items above/below viewport
+    overscan: 8, // render a few extra items above/below viewport
+    scrollElementOptions: { fps: 60 },
   });
   // const virtualItems = rowVirtualizer.getVirtualItems();
   return (
@@ -40,22 +40,44 @@ export default function SelectCountryVirtualizer() {
                   top: 0,
                   left: 0,
                   width: '100%',
-                  // height: `${virtualItem.size}px`,
+                  height: `${virtualItem.size}px`,
                   transform: `translateY(${virtualItem.start}px)`,
+                  willChange: 'transform',
                 }}
               >
-                <SelectItem value={String(c.phone)}>
+                <button
+                  onClick={() => handleSelect(c.phone.toString())}
+                  className="flex w-full items-center gap-2 px-2 py-1 hover:bg-accent hover:text-accent-foreground text-sm transition-colors"
+                >
+                  {/* <Icon
+                    icon={`circle-flags:${c.code.toLowerCase()}`}
+                    width="20"
+                    height="20"
+                  /> */}
+                  <Image
+                    src={`https://cdn.jsdelivr.net/npm/circle-flags/flags/${c.code.toLowerCase()}.svg`}
+                    width={20}
+                    height={20}
+                    // loading="lazy"
+                    alt={c.name}
+                  />
+                  <span className="flex-1 truncate">{c.name}</span>
+                  <span className="text-muted-foreground text-xs">
+                    +{c.phone}
+                  </span>
+                </button>
+                {/* <SelectItem value={String(c.phone)}>
                   <div className="flex justify-between items-center gap-2">
                     <Icon
                       icon={`circle-flags:${c.code.toLowerCase()}`}
                       width="20"
                       height="20"
-                    />
-                    {/* {} */}
-                    {c.name}
+                    /> */}
+                {/* {} */}
+                {/* {c.name}
                     {`+${c.phone}`}
                   </div>
-                </SelectItem>
+                </SelectItem> */}
               </div>
             );
           })}
