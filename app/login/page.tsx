@@ -18,17 +18,17 @@ import {
 import {
   Command,
   CommandEmpty,
-  CommandGroup,
   CommandInput,
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useActionState, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { countries } from '@/utils/countries-list';
 import { Check, ChevronsUpDown, X } from 'lucide-react';
 import Image from 'next/image';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import loginActions from './login.actions';
 
 interface Login {
   email: string;
@@ -50,6 +50,7 @@ function LoginForm() {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const parentRef = useRef(null);
+  const [state, formAction, isPending] = useActionState(loginActions, null);
 
   const filtered = useMemo(
     () =>
@@ -82,7 +83,6 @@ function LoginForm() {
 
   useEffect(() => {
     if (open) {
-      // Small timeout ensures the Popover animation has finished/DOM is stable
       const timer = setTimeout(() => {
         rowVirtualizer.measure();
       }, 0);
@@ -93,7 +93,7 @@ function LoginForm() {
     <div>
       <Card>
         <CardHeader>
-          <CardTitle></CardTitle>
+          <CardTitle>Vynk</CardTitle>
           <CardDescription></CardDescription>
         </CardHeader>
         <CardContent>
@@ -102,6 +102,8 @@ function LoginForm() {
               e.preventDefault();
               form.handleSubmit();
             }}
+            // action={loginActions}
+            action={formAction} // when using useActionState hook
           >
             <FieldGroup>
               <form.Field name="countryCode">
@@ -133,7 +135,6 @@ function LoginForm() {
                               className="max-h-60 overflow-auto"
                               style={{
                                 height: '300px',
-                                // width: '200px',
                                 overflow: 'auto',
                                 transform: 'translateZ(0)',
                               }}
@@ -189,6 +190,9 @@ function LoginForm() {
                                               width={20}
                                               height={20}
                                               alt={country.name}
+                                              priority={false}
+                                              // placeholder="blur"
+                                              // blurDataURL=""
                                             />
                                             <span className="truncate flex-1">
                                               {country.name}
@@ -294,7 +298,7 @@ function LoginForm() {
               {([canSubmit, isSubmitting]) => (
                 <Button
                   type="submit"
-                  disabled={!canSubmit}
+                  disabled={!canSubmit || isPending}
                   variant={'outline'}
                   size={'lg'}
                   aria-label="send-otp"
@@ -303,6 +307,14 @@ function LoginForm() {
                 </Button>
               )}
             </form.Subscribe>
+            {/*! Delete this code line */}
+            {isPending && 'Submitting using useActionState...'}
+            {/* Del it too */}
+            {state && (
+              <p>
+                {state.success} .. {state.message}
+              </p>
+            )}
           </form>
         </CardContent>
       </Card>
