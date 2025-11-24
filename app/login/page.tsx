@@ -16,6 +16,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import LoginForm from '@/components/LoginForm';
+import OTPForm from '@/components/OTPForm';
 // import {
 //   Command,
 //   CommandEmpty,
@@ -41,6 +42,7 @@ function LoginPage() {
         </CardHeader>
         <CardContent>
           <LoginForm />
+          <OTPForm />
         </CardContent>
       </Card>
     </div>

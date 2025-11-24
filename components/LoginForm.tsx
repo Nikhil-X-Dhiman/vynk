@@ -74,10 +74,13 @@ function LoginForm() {
         alert(`Form Validator Value: ${value.email}`);
       },
     },
-    onSubmit: ({ value }) => {
+    onSubmit: async ({ value }) => {
       alert(`Form Submitted Value: ${value.phone}`);
       alert(`Form Submitted Value: ${value.countryCode}`);
       console.log(`Form Submitted Value: ${JSON.stringify(value)}`);
+      // const result = await formAction(value);
+      // console.log('Server Action Result: ', result);
+      formAction(value);
     },
   });
 
@@ -98,7 +101,7 @@ function LoginForm() {
           form.handleSubmit();
         }}
         // action={loginActions}
-        action={formAction} // when using useActionState hook
+        // action={formAction} // when using useActionState hook
       >
         <FieldGroup>
           <form.Field name="countryCode">

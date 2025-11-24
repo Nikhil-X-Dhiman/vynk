@@ -6,6 +6,12 @@ export const loginSchema = z.object({
   email: z.email().optional(),
 });
 
+export const otpSchema = z.object({
+  pin: z.string().trim().min(6, {
+    message: 'Your one-time password must be 6 characters.',
+  }),
+});
+
 // export const countryCodeSchema = z.string().trim();
 // export const phoneSchema = z.string().trim();
 // export const emailSchema = z.email().optional();
