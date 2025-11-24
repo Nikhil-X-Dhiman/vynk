@@ -12,6 +12,13 @@ export const otpSchema = z.object({
   }),
 });
 
+export const usernameSchema = z.object({
+  username: z
+    .string()
+    .trim()
+    .min(3, { message: 'Username must atleast be 3 characters.' }),
+});
+
 // export const countryCodeSchema = z.string().trim();
 // export const phoneSchema = z.string().trim();
 // export const emailSchema = z.email().optional();

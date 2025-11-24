@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/card';
 import LoginForm from '@/components/LoginForm';
 import OTPForm from '@/components/OTPForm';
+import AvatarLogin from '@/components/AvatarLogin';
 // import {
 //   Command,
 //   CommandEmpty,
@@ -43,6 +44,7 @@ function LoginPage() {
         <CardContent>
           <LoginForm />
           <OTPForm />
+          <AvatarLogin />
         </CardContent>
       </Card>
     </div>

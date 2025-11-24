@@ -25,7 +25,10 @@ const formOpts = formOptions({
 });
 
 function OTPForm() {
-  const [state, formAction, isPending] = useActionState(otpActions, null);
+  const [state, formAction, isPending] = useActionState(otpActions, {
+    success: false,
+    message: '',
+  });
   const form = useForm({
     ...formOpts,
     validators: {
