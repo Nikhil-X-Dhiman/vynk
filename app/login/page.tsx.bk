@@ -1,0 +1,230 @@
+'use client';
+import { ToggleTheme } from '@/components/ToggleTheme';
+import { Field, formOptions, useForm } from '@tanstack/react-form';
+// import Image from 'next/image';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import SelectCountryVirtualizer from '@/components/ui/SelectCountryVirtualizer';
+import { useState } from 'react';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
+import { loginSchema } from '@/utils/schema/login-schema';
+
+interface Login {
+  email: string;
+  countryCode: string;
+  phone: string;
+}
+
+const defaultValues: Login = {
+  email: '',
+  countryCode: '',
+  phone: '',
+};
+
+export const formOpts = formOptions({
+  defaultValues,
+});
+
+// its part of validation, first validate through zod schema then do the following checks
+// const phone = parsePhoneNumberFromString('+919876543210');
+// if (phone && phone.isValid()) {
+//   console.log('✅ valid phone number');
+// } else {
+//   console.log('❌ invalid');
+// }
+
+export default function Login() {
+  const [selectedCode, setSelectedCode] = useState('+91');
+  const [open, setOpen] = useState(false);
+  // const onSelectCountry = (code: string) => {
+  //   setSelectedCode(code);
+  //   setOpen(false);
+  // };
+
+  const form = useForm({
+    ...formOpts,
+    onSubmit: async ({ value }) => {
+      // server action will come here
+      console.log(value);
+    },
+    // validators: {
+    //   onSubmitAsync: async ({ value }) => {
+    //     const hasErrors = await verifyFormOnServer(value);
+    //     if (hasErrors) {
+    //       // this method of error passing needs to be changed
+    //       return {
+    //         form: 'Invalid Form Entry',
+    //         fields: {
+    //           name: 'Must be String & of length more than 2',
+    //         },
+    //       };
+    //     }
+    //   }, // validate data on server & get the result
+    // },
+  });
+
+  return (
+    <>
+      Login <ToggleTheme />
+      <Card>
+        <CardHeader>
+          {/* <Image src="" alt="Brand-Img" width={200} height={100} /> */}
+          <CardTitle>VYNK Login</CardTitle>
+          <CardDescription>
+            Enter your phone number to receive an OTP
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              void form.handleSubmit();
+            }}
+          >
+            <div className="flex">
+              <form.Field name="countryCode">
+                {(field) => {
+                  return (
+                    <>
+                      <Select
+                        open={open}
+                        onOpenChange={setOpen}
+                        // value={selectedCode}
+                        value={field.state.value}
+                        // onValueChange={setSelectedCode}
+                        onValueChange={(value) => {
+                          field.handleChange(value);
+                          // setOpen(false);
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Code">
+                            {selectedCode}
+                          </SelectValue>
+                          {/* <SelectValue placeholder="Select Code" /> */}
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            <SelectLabel>Country Code</SelectLabel>
+                            <SelectCountryVirtualizer
+                              // onSelectCountry={onSelectCountry}
+                              onSelectCountry={(code) => {
+                                field.handleChange(code);
+                                setOpen(false);
+                              }}
+                            />
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    </>
+                  );
+                }}
+              </form.Field>
+              <form.Field
+                name="phone"
+                validators={{
+                  onBlur: ({ value }) => {
+                    const { success, error } =
+                      loginSchema.shape.phone.safeParse(value);
+                    if (!success) {
+                      console.log(error.issues[0]);
+
+                      return error.issues[0].message;
+                    }
+                  },
+                }}
+              >
+                {(field) => {
+                  return (
+                    <>
+                      <Input
+                        type="tel"
+                        placeholder="Phone Number"
+                        value={field.state.value}
+                        onBlur={field.handleBlur}
+                        onChange={(e) => field.handleChange(e.target.value)}
+                      />
+                      {!field.state.meta.isValid && (
+                        <em role="alert">
+                          {field.state.meta.errors.join(', ')}
+                        </em>
+                      )}
+                    </>
+                  );
+                }}
+              </form.Field>
+            </div>
+            <div className="flex items-center gap-4">
+              <hr className="flex-1 bg-gray-300" />
+              <span className="px-2 text-gray-600">or</span>
+              <hr className="flex-1 bg-gray-300" />
+            </div>
+
+            <form.Field
+              name="email"
+              validators={{
+                onBlur: ({ value }) => {
+                  // const { success, error } = emailSchema.safeParse(value);
+                  const { success, error } =
+                    loginSchema.shape.email.safeParse(value);
+                  if (!success) {
+                    console.log(error.issues[0]);
+                    return error.issues[0].message;
+                  }
+                },
+              }}
+            >
+              {(field) => {
+                return (
+                  <>
+                    <Input
+                      type="email"
+                      placeholder="Email (optional)"
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                    />
+                    {!field.state.meta.isValid && (
+                      <em role="alert">{field.state.meta.errors.join(', ')}</em>
+                    )}
+                  </>
+                );
+              }}
+            </form.Field>
+            <form.Subscribe
+              selector={(state) => [state.canSubmit, state.isSubmitting]}
+            >
+              {([canSubmit, isSubmitting]) => (
+                <Button
+                  type="submit"
+                  disabled={!canSubmit}
+                  variant={'outline'}
+                  size={'lg'}
+                  aria-label="send-otp"
+                >
+                  {isSubmitting ? '...' : 'Send OTP'}
+                </Button>
+              )}
+            </form.Subscribe>
+          </form>
+        </CardContent>
+      </Card>
+    </>
+  );
+}

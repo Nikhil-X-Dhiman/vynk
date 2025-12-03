@@ -18,7 +18,7 @@ export default function SelectCountryVirtualizer({
     count: countries.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 40, // item height
-    overscan: 15, // render a few extra items above/below viewport
+    overscan: 10, // render a few extra items above/below viewport
   });
   return (
     <>
