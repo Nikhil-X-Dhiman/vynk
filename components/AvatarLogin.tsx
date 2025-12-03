@@ -1,5 +1,5 @@
 'use client';
-import { useActionState, useState } from 'react';
+import { startTransition, useActionState, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { formOptions, useForm } from '@tanstack/react-form';
 import { Field, FieldGroup } from './ui/field';
@@ -14,13 +14,13 @@ import { avatarList } from '@/lib/avatar-list';
 interface userAvatar {
   avatar_id: string;
   username: string;
-  consent: boolean;
+  consent: string;
 }
 
 const defaultValues: userAvatar = {
   avatar_id: '',
   username: '',
-  consent: false,
+  consent: '',
 };
 
 const formOpts = formOptions({
@@ -44,8 +44,14 @@ function AvatarLogin() {
       },
     },
     onSubmit: ({ value }) => {
+      const formData = new FormData();
+      formData.append('avatarID', value.avatar_id);
+      formData.append('username', value.username);
+      formData.append('consent', value.consent);
       console.log('Form Upon OTP Submission', JSON.stringify(value));
-      formAction(value);
+      startTransition(() => {
+        formAction(formData);
+      });
     },
   });
   return (
@@ -55,6 +61,7 @@ function AvatarLogin() {
           e.preventDefault();
           form.handleSubmit();
         }}
+        // action={formAction}
       >
         <FieldGroup>
           <form.Field name="avatar_id">
@@ -63,6 +70,11 @@ function AvatarLogin() {
                 <Field>
                   <div>
                     <Avatar>
+                      <input
+                        type="hidden"
+                        name="avatar_id"
+                        value={selectedAvatar}
+                      />
                       <AvatarImage src={selectedAvatar} alt="main-avatar" />
                     </Avatar>
                   </div>
@@ -100,7 +112,9 @@ function AvatarLogin() {
             name="username"
             validators={{
               onChange: ({ value }) => {
-                const { success, error } = usernameSchema.safeParse(value);
+                const { success, error } = usernameSchema.safeParse({
+                  username: value,
+                });
                 if (!success) {
                   console.log(error.issues[0]);
                   return error.issues[0].message;
@@ -113,6 +127,7 @@ function AvatarLogin() {
                 <Field>
                   <Input
                     type="text"
+                    name="username"
                     placeholder="Enter Usesrname"
                     value={field.state.value}
                     onChange={(e) => field.handleChange(e.target.value)}
@@ -130,6 +145,7 @@ function AvatarLogin() {
               return (
                 <div className="flex items-start gap-3">
                   <Checkbox
+                    name="consent"
                     id="terms-2"
                     checked={field.state.value}
                     onCheckedChange={(checked) =>

@@ -8,13 +8,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-// import {
-//   Card,
-//   CardContent,
-//   CardDescription,
-//   CardHeader,
-//   CardTitle,
-// } from '@/components/ui/card';
 import {
   Command,
   CommandEmpty,
@@ -22,13 +15,21 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
-import { useActionState, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  startTransition,
+  useActionState,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Button } from '@/components/ui/button';
 import { countries } from '@/utils/countries-list';
 import { Check, ChevronsUpDown, X } from 'lucide-react';
 import Image from 'next/image';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import loginActions from '@/app/login/login.actions';
+import { loginActions } from '@/app/login/login.actions';
+// import loginActions from '@/app/login/login.actions';
 
 interface Login {
   email: string;
@@ -50,7 +51,10 @@ function LoginForm() {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const parentRef = useRef(null);
-  const [state, formAction, isPending] = useActionState(loginActions, null);
+  const [state, formAction, isPending] = useActionState(loginActions, {
+    success: false,
+    message: '',
+  });
 
   const filtered = useMemo(
     () =>
@@ -74,14 +78,22 @@ function LoginForm() {
         alert(`Form Validator Value: ${value.email}`);
       },
     },
-    onSubmit: async ({ value }) => {
-      alert(`Form Submitted Value: ${value.phone}`);
-      alert(`Form Submitted Value: ${value.countryCode}`);
-      console.log(`Form Submitted Value: ${JSON.stringify(value)}`);
-      // const result = await formAction(value);
-      // console.log('Server Action Result: ', result);
-      formAction(value);
-    },
+    // onSubmit: async ({ value }) => {
+    //   alert(`Form Submitted Value: ${value.phone}`);
+    //   alert(`Form Submitted Value: ${value.countryCode}`);
+    // console.log('Validated TanStack Form values', value);
+    // const fd = new FormData();
+    // fd.append('email', value.email);
+    // fd.append('countryCode', value.countryCode);
+    // fd.append('phone', value.phone);
+    // console.log('transition starting');
+    // startTransition(() => {
+    //   formAction(fd);
+    // });
+    //   // const result = await formAction(value);
+    //   // console.log('Server Action Result: ', result);
+    //   // formAction(value);
+    // },
   });
 
   useEffect(() => {
@@ -96,18 +108,26 @@ function LoginForm() {
   return (
     <>
       <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          form.handleSubmit();
-        }}
-        // action={loginActions}
-        // action={formAction} // when using useActionState hook
+        // onSubmit={(e) => {
+        //   form.handleSubmit();
+        // }}
+        action={formAction}
       >
+        <input
+          type="hidden"
+          name="countryCode"
+          value={form.state.values.countryCode}
+        />
         <FieldGroup>
           <form.Field name="countryCode">
             {(field) => {
               return (
                 <Field>
+                  {/* <input
+                    type="hidden"
+                    name="countryCode"
+                    value={field.state.value}
+                  /> */}
                   <Popover open={open} onOpenChange={setOpen}>
                     <PopoverTrigger asChild>
                       <Button
@@ -229,8 +249,14 @@ function LoginForm() {
             {(field) => {
               return (
                 <>
+                  {/* <input
+                    type="hidden"
+                    name="phone"
+                    value={form.state.values.phone}
+                  /> */}
                   <Input
                     type="tel"
+                    name="phone"
                     placeholder="Phone Number"
                     value={field.state.value}
                     onBlur={field.handleBlur}
@@ -252,7 +278,7 @@ function LoginForm() {
           <form.Field
             name="email"
             validators={{
-              onBlur: ({ value }) => {
+              onChange: ({ value }) => {
                 // const { success, error } = emailSchema.safeParse(value);
                 const { success, error } =
                   loginSchema.shape.email.safeParse(value);
@@ -266,11 +292,17 @@ function LoginForm() {
             {(field) => {
               return (
                 <>
+                  {/* <input
+                    type="hidden"
+                    name="email"
+                    value={form.state.values.email}
+                  /> */}
                   <Input
                     type="email"
+                    name="email"
                     placeholder="Email (optional)"
                     value={field.state.value}
-                    onBlur={field.handleBlur}
+                    // onBlur={field.handleBlur}
                     onChange={(e) => field.handleChange(e.target.value)}
                   />
                   {!field.state.meta.isValid && (
@@ -291,6 +323,12 @@ function LoginForm() {
               variant={'outline'}
               size={'lg'}
               aria-label="send-otp"
+              // onClick={(e) => {
+              //   const valid = form.handleSubmit();
+              //   if (!valid) {
+              //     e.preventDefault(); // block browser submit only on INVALID
+              //   }
+              // }}
             >
               {isSubmitting ? '...' : 'Send OTP'}
             </Button>

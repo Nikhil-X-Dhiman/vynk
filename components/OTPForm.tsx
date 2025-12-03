@@ -31,23 +31,24 @@ function OTPForm() {
   });
   const form = useForm({
     ...formOpts,
-    validators: {
-      onSubmit: ({ value }) => {
-        console.log('Form Validation upon OTP Submission', value.otp);
-      },
-    },
-    onSubmit: ({ value }) => {
-      console.log('Form Upon OTP Submission', value.otp);
-      formAction(value);
-    },
+    // validators: {
+    //   onSubmit: ({ value }) => {
+    //     console.log('Form Validation upon OTP Submission', value.otp);
+    //   },
+    // },
+    // onSubmit: ({ value }) => {
+    //   console.log('Form Upon OTP Submission', value.otp);
+    //   // formAction(value);
+    // },
   });
   return (
     <>
       <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          form.handleSubmit();
-        }}
+        // onSubmit={(e) => {
+        //   e.preventDefault();
+        //   form.handleSubmit();
+        // }}
+        action={formAction}
       >
         <FieldGroup>
           <form.Field name="otp">
@@ -55,6 +56,7 @@ function OTPForm() {
               return (
                 <Field>
                   <InputOTP
+                    name="otp"
                     maxLength={6}
                     pattern={REGEXP_ONLY_DIGITS}
                     value={field.state.value}

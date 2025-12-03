@@ -8,11 +8,14 @@ interface userAvatar {
 
 async function avatarActions(
   prevState: { success: boolean; message: string },
-  formData: userAvatar,
+  formData: FormData,
 ) {
-  const { avatar_id, username, consent } = formData;
+  const { avatarID, username, consent } = Object.fromEntries(
+    formData.entries(),
+  );
+
   console.log(
-    `Server Action for Avatar Username: ${avatar_id} ${username} ${consent}`,
+    `Server Action for Avatar Username: ${avatarID} ${username} ${consent}`,
   );
   return { success: true, message: 'Form Submitted' };
 }

@@ -2,10 +2,11 @@
 
 async function otpActions(
   prevState: { success: boolean; message: string },
-  formData: { otp: string },
+  formData: FormData,
 ) {
-  console.log('Server Actions: ', formData);
-  console.log('Server Actions OTP: ', formData.otp);
+  console.log('Server action started');
+  // console.log('Server Actions: ', formData);
+  console.log('Server Actions OTP: ', formData.get('otp'));
 
   return { success: true, message: 'Form Submitted' };
 }
