@@ -7,7 +7,7 @@
 generator kysely {
   provider = "prisma-kysely"
   output   = "../types"
-} // generates types of kysely using Prisma schemas after generation
+} // generates types of kysely using Prisma schemas along side migration automatically
 
 datasource db {
   provider = "postgresql"
