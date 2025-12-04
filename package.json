@@ -25,6 +25,7 @@
 		"@radix-ui/react-slot": "^1.2.4",
 		"@tanstack/react-form": "^1.23.8",
 		"@tanstack/react-virtual": "^3.13.12",
+		"better-auth": "^1.4.5",
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",
 		"cmdk": "^1.1.1",
@@ -42,6 +43,7 @@
 		"zod": "^4.1.12"
 	},
 	"devDependencies": {
+		"@better-auth/cli": "^1.4.5",
 		"@tailwindcss/postcss": "^4",
 		"@types/node": "^20",
 		"@types/pg": "^8.15.6",
