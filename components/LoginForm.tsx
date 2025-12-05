@@ -1,4 +1,5 @@
 'use client';
+import { Dispatch, SetStateAction } from 'react';
 import { loginSchema } from '@/utils/schema/login-schema';
 import { formOptions, useForm } from '@tanstack/react-form';
 import { Field, FieldGroup } from '@/components/ui/field';
@@ -28,17 +29,25 @@ import { countries } from '@/utils/countries-list';
 import { Check, ChevronsUpDown, X } from 'lucide-react';
 import Image from 'next/image';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { loginActions } from '@/app/login/login.actions';
+import { sendOTPAction } from '@/app/actions/auth.actions';
+
 // import loginActions from '@/app/login/login.actions';
 
 interface Login {
-  email: string;
   countryCode: string;
   phone: string;
 }
 
+interface PrevState {
+  success: boolean;
+  message: string;
+}
+
+interface LoginFormProps {
+  setPhoneNumber: Dispatch<SetStateAction<string>>;
+}
+
 const defaultValues: Login = {
-  email: '',
   countryCode: '',
   phone: '',
 };
@@ -47,14 +56,17 @@ export const formOpts = formOptions({
   defaultValues,
 });
 
-function LoginForm() {
+function LoginForm({ setPhoneNumber }: LoginFormProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const parentRef = useRef(null);
-  const [state, formAction, isPending] = useActionState(loginActions, {
-    success: false,
-    message: '',
-  });
+  const [state, formAction, isPending] = useActionState<PrevState, FormData>(
+    sendOTPAction,
+    {
+      success: false,
+      message: '',
+    },
+  );
 
   const filtered = useMemo(
     () =>
@@ -75,25 +87,26 @@ function LoginForm() {
     ...formOpts,
     validators: {
       onSubmit: ({ value }) => {
-        alert(`Form Validator Value: ${value.email}`);
+        // alert(`Form Validator Value: ${value.email}`);
+        console.log(`onSubmit Validation: ${value.countryCode}${value.phone}`);
       },
     },
-    // onSubmit: async ({ value }) => {
-    //   alert(`Form Submitted Value: ${value.phone}`);
-    //   alert(`Form Submitted Value: ${value.countryCode}`);
-    // console.log('Validated TanStack Form values', value);
-    // const fd = new FormData();
-    // fd.append('email', value.email);
-    // fd.append('countryCode', value.countryCode);
-    // fd.append('phone', value.phone);
-    // console.log('transition starting');
-    // startTransition(() => {
-    //   formAction(fd);
-    // });
-    //   // const result = await formAction(value);
-    //   // console.log('Server Action Result: ', result);
-    //   // formAction(value);
-    // },
+    onSubmit: async ({ value }) => {
+      // alert(`Form Submitted Value: ${value.phone}`);
+      // alert(`Form Submitted Value: ${value.countryCode}`);
+      console.log('Validated TanStack Form values', value);
+      setPhoneNumber(`${value.countryCode}${value.phone}`);
+      const fd = new FormData();
+      fd.append('countryCode', value.countryCode);
+      fd.append('phone', value.phone);
+      console.log('transition starting');
+      startTransition(() => {
+        formAction(fd);
+      });
+      // const result = await formAction(value);
+      // console.log('Server Action Result: ', result);
+      // formAction(value);
+    },
   });
 
   useEffect(() => {
@@ -108,10 +121,11 @@ function LoginForm() {
   return (
     <>
       <form
-        // onSubmit={(e) => {
-        //   form.handleSubmit();
-        // }}
-        action={formAction}
+        onSubmit={(e) => {
+          e.preventDefault();
+          form.handleSubmit();
+        }}
+        // action={formAction}
       >
         <input
           type="hidden"
@@ -123,11 +137,11 @@ function LoginForm() {
             {(field) => {
               return (
                 <Field>
-                  {/* <input
+                  <input
                     type="hidden"
                     name="countryCode"
                     value={field.state.value}
-                  /> */}
+                  />
                   <Popover open={open} onOpenChange={setOpen}>
                     <PopoverTrigger asChild>
                       <Button
@@ -275,7 +289,7 @@ function LoginForm() {
             <hr className="flex-1 bg-gray-300" />
           </div>
 
-          <form.Field
+          {/* <form.Field
             name="email"
             validators={{
               onChange: ({ value }) => {
@@ -292,11 +306,11 @@ function LoginForm() {
             {(field) => {
               return (
                 <>
-                  {/* <input
+                  <input
                     type="hidden"
                     name="email"
                     value={form.state.values.email}
-                  /> */}
+                  />
                   <Input
                     type="email"
                     name="email"
@@ -311,7 +325,7 @@ function LoginForm() {
                 </>
               );
             }}
-          </form.Field>
+          </form.Field> */}
         </FieldGroup>
         <form.Subscribe
           selector={(state) => [state.canSubmit, state.isSubmitting]}

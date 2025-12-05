@@ -1,4 +1,4 @@
-// 'use client';
+'use client';
 // import { loginSchema } from '@/utils/schema/login-schema';
 // import { formOptions, useForm } from '@tanstack/react-form';
 // import { Field, FieldGroup } from '@/components/ui/field';
@@ -18,6 +18,7 @@ import {
 import LoginForm from '@/components/LoginForm';
 import OTPForm from '@/components/OTPForm';
 import AvatarLogin from '@/components/AvatarLogin';
+import { useState } from 'react';
 // import {
 //   Command,
 //   CommandEmpty,
@@ -34,6 +35,7 @@ import AvatarLogin from '@/components/AvatarLogin';
 // import loginActions from './login.actions';
 
 function LoginPage() {
+  const [phoneNumber, setPhoneNumber] = useState<string>('');
   return (
     <div>
       <Card>
@@ -42,8 +44,8 @@ function LoginPage() {
           <CardDescription></CardDescription>
         </CardHeader>
         <CardContent>
-          <LoginForm />
-          <OTPForm />
+          <LoginForm setPhoneNumber={setPhoneNumber} />
+          <OTPForm phoneNumber={phoneNumber} />
           <AvatarLogin />
         </CardContent>
       </Card>

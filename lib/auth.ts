@@ -1,5 +1,6 @@
 import { betterAuth } from 'better-auth';
 import { emailOTP, phoneNumber } from 'better-auth/plugins';
+import { nextCookies } from 'better-auth/next-js';
 import { env } from 'process';
 import { Pool } from 'pg';
 import { request } from 'https';
@@ -49,7 +50,8 @@ export const auth = betterAuth({
             from: 'onboarding@resend.dev',
             to: 'nikhil.x.dhiman@gmail.com',
             subject: 'Hello World',
-            html: '<p>Congrats on sending your <strong>first email</strong>!</p>',
+            html: `<p>Congrats on sending your <strong>first email</strong>!</p>
+            <br /><p>OTP: ${otp}</p>`,
           });
         }
       },
@@ -57,12 +59,19 @@ export const auth = betterAuth({
     phoneNumber({
       async sendOTP({ phoneNumber, code }, ctx) {
         await twilioClient.messages.create({
-          body: 'Hey ND, Your OTP is 67676767',
+          body: `Hey ND, Your OTP is ${code}`,
           from: env.TWILIO_PHONE_NUMBER,
           to: '+917018419491',
         });
       },
+      signUpOnVerification: {
+        getTempEmail: (phoneNumber) => {
+          return `${phoneNumber}@vynk.co.in`;
+        },
+      },
+      requireVerification: true,
     }),
+    nextCookies(),
   ],
   secret: env.BETTER_AUTH_SECRET!,
 });
