@@ -1,6 +1,8 @@
 'use server';
 
 import { auth } from '@/lib/auth';
+import { headers } from 'next/headers';
+import { redirect } from 'next/navigation';
 
 async function sendOTPAction(
   prevState: {
@@ -23,8 +25,9 @@ async function sendOTPAction(
     console.log(data.message);
 
     return { success: true, message: 'Done' };
-  } catch {
-    return { success: false, message: 'Error' };
+  } catch (error) {
+    console.error('Verification Error:', error);
+    return { success: false, message: 'Error during verification' };
   }
 }
 
@@ -48,10 +51,16 @@ async function verifyOTPAction(
       },
     });
     return { success: true, message: 'Done' };
-  } catch {
-    return { success: false, message: 'Error' };
+  } catch (error) {
+    console.error('Verification Error:', error);
+    return { success: false, message: 'Error during verification' };
   }
-  // const { phone, otp } = Object.fromEntries(formData.entries());
 }
 
-export { sendOTPAction, verifyOTPAction };
+async function signOutAction() {
+  await auth.api.signOut({
+    headers: await headers(),
+  });
+  redirect('/');
+}
+export { sendOTPAction, verifyOTPAction, signOutAction };

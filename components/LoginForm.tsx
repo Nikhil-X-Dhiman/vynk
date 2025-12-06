@@ -95,12 +95,12 @@ function LoginForm({ setPhoneNumber }: LoginFormProps) {
       // alert(`Form Submitted Value: ${value.phone}`);
       // alert(`Form Submitted Value: ${value.countryCode}`);
       console.log('Validated TanStack Form values', value);
-      setPhoneNumber(`${value.countryCode}${value.phone}`);
       const fd = new FormData();
       fd.append('countryCode', value.countryCode);
       fd.append('phone', value.phone);
       console.log('transition starting');
       startTransition(() => {
+        setPhoneNumber(`${value.countryCode}${value.phone}`);
         formAction(fd);
       });
       // const result = await formAction(value);
@@ -121,7 +121,7 @@ function LoginForm({ setPhoneNumber }: LoginFormProps) {
   return (
     <>
       <form
-        onSubmit={(e) => {
+        onSubmit={(e: React.FormEvent) => {
           e.preventDefault();
           form.handleSubmit();
         }}

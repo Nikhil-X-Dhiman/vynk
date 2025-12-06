@@ -55,7 +55,7 @@ function OTPForm({ phoneNumber }: OTPFormProps) {
   return (
     <>
       <form
-        onSubmit={(e) => {
+        onSubmit={(e: React.FormEvent) => {
           e.preventDefault();
           form.handleSubmit();
         }}

@@ -61,12 +61,15 @@ export const auth = betterAuth({
         await twilioClient.messages.create({
           body: `Hey ND, Your OTP is ${code}`,
           from: env.TWILIO_PHONE_NUMBER,
-          to: '+917018419491',
+          to: phoneNumber,
         });
       },
       signUpOnVerification: {
         getTempEmail: (phoneNumber) => {
           return `${phoneNumber}@vynk.co.in`;
+        },
+        getTempName: (phoneNumber) => {
+          return phoneNumber;
         },
       },
       requireVerification: true,
