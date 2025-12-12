@@ -3,35 +3,14 @@ import React, { useState } from 'react';
 import AvatarLogin from '../AvatarLogin';
 import LoginForm from '../LoginForm';
 import OTPForm from '../OTPForm';
+import { authClient } from '@/lib/auth-client';
 
-interface AuthFlowProps {
-  session: {
-    session: {
-      id: string;
-      createdAt: Date;
-      updatedAt: Date;
-      userId: string;
-      expiresAt: Date;
-      token: string;
-      ipAddress?: string | null | undefined | undefined;
-      userAgent?: string | null | undefined | undefined;
-    };
-    user: {
-      id: string;
-      createdAt: Date;
-      updatedAt: Date;
-      email: string;
-      emailVerified: boolean;
-      name: string;
-      image?: string | null | undefined | undefined;
-      phoneNumber?: string | null | undefined;
-      phoneNumberVerified?: boolean | null | undefined;
-    };
-  } | null;
-}
-
-function AuthFlow({ session }: AuthFlowProps) {
+function AuthFlow() {
+  const { data: session, isPending } = authClient.useSession();
   const [phoneNumber, setPhoneNumber] = useState<string>('');
+  if (isPending) {
+    console.log('Loading...');
+  }
   return (
     <>
       {!session && !phoneNumber && (
@@ -45,7 +24,7 @@ function AuthFlow({ session }: AuthFlowProps) {
         </p>
       )}
 
-      {session && <AvatarLogin />}
+      {session && <AvatarLogin phoneNumber={phoneNumber} />}
     </>
   );
 }

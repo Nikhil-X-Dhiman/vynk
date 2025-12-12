@@ -14,7 +14,7 @@ async function sendOTPAction(
   try {
     const countryCode = formData.get('countryCode')?.toString();
     const number = formData.get('phone')?.toString().replace(/\D/g, '');
-    const phoneNumber = `${countryCode}${number}`;
+    const phoneNumber = `+${countryCode}${number}`;
     console.log(`OTP Server Action -> Send OTP: ${phoneNumber}`);
 
     const data = await auth.api.sendPhoneNumberOTP({
@@ -36,7 +36,8 @@ async function verifyOTPAction(
   formData: FormData,
 ) {
   try {
-    const phoneNumber = formData.get('phone')?.toString();
+    let phoneNumber = formData.get('phone')?.toString();
+    phoneNumber = `+${phoneNumber}`;
     const code = formData.get('otp')?.toString();
     if (!phoneNumber || !code) {
       return { success: false, message: 'Missing phone or otp' };
@@ -61,6 +62,6 @@ async function signOutAction() {
   await auth.api.signOut({
     headers: await headers(),
   });
-  redirect('/');
+  redirect('/login');
 }
 export { sendOTPAction, verifyOTPAction, signOutAction };

@@ -29,7 +29,7 @@ async function LoginPage() {
           )}
         </CardHeader>
         <CardContent>
-          <AuthFlow session={session} />
+          <AuthFlow />
         </CardContent>
       </Card>
     </div>

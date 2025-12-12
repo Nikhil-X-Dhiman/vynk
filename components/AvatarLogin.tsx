@@ -1,5 +1,5 @@
 'use client';
-import { startTransition, useActionState, useState } from 'react';
+import { startTransition, useActionState, useEffect, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { formOptions, useForm } from '@tanstack/react-form';
 import { Field, FieldGroup } from './ui/field';
@@ -8,31 +8,43 @@ import { Input } from './ui/input';
 import { Checkbox } from './ui/checkbox';
 import { Label } from './ui/label';
 import { Button } from './ui/button';
-import avatarActions from '@/app/login/avatar.actions';
 import { avatarList } from '@/lib/avatar-list';
+import avatarActions from '@/app/actions/avatar.actions';
+import { useRouter } from 'next/navigation';
 
 interface userAvatar {
   avatar_id: string;
   username: string;
-  consent: string;
+  consent: string | null;
+}
+interface AvatarLoginProps {
+  phoneNumber: string;
 }
 
 const defaultValues: userAvatar = {
   avatar_id: '',
   username: '',
-  consent: '',
+  consent: null,
 };
 
 const formOpts = formOptions({
   defaultValues,
 });
 
-function AvatarLogin() {
+function AvatarLogin({ phoneNumber }: AvatarLoginProps) {
+  const router = useRouter();
   const [selectedAvatar, setSelectedAvatar] = useState('avatar/3d_4.png');
   const [state, formAction, isPending] = useActionState(avatarActions, {
     success: false,
     message: '',
   });
+
+  useEffect(() => {
+    if (state.success) {
+      router.push('/chats');
+    }
+  }, [state.success, router]);
+
   const form = useForm({
     ...formOpts,
     validators: {
@@ -44,10 +56,13 @@ function AvatarLogin() {
       },
     },
     onSubmit: ({ value }) => {
+      // console.log('Consent: ', typeof value.consent);
+
       const formData = new FormData();
       formData.append('avatarID', value.avatar_id);
       formData.append('username', value.username);
-      formData.append('consent', value.consent);
+      formData.append('consent', value.consent === 'true' ? 'true' : 'false');
+      // formData requires string or Blob to be appended
       console.log('Form Upon OTP Submission', JSON.stringify(value));
       startTransition(() => {
         formAction(formData);
@@ -147,9 +162,9 @@ function AvatarLogin() {
                   <Checkbox
                     name="consent"
                     id="terms-2"
-                    checked={field.state.value}
+                    checked={field.state.value === 'true'}
                     onCheckedChange={(checked) =>
-                      field.handleChange(checked === true)
+                      field.handleChange(checked === true ? 'true' : null)
                     }
                   />
                   <div className="grid gap-2">
@@ -173,9 +188,9 @@ function AvatarLogin() {
               disabled={!canSubmit || isPending}
               variant={'outline'}
               size={'lg'}
-              aria-label="send-otp"
+              aria-label="Continue-to-chats"
             >
-              {isSubmitting ? '...' : 'Send OTP'}
+              {isSubmitting ? '...' : 'Continue to Chats'}
             </Button>
           )}
         </form.Subscribe>
