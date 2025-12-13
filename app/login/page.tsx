@@ -1,13 +1,4 @@
 // 'use client';
-// import { loginSchema } from '@/utils/schema/login-schema';
-// import { formOptions, useForm } from '@tanstack/react-form';
-// import { Field, FieldGroup } from '@/components/ui/field';
-// import { Input } from '@/components/ui/input';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
 import {
   Card,
   CardContent,
@@ -15,36 +6,30 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import LoginForm from '@/components/LoginForm';
-import OTPForm from '@/components/OTPForm';
-import AvatarLogin from '@/components/AvatarLogin';
-// import {
-//   Command,
-//   CommandEmpty,
-//   CommandInput,
-//   CommandItem,
-//   CommandList,
-// } from '@/components/ui/command';
-// import { useActionState, useEffect, useMemo, useRef, useState } from 'react';
-// import { Button } from '@/components/ui/button';
-// import { countries } from '@/utils/countries-list';
-// import { Check, ChevronsUpDown, X } from 'lucide-react';
-// import Image from 'next/image';
-// import { useVirtualizer } from '@tanstack/react-virtual';
-// import loginActions from './login.actions';
+import { signOutAction } from '../actions/auth.actions';
+import AuthFlow from '@/components/ui/AuthFlow';
+import { auth } from '@/lib/auth';
+import { headers } from 'next/headers';
 
-function LoginPage() {
+async function LoginPage() {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
   return (
     <div>
       <Card>
         <CardHeader>
           <CardTitle>Vynk</CardTitle>
           <CardDescription></CardDescription>
+          {session && (
+            <form action={signOutAction}>
+              <button type="submit">Logout</button>
+            </form>
+          )}
         </CardHeader>
         <CardContent>
-          <LoginForm />
-          <OTPForm />
-          <AvatarLogin />
+          <AuthFlow />
         </CardContent>
       </Card>
     </div>

@@ -1,6 +1,6 @@
 'use client';
 import { formOptions, useForm } from '@tanstack/react-form';
-import { useActionState } from 'react';
+import { startTransition, useActionState } from 'react';
 import { Field, FieldGroup } from './ui/field';
 import {
   InputOTP,
@@ -10,7 +10,7 @@ import {
 } from './ui/input-otp';
 import { REGEXP_ONLY_DIGITS } from 'input-otp';
 import { Button } from './ui/button';
-import otpActions from '@/app/login/otp.actions';
+import { verifyOTPAction } from '@/app/actions/auth.actions';
 
 interface Otp {
   otp: string;
@@ -20,35 +20,46 @@ const defaultValues: Otp = {
   otp: '',
 };
 
+interface OTPFormProps {
+  phoneNumber: string;
+}
+
 const formOpts = formOptions({
   defaultValues,
 });
 
-function OTPForm() {
-  const [state, formAction, isPending] = useActionState(otpActions, {
+function OTPForm({ phoneNumber }: OTPFormProps) {
+  const [state, formAction, isPending] = useActionState(verifyOTPAction, {
     success: false,
     message: '',
   });
   const form = useForm({
     ...formOpts,
-    // validators: {
-    //   onSubmit: ({ value }) => {
-    //     console.log('Form Validation upon OTP Submission', value.otp);
-    //   },
-    // },
-    // onSubmit: ({ value }) => {
-    //   console.log('Form Upon OTP Submission', value.otp);
-    //   // formAction(value);
-    // },
+    validators: {
+      onSubmit: ({ value }) => {
+        console.log('Form Validation upon OTP Submission', value.otp);
+      },
+    },
+    onSubmit: async ({ value }) => {
+      console.log('Form Upon OTP Submission', value.otp);
+      // formAction(value);
+      const fd = new FormData();
+      fd.append('otp', value.otp);
+      fd.append('phone', phoneNumber);
+      console.log('transition starting');
+      startTransition(() => {
+        formAction(fd);
+      });
+    },
   });
   return (
     <>
       <form
-        // onSubmit={(e) => {
-        //   e.preventDefault();
-        //   form.handleSubmit();
-        // }}
-        action={formAction}
+        onSubmit={(e: React.FormEvent) => {
+          e.preventDefault();
+          form.handleSubmit();
+        }}
+        // action={formAction}
       >
         <FieldGroup>
           <form.Field name="otp">
