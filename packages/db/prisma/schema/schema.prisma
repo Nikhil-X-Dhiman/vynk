@@ -1,0 +1,165 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator kysely {
+  provider = "prisma-kysely"
+  output   = "../../generated"
+}
+
+// generates types of kysely using Prisma schemas along side migration automatically
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String         @id @default(uuid())
+  phoneNumber   String?        @unique @map("phone_number")
+  countryCode   String?        @map("country_code")
+  userName      String?        @map("user_name")
+  email         String?        @unique
+  avatarUrl     String?        @default("avatar/3d_4.png") @map("avatar_url")
+  bio           String?
+  isVerified    Boolean?       @default(false) @map("is_verified")
+  reConsent     Boolean?       @default(true) @map("re_consent")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  // apply in redis db
+  // isOnline  Boolean @map("is_boolean")
+  // lastSeen  DateTime @map("last_seen")
+  // Relations
+  participants  Participant[]
+  conversations Conversation[]
+  messages      Message[]
+  reactions     Reaction[]
+  stories       Story[]
+  deliveries    Delivery[]
+
+  @@map("user")
+}
+
+model Conversation {
+  id              String            @id @default(uuid())
+  type            ConversationType?
+  title           String?
+  lastMessageId   String?           @unique @map("last_message_id")
+  createdByUserId String            @map("created_by")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt() @map("updated_at")
+  // Relations
+  participants    Participant[]
+  messages        Message[]
+  createdByRel    User              @relation(fields: [createdByUserId], references: [id])
+  lastMessageRel  Message?          @relation("LastMessage", fields: [lastMessageId], references: [id])
+
+  @@map("conversation")
+}
+
+model Participant {
+  id                String       @id @default(uuid())
+  conversationId    String       @map("conversation_id")
+  userId            String       @map("user_id")
+  role              Role?        @default(member)
+  unreadCount       Int          @default(0) @map("unread_count")
+  joinedAt          DateTime     @default(now()) @map("joined_at")
+  // Relations
+  conversationIdRel Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userIdRel         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId]) // Enforcing unique (conversation, user) pair
+  @@map("participant")
+}
+
+model Message {
+  id              String        @id @default(uuid())
+  conversationId  String        @map("conversation_id")
+  senderId        String        @map("sender_id")
+  mediaType       Media?        @default(text) @map("media_type")
+  mediaUrl        String?       @map("media_url")
+  content         String?
+  replyTo         String?       @map("reply_to")
+  isDeleted       Boolean?      @default(false) @map("is_deleted")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt() @map("updated_at")
+  // Relations
+  reactions       Reaction[]
+  deliveries      Delivery[]
+  isLastMessageOf Conversation? @relation("LastMessage")
+  conversationRel Conversation  @relation(fields: [conversationId], references: [id])
+  senderRel       User          @relation(fields: [senderId], references: [id])
+  replyToRel      Message?      @relation("MessageReply", fields: [replyTo], references: [id])
+  replies         Message[]     @relation("MessageReply")
+
+  @@map("message")
+}
+
+model Story {
+  id         String    @id @default(uuid())
+  type       Media?    @default(text)
+  contentUrl String?   @map("content_url")
+  userId     String    @map("user_id")
+  caption    String?
+  expiresAt  DateTime? @map("expires_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  // Relations
+  userIdRel  User      @relation(fields: [userId], references: [id])
+
+  @@map("story")
+}
+
+model Reaction {
+  id           String   @id @default(uuid())
+  messageId    String   @map("message_id")
+  userId       String   @map("user_id")
+  emoji        String?
+  createdAt    DateTime @map("created_at")
+  // Relations
+  messageIdRel Message  @relation(fields: [messageId], references: [id])
+  userIdRef    User     @relation(fields: [userId], references: [id])
+
+  @@unique([messageId, userId])
+  @@map("reaction")
+}
+
+model Delivery {
+  id           String   @id @default(uuid())
+  messageId    String   @map("message_id")
+  userId       String   @map("user_id")
+  status       Status?  @default(pending)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  // Relations
+  messageIdRel Message  @relation(fields: [messageId], references: [id])
+  userIdRef    User     @relation(fields: [userId], references: [id])
+
+  @@unique([messageId, userId])
+  @@map("delivery")
+}
+
+enum ConversationType {
+  private
+  group
+  broadcast
+}
+
+enum Role {
+  member
+  admin
+}
+
+enum Media {
+  text
+  image
+  video
+  file
+}
+
+enum Status {
+  pending
+  sent
+  delivered
+  seen
+}

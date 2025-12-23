@@ -1,0 +1,16 @@
+{
+  "name": "@repo/config",
+  "private": true,
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified for @repo/config\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.26.1"
+}

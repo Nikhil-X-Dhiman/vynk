@@ -1,0 +1,8 @@
+[
+  { "id": "av1", "name": "selfie-kid", "url": "avatar/3d_4.png" },
+  { "id": "av2", "name": "blue-outline-male", "url": "avatar/bluey_3.png" },
+  { "id": "av3", "name": "blue-outline-female", "url": "avatar/bluey_6.png" },
+  { "id": "av4", "name": "vibrent-1-male", "url": "avatar/vibrent_7.png" },
+  { "id": "av5", "name": "vibrent-1-female", "url": "avatar/vibrent_10.png" },
+  { "id": "av6", "name": "vibrent-2-female", "url": "avatar/vibrent_21.png" }
+]

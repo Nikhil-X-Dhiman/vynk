@@ -5,6 +5,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "dev:web": "pnpm --filter web dev",
+    "dev:socket": "pnpm --filter socket dev",
     "dev": "pnpm -r dev",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",

@@ -1,0 +1,47 @@
+services:
+  postgres-db:
+    image: postgres:latest
+    container_name: postgres-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgresdb_data:/var/lib/postgresql
+    networks:
+      - vynk-network
+    restart: unless-stopped
+    healthcheck:
+      # cmd-shell: heavier but req. for env variables
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER}']
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  redis-db:
+    image: redis:latest
+    container_name: redis-db
+    ports:
+      - '6379:6379'
+    volumes:
+      - redisdb_data:/data
+    networks:
+      - vynk-network
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD} --loglevel notice
+    restart: unless-stopped
+    healthcheck:
+      # cmd-shell: heavier but req. for env variables
+      test: ['CMD-SHELL', 'redis-cli -a "$REDIS_PASSWORD" ping']
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgresdb_data:
+  redisdb_data:
+
+networks:
+  vynk-network:
+    driver: bridge
