@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+
+    "baseUrl": ".",
+    "paths": {
+      "@repo/utils": ["packages/utils/src"],
+      "@repo/auth": ["packages/auth/src"],
+      "@repo/db": ["packages/db/src"],
+      "@repo/config": ["packages/config/src"]
+    }
+  }
+}
