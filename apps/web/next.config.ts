@@ -10,6 +10,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // transpilePackages: ['@repo/db'],
 };
 
 export default nextConfig;

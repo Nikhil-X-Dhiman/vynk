@@ -1,0 +1,106 @@
+import type { ColumnType } from "kysely";
+export type Generated<T> = T extends ColumnType<infer S, infer I, infer U>
+  ? ColumnType<S, I | undefined, U>
+  : ColumnType<T, T | undefined, T>;
+export type Timestamp = ColumnType<Date, Date | string, Date | string>;
+
+export const ConversationType = {
+    private: "private",
+    group: "group",
+    broadcast: "broadcast"
+} as const;
+export type ConversationType = (typeof ConversationType)[keyof typeof ConversationType];
+export const Role = {
+    member: "member",
+    admin: "admin"
+} as const;
+export type Role = (typeof Role)[keyof typeof Role];
+export const Media = {
+    text: "text",
+    image: "image",
+    video: "video",
+    file: "file"
+} as const;
+export type Media = (typeof Media)[keyof typeof Media];
+export const Status = {
+    pending: "pending",
+    sent: "sent",
+    delivered: "delivered",
+    seen: "seen"
+} as const;
+export type Status = (typeof Status)[keyof typeof Status];
+export type Conversation = {
+    id: string;
+    type: ConversationType | null;
+    title: string | null;
+    last_message_id: string | null;
+    created_by: string;
+    created_at: Generated<Timestamp>;
+    updated_at: Timestamp;
+};
+export type Delivery = {
+    id: string;
+    message_id: string;
+    user_id: string;
+    status: Generated<Status | null>;
+    created_at: Generated<Timestamp>;
+    updated_at: Timestamp;
+};
+export type Message = {
+    id: string;
+    conversation_id: string;
+    sender_id: string;
+    media_type: Generated<Media | null>;
+    media_url: string | null;
+    content: string | null;
+    reply_to: string | null;
+    is_deleted: Generated<boolean | null>;
+    created_at: Generated<Timestamp>;
+    updated_at: Timestamp;
+};
+export type Participant = {
+    id: string;
+    conversation_id: string;
+    user_id: string;
+    role: Generated<Role | null>;
+    unread_count: Generated<number>;
+    joined_at: Generated<Timestamp>;
+};
+export type Reaction = {
+    id: string;
+    message_id: string;
+    user_id: string;
+    emoji: string | null;
+    created_at: Timestamp;
+};
+export type Story = {
+    id: string;
+    type: Generated<Media | null>;
+    content_url: string | null;
+    user_id: string;
+    caption: string | null;
+    expires_at: Timestamp | null;
+    created_at: Generated<Timestamp>;
+};
+export type User = {
+    id: string;
+    phone_number: string | null;
+    country_code: string | null;
+    user_name: string | null;
+    email: string | null;
+    avatar_url: Generated<string | null>;
+    bio: string | null;
+    is_verified: Generated<boolean | null>;
+    re_consent: Generated<boolean | null>;
+    created_at: Generated<Timestamp>;
+    updated_at: Timestamp;
+};
+export type DB = {
+    conversation: Conversation;
+    delivery: Delivery;
+    message: Message;
+    participant: Participant;
+    reaction: Reaction;
+    story: Story;
+    user: User;
+};

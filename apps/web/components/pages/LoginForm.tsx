@@ -1,6 +1,6 @@
 'use client';
 import { Dispatch, SetStateAction } from 'react';
-import { loginSchema } from '@repo/shared';
+import { loginSchema } from '@repo/validation';
 import { formOptions, useForm } from '@tanstack/react-form';
 import { Field, FieldGroup } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -26,7 +26,7 @@ import {
 } from 'react';
 import { Button } from '@/components/ui/button';
 // import { countries } from '@/utils/countries-list';
-import countries from './../lib/data/countries.json' assert { type: 'json' };
+import countries from '@/lib/data/countries.json' assert { type: 'json' };
 import { Check, ChevronsUpDown, X } from 'lucide-react';
 import Image from 'next/image';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -66,15 +66,15 @@ function LoginForm({ setPhoneNumber }: LoginFormProps) {
     {
       success: false,
       message: '',
-    },
+    }
   );
 
   const filtered = useMemo(
     () =>
       countries.filter((c) =>
-        c.name.toLowerCase().includes(search.toLowerCase()),
+        c.name.toLowerCase().includes(search.toLowerCase())
       ),
-    [search],
+    [search]
   );
 
   const rowVirtualizer = useVirtualizer({
@@ -143,7 +143,10 @@ function LoginForm({ setPhoneNumber }: LoginFormProps) {
                     name="countryCode"
                     value={field.state.value}
                   />
-                  <Popover open={open} onOpenChange={setOpen}>
+                  <Popover
+                    open={open}
+                    onOpenChange={setOpen}
+                  >
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
@@ -214,7 +217,7 @@ function LoginForm({ setPhoneNumber }: LoginFormProps) {
                                           onError={(e) => {
                                             (
                                               e.currentTarget as HTMLImageElement
-                                            ).src = '/flags/default.svg';
+                                            ).src = '/assets/flags/default.svg';
                                           }}
                                           style={{ flexShrink: 0 }}
                                           width={20}

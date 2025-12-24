@@ -1,15 +1,15 @@
 'use client';
 import { formOptions, useForm } from '@tanstack/react-form';
 import { startTransition, useActionState } from 'react';
-import { Field, FieldGroup } from './ui/field';
+import { Field, FieldGroup } from '../ui/field';
 import {
   InputOTP,
   InputOTPGroup,
   InputOTPSeparator,
   InputOTPSlot,
-} from './ui/input-otp';
+} from '../ui/input-otp';
 import { REGEXP_ONLY_DIGITS } from 'input-otp';
-import { Button } from './ui/button';
+import { Button } from '../ui/button';
 import { verifyOTPAction } from '@/app/actions/auth-actions';
 
 interface Otp {

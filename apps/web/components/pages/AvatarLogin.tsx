@@ -1,13 +1,14 @@
 'use client';
 import { startTransition, useActionState, useEffect, useState } from 'react';
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { formOptions, useForm } from '@tanstack/react-form';
-import { Field, FieldGroup } from './ui/field';
-import { usernameSchema } from '@repo/shared';
-import { Input } from './ui/input';
-import { Checkbox } from './ui/checkbox';
-import { Label } from './ui/label';
-import { Button } from './ui/button';
+import { Field, FieldGroup } from '../ui/field';
+import { usernameSchema } from '@repo/validation';
+
+import { Input } from '../ui/input';
+import { Checkbox } from '../ui/checkbox';
+import { Label } from '../ui/label';
+import { Button } from '../ui/button';
 import avatarList from '@/lib/data/avatars.json' assert { type: 'json' };
 // import { avatarList } from '@/lib/avatar-list';
 import avatarActions from '@/app/actions/avatar-actions';
@@ -52,7 +53,7 @@ function AvatarLogin({ phoneNumber }: AvatarLoginProps) {
       onSubmit: ({ value }) => {
         console.log(
           'Form Validation upon username Submission',
-          JSON.stringify(value),
+          JSON.stringify(value)
         );
       },
     },
@@ -91,7 +92,10 @@ function AvatarLogin({ phoneNumber }: AvatarLoginProps) {
                         name="avatar_id"
                         value={selectedAvatar}
                       />
-                      <AvatarImage src={selectedAvatar} alt="main-avatar" />
+                      <AvatarImage
+                        src={selectedAvatar}
+                        alt="main-avatar"
+                      />
                     </Avatar>
                   </div>
                   <p>Choose an Avatar</p>
@@ -113,7 +117,10 @@ function AvatarLogin({ phoneNumber }: AvatarLoginProps) {
                           }`}
                         >
                           <Avatar>
-                            <AvatarImage src={avatar.url} alt={avatar.name} />
+                            <AvatarImage
+                              src={avatar.url}
+                              alt={avatar.name}
+                            />
                             <AvatarFallback>{avatar.name}</AvatarFallback>
                           </Avatar>
                         </button>
