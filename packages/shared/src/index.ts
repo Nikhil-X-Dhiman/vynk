@@ -1,5 +1,1 @@
-export {
-  loginSchema,
-  otpSchema,
-  usernameSchema,
-} from './../validation/login.schema';
+export { SOCKET_EVENTS } from './../constants';
