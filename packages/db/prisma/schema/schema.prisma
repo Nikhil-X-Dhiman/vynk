@@ -17,9 +17,9 @@ datasource db {
 
 model User {
   id            String         @id @default(uuid())
-  phoneNumber   String?        @unique @map("phone_number")
-  countryCode   String?        @map("country_code")
-  userName      String?        @map("user_name")
+  phoneNumber   String         @unique @map("phone_number")
+  countryCode   String         @map("country_code")
+  userName      String         @map("user_name")
   email         String?        @unique
   avatarUrl     String?        @default("avatar/3d_4.png") @map("avatar_url")
   bio           String?
@@ -37,13 +37,14 @@ model User {
   reactions     Reaction[]
   stories       Story[]
   deliveries    Delivery[]
+  storyViews StoryView[]
 
   @@map("user")
 }
 
 model Conversation {
   id              String            @id @default(uuid())
-  type            ConversationType?
+  type            ConversationType
   title           String?
   lastMessageId   String?           @unique @map("last_message_id")
   createdByUserId String            @map("created_by")
@@ -63,14 +64,17 @@ model Participant {
   conversationId    String       @map("conversation_id")
   userId            String       @map("user_id")
   role              Role?        @default(member)
+  lastReadMessageId String? @map("last_read_message_id")
   unreadCount       Int          @default(0) @map("unread_count")
   joinedAt          DateTime     @default(now()) @map("joined_at")
   // Relations
   conversationIdRel Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   userIdRel         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastReadMessageRel Message? @relation("LastReadMessage", fields: [lastReadMessageId], references: [id])
 
   @@unique([conversationId, userId]) // Enforcing unique (conversation, user) pair
   @@map("participant")
+  @@index([lastReadMessageId])
 }
 
 model Message {
@@ -92,8 +96,10 @@ model Message {
   senderRel       User          @relation(fields: [senderId], references: [id])
   replyToRel      Message?      @relation("MessageReply", fields: [replyTo], references: [id])
   replies         Message[]     @relation("MessageReply")
+  lastReadByRel Participant[] @relation("LastReadMessage")
 
   @@map("message")
+  @@index([conversationId, createdAt])
 }
 
 model Story {
@@ -102,12 +108,30 @@ model Story {
   contentUrl String?   @map("content_url")
   userId     String    @map("user_id")
   caption    String?
+
   expiresAt  DateTime? @map("expires_at")
   createdAt  DateTime  @default(now()) @map("created_at")
   // Relations
+  storyViews StoryView[]
   userIdRel  User      @relation(fields: [userId], references: [id])
 
   @@map("story")
+  @@index([userId, createdAt])
+}
+
+model StoryView {
+  id String @id @default(uuid())
+  userId String @map("user_id")
+  storyId String @map("story_id")
+  viewedAt DateTime @default(now()) @map("viewed_at")
+
+  userIdRel User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  storyIdRel Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, storyId]) // Ensures each user can view a story only once
+  @@map("story_view") // Name of the join table
+  @@index([storyId])
+
 }
 
 model Reaction {
@@ -115,7 +139,7 @@ model Reaction {
   messageId    String   @map("message_id")
   userId       String   @map("user_id")
   emoji        String?
-  createdAt    DateTime @map("created_at")
+  createdAt    DateTime @default(now()) @map("created_at")
   // Relations
   messageIdRel Message  @relation(fields: [messageId], references: [id])
   userIdRef    User     @relation(fields: [userId], references: [id])
@@ -132,11 +156,13 @@ model Delivery {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
   // Relations
-  messageIdRel Message  @relation(fields: [messageId], references: [id])
-  userIdRef    User     @relation(fields: [userId], references: [id])
+  messageIdRel Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userIdRef    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([messageId, userId])
   @@map("delivery")
+  @@index([userId, status])
+
 }
 
 enum ConversationType {
