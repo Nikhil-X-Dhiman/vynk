@@ -10,7 +10,7 @@ export const getSocket = () => {
       // autoConnect: false,
       transports: ['websocket'],
       ackTimeout: 10000,
-      retries: 3, // recommended
+      retries: 3,
     });
   }
   return socket;

@@ -1,10 +1,10 @@
 {
-  "name": "@repo/socket",
+  "name": "@repo/services",
   "private": true,
   "version": "1.0.0",
   "description": "",
-  "main": "server.ts",
-  "types": "server.ts",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -13,8 +13,6 @@
   "license": "ISC",
   "packageManager": "pnpm@10.26.1",
   "dependencies": {
-    "@repo/auth": "workspace:*",
-    "@repo/shared": "workspace:*",
-    "socket.io": "^4.8.3"
+    "twilio": "^5.11.1"
   }
 }

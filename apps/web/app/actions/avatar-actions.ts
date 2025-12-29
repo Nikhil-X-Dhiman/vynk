@@ -1,5 +1,8 @@
 'use server';
 import { auth } from '@/lib/auth/auth-server';
+import cloudinary, {
+  UploadApiResponse,
+} from '@/lib/services/cloudinary/client';
 import { db } from '@repo/db';
 import { headers } from 'next/headers';
 
@@ -8,7 +11,7 @@ async function avatarActions(
     success: boolean;
     message: string;
   },
-  formData: FormData,
+  formData: FormData
 ) {
   try {
     const session = await auth.api.getSession({
@@ -19,7 +22,7 @@ async function avatarActions(
     const consent =
       formData.get('consent')?.toString() === 'true' ? true : false;
     console.log(
-      `Server Action for Avatar Username: ${avatarID} ${username} ${consent}`,
+      `Server Action for Avatar Username: ${avatarID} ${username} ${consent}`
     );
     if (!username || !avatarID) {
       return { success: false, message: 'Server Action: Arguments are empty' };
@@ -88,5 +91,30 @@ async function avatarActions(
     return { success: false, message: 'Form Submitted' };
   }
 }
+// Upload Avatar to Cloudinary
+async function avatarUploadAction(
+  prevState: { success: boolean; message: string },
+  formData: FormData
+) {
+  const profileImg = formData.get('profile') as File;
+  const arrayBuffer = await profileImg.arrayBuffer();
+  const buffer = new Uint8Array(arrayBuffer);
+  const result = await new Promise<UploadApiResponse>((resolve, reject) => {
+    cloudinary.uploader
+      .upload_stream({ resource_type: 'image' }, function (error, result) {
+        if (error) {
+          reject(error);
+          return;
+        }
+        if (!result) {
+          reject(new Error('Upload Failed'));
+          return;
+        }
+        resolve(result);
+      })
+      .end(buffer);
+  });
+  const ProfileImgUrl = result.secure_url;
+}
 
-export default avatarActions;
+export { avatarActions, avatarUploadAction };

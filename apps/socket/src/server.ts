@@ -1,9 +1,9 @@
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-// import { SOCKET_EVENTS } from '../../../packages/shared/constants';
-import {SOCKET_EVENTS} from '@repo/shared';
+import { SOCKET_EVENTS } from '@repo/shared';
 import { joinRoomHandler } from './handlers/rooms';
 import { sendMessageHandler } from './handlers/message';
+import { getSession } from './auth/get-session';
 
 const PORT = 3001;
 const httpServer = createServer();
@@ -15,6 +15,22 @@ const io = new Server(httpServer, {
 });
 
 // TODO: Middleware for AUTH Checking
+io.use(async (socket, next) => {
+  try {
+    const cookie = socket.handshake.headers.cookie;
+    if (!cookie) return next(new Error('No cookies'));
+
+    const session = await getSession(cookie);
+    if (!session) return next(new Error('Unauthorized'));
+
+    socket.data.user = session.user;
+    socket.data.sessionId = session.session.id;
+
+    next();
+  } catch {
+    next(new Error('Unauthorized'));
+  }
+});
 
 io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
   // TODO: Event Listener Constants for error prone approach
