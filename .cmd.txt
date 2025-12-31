@@ -1,0 +1,17 @@
+- Create Docker Container
+docker compose -p vynk up -d
+
+- Prisma Schema Types Generation for Kysely
+pnpm --filter @repo/db run db:format
+pnpm --filter @repo/db run db:validate
+pnpm --filter @repo/db run db:generate
+
+- Commit Schema to DB
+pnpm --filter @repo/db run db:migrate
+
+- Create DB for better-auth (post cmd in docker compose)
+CREATE DATABASE better-auth;
+
+- Create Tables for better-auth
+pnpm dlx @better-auth/cli migrate
+

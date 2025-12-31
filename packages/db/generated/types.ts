@@ -31,10 +31,12 @@ export const Status = {
 export type Status = (typeof Status)[keyof typeof Status];
 export type Conversation = {
     id: string;
-    type: ConversationType | null;
+    type: ConversationType;
     title: string | null;
     last_message_id: string | null;
     created_by: string;
+    group_img: string | null;
+    group_bio: Generated<string | null>;
     created_at: Generated<Timestamp>;
     updated_at: Timestamp;
 };
@@ -63,6 +65,7 @@ export type Participant = {
     conversation_id: string;
     user_id: string;
     role: Generated<Role | null>;
+    last_read_message_id: string | null;
     unread_count: Generated<number>;
     joined_at: Generated<Timestamp>;
 };
@@ -71,7 +74,7 @@ export type Reaction = {
     message_id: string;
     user_id: string;
     emoji: string | null;
-    created_at: Timestamp;
+    created_at: Generated<Timestamp>;
 };
 export type Story = {
     id: string;
@@ -82,14 +85,20 @@ export type Story = {
     expires_at: Timestamp | null;
     created_at: Generated<Timestamp>;
 };
+export type StoryView = {
+    id: string;
+    user_id: string;
+    story_id: string;
+    viewed_at: Generated<Timestamp>;
+};
 export type User = {
     id: string;
-    phone_number: string | null;
-    country_code: string | null;
-    user_name: string | null;
+    phone_number: string;
+    country_code: string;
+    user_name: string;
     email: string | null;
     avatar_url: Generated<string | null>;
-    bio: string | null;
+    bio: Generated<string | null>;
     is_verified: Generated<boolean | null>;
     re_consent: Generated<boolean | null>;
     created_at: Generated<Timestamp>;
@@ -102,5 +111,6 @@ export type DB = {
     participant: Participant;
     reaction: Reaction;
     story: Story;
+    story_view: StoryView;
     user: User;
 };

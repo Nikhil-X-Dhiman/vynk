@@ -11,7 +11,7 @@ import { Label } from '../ui/label';
 import { Button } from '../ui/button';
 import avatarList from '@/lib/data/avatars.json' assert { type: 'json' };
 // import { avatarList } from '@/lib/avatar-list';
-import avatarActions from '@/app/actions/avatar-actions';
+import { avatarActions } from '@/app/actions/avatar-actions';
 import { useRouter } from 'next/navigation';
 
 interface userAvatar {

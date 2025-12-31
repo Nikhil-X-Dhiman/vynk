@@ -1,4 +1,7 @@
 import { defineConfig, env } from 'prisma/config';
+import { config } from 'dotenv';
+
+config({ path: '../../.env' });
 
 // Load the root monorepo .env
 

@@ -10,6 +10,10 @@ import { twilioClient } from '@repo/services';
 // import { request } from 'https';
 // import { resend } from './resend';
 // import { request } from 'http';
+import { config } from 'dotenv';
+
+config({ path: '../../../.env' });
+
 
 export const auth = betterAuth({
   database: new Pool({
