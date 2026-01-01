@@ -8,9 +8,11 @@ export const SOCKET_EVENTS = {
   MESSAGE_SEND: 'message:send',
   MESSAGE_NEW: 'message:new',
   MESSAGE_READ: 'message:read',
+  MESSAGE_SEEN: 'message:seen',
   TYPING_START: 'typing:start',
   TYPING_STOP: 'typing:stop',
   USER_TYPING: 'user:typing',
   USER_ONLINE: 'user:online',
   USER_SEEN: 'user:seen',
+  CONVERSATION_JOIN: 'conversation:join',
 } as const;

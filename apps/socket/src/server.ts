@@ -16,7 +16,8 @@ let users = 0;
 
 const io = new Server(httpServer, {
   connectionStateRecovery: {},
-  cors: { origin: 'http://localhost:3000', credentials: true },
+  cors: { origin: process.env.NEXT_URL, credentials: true },
+  pingTimeout: 30000,
 });
 
 // TODO: Middleware for AUTH Checking
