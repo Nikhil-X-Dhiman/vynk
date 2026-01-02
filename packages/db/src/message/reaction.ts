@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import { db } from '../../kysely/db';
 
-async function toggleReaction({
+async function toggleMessageReaction({
   messageId,
   userId,
   emoji,
@@ -36,4 +36,4 @@ async function toggleReaction({
     .execute();
 }
 
-export { toggleReaction };
+export { toggleMessageReaction };

@@ -4,7 +4,7 @@ import { markAsRead } from '@repo/db';
 import { SOCKET_EVENTS } from '@repo/shared';
 
 function registerReadEvents(socket: Socket) {
-  const userId = socket.data.user.id;
+  const userId: string = socket.data.user.id;
 
   socket.on(
     SOCKET_EVENTS.MESSAGE_READ,
@@ -22,5 +22,6 @@ function registerReadEvents(socket: Socket) {
     }
   );
 }
+// TODO: What if i have more than 1 message to read then how to handle the situation here? OR just pass the conversation ID & mark all the messages read for that user
 
 export { registerReadEvents };

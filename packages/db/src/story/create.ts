@@ -21,7 +21,7 @@ function createStory({
       caption,
       expires_at: expiresAt,
     })
-    .execute();
+    .executeTakeFirst();
 }
 
 export { createStory };

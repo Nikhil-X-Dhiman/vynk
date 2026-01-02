@@ -9,7 +9,7 @@ function registerPresenceEvents(socket: Socket) {
 
   // mark online on redis
   setUserOnline(userId);
-  io.emit(SOCKET_EVENTS.USER_ONLINE, { userId, seen: true });
+  io.emit(SOCKET_EVENTS.USER_ONLINE, { userId });
   // redis.set(`online:${userId}`, '1', 'EX', 60);
 
   socket.on('disconnect', async () => {

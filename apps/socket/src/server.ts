@@ -24,6 +24,8 @@ const io = new Server(httpServer, {
 io.use(authMiddleware);
 
 io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
+  const userId = socket.data.user.id;
+  socket.join(`user:${userId}`);
   registerPresenceEvents(socket);
   registerMessageEvents(socket);
   registerReadEvents(socket);

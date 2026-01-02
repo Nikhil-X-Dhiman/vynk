@@ -126,7 +126,7 @@ model StoryView {
   userId   String   @map("user_id")
   storyId  String   @map("story_id")
   viewedAt DateTime @default(now()) @map("viewed_at")
-
+  reaction  String?
   userIdRel  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   storyIdRel Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
 
