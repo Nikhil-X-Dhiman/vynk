@@ -9,6 +9,7 @@ import { registerPresenceEvents } from '../events/presence-events';
 import { registerMessageEvents } from '../events/message-events';
 import { registerReadEvents } from '../events/read-events';
 import { registerTypingEvents } from '../events/typing-events';
+import { joinSelf } from './rooms';
 
 const PORT = 3001;
 const httpServer = createServer();
@@ -24,8 +25,7 @@ const io = new Server(httpServer, {
 io.use(authMiddleware);
 
 io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
-  const userId = socket.data.user.id;
-  socket.join(`user:${userId}`);
+  joinSelf(socket);
   registerPresenceEvents(socket);
   registerMessageEvents(socket);
   registerReadEvents(socket);

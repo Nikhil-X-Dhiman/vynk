@@ -15,7 +15,7 @@ import { config } from 'dotenv';
 config({ path: '../../../.env' });
 
 
-export const auth = betterAuth({
+const auth = betterAuth({
   database: new Pool({
     connectionString: env.DATABASE_URL_AUTH,
   }), // built-in Kysely adapter
@@ -87,3 +87,5 @@ export const auth = betterAuth({
 });
 
 // TODO: Implement Secondary Storage using Redis here. URL: "https://www.better-auth.com/docs/concepts/database"
+
+export { auth };

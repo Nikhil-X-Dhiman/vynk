@@ -15,3 +15,7 @@ CREATE DATABASE better-auth;
 - Create Tables for better-auth
 pnpm dlx @better-auth/cli migrate
 
+
+- Init Project
+pnpm i
+pnpm run dev:web

@@ -5,15 +5,18 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev:web": "pnpm --filter web dev",
-    "dev:socket": "pnpm --filter socket dev",
-    "dev": "pnpm -r dev",
-    "build": "pnpm -r build",
-    "lint": "pnpm -r lint",
-    "typecheck": "pnpm -r typecheck"
+    "dev:web": "dotenv -e .env -- pnpm --filter web dev",
+    "dev:socket": "dotenv -e .env -- pnpm --filter socket dev",
+    "dev": "dotenv -e .env -- pnpm -r dev",
+    "build": "dotenv -e .env -- pnpm -r build",
+    "lint": "dotenv -e .env -- pnpm -r lint",
+    "typecheck": "dotenv -e .env -- pnpm -r typecheck"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "packageManager": "pnpm@10.26.1"
+  "packageManager": "pnpm@10.26.1",
+  "devDependencies": {
+    "dotenv-cli": "^11.0.0"
+  }
 }

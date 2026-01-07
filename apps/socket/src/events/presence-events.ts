@@ -1,14 +1,15 @@
 import { Socket } from 'socket.io';
 import { setUserOffline, setUserOnline } from '@repo/db';
-import { io } from '../src/server';
+import { io } from '../server';
 import { SOCKET_EVENTS } from '@repo/shared';
 // import { redis } from '../redis';
 
 function registerPresenceEvents(socket: Socket) {
   const userId = socket.data.user.id;
 
-  // mark online on redis
+  // Mark new user online on redis
   setUserOnline(userId);
+  // Announce new user presence to others
   io.emit(SOCKET_EVENTS.USER_ONLINE, { userId });
   // redis.set(`online:${userId}`, '1', 'EX', 60);
 

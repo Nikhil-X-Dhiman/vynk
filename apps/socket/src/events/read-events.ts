@@ -1,11 +1,11 @@
 import { Socket } from 'socket.io';
-import { io } from '../src/server';
+import { io } from '../server';
 import { markAsRead } from '@repo/db';
 import { SOCKET_EVENTS } from '@repo/shared';
 
 function registerReadEvents(socket: Socket) {
   const userId: string = socket.data.user.id;
-
+  // Called when user enters the Coversation
   socket.on(
     SOCKET_EVENTS.MESSAGE_READ,
     async ({ conversationId, messageId }) => {

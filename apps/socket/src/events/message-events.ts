@@ -1,7 +1,7 @@
 import { Socket } from 'socket.io';
-import { joinConversation } from '../src/rooms';
+import { joinConversation } from '../rooms';
 import { sendMessage } from '@repo/db';
-import { io } from '../src/server';
+import { io } from '../server';
 import { SOCKET_EVENTS } from '@repo/shared';
 
 function registerMessageEvents(socket: Socket) {
@@ -26,5 +26,6 @@ function registerMessageEvents(socket: Socket) {
     );
   });
 }
+// TODO: When userA join the conversation with userB, userA will join conversation but how will userB join the same conversation? need to write the logic to add the userB to conversation if not present already
 // TODO: Here, if i am at conversation page, then how will the above will behave if i an neither inside any conversation & neither the page will refresh, how will it give the latest update of new msg in conversation page
 export { registerMessageEvents };

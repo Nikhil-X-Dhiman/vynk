@@ -6,13 +6,14 @@
 
 generator kysely {
   provider = "prisma-kysely"
-  output   = "../../generated"
+  output   = "../../kysely/generated"
 }
 
 // generates types of kysely using Prisma schemas along side migration automatically
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL_APP")
 }
 
 model User {
@@ -51,7 +52,7 @@ model Conversation {
   groupImg        String?          @map("group_img")
   groupBio        String?          @default("Enter a group description here!!!") @map("group_bio")
   createdAt       DateTime         @default(now()) @map("created_at")
-  updatedAt       DateTime         @updatedAt() @map("updated_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
   // Relations
   participants    Participant[]
   messages        Message[]
@@ -73,9 +74,11 @@ model Participant {
   conversationIdRel  Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   userIdRel          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   lastReadMessageRel Message?     @relation("LastReadMessage", fields: [lastReadMessageId], references: [id])
+  updatedAt          DateTime     @updatedAt @map("updated_at")
 
   @@unique([conversationId, userId]) // Enforcing unique (conversation, user) pair
   @@index([lastReadMessageId])
+  @@index([userId, updatedAt])
   @@map("participant")
 }
 
@@ -89,7 +92,7 @@ model Message {
   replyTo         String?       @map("reply_to")
   isDeleted       Boolean?      @default(false) @map("is_deleted")
   createdAt       DateTime      @default(now()) @map("created_at")
-  updatedAt       DateTime      @updatedAt() @map("updated_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
   // Relations
   reactions       Reaction[]
   deliveries      Delivery[]
@@ -105,30 +108,33 @@ model Message {
 }
 
 model Story {
-  id         String  @id @default(uuid())
-  type       Media?  @default(text)
-  contentUrl String? @map("content_url")
-  userId     String  @map("user_id")
-  caption    String?
-
-  expiresAt  DateTime?   @map("expires_at")
-  createdAt  DateTime    @default(now()) @map("created_at")
+  id            String      @id @default(uuid())
+  type          Media?      @default(text)
+  contentUrl    String?     @map("content_url")
+  userId        String      @map("user_id")
+  caption       String?
+  text          String?
+  expiresAt     DateTime?   @map("expires_at")
+  createdAt     DateTime    @default(now()) @map("created_at")
   // Relations
-  storyViews StoryView[]
-  userIdRel  User        @relation(fields: [userId], references: [id])
+  storyViews    StoryView[]
+  storyReaction Reaction[]
+  userIdRel     User        @relation(fields: [userId], references: [id])
 
   @@index([userId, createdAt])
   @@map("story")
 }
 
 model StoryView {
-  id       String   @id @default(uuid())
-  userId   String   @map("user_id")
-  storyId  String   @map("story_id")
-  viewedAt DateTime @default(now()) @map("viewed_at")
-  reaction  String?
-  userIdRel  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  storyIdRel Story @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  storyId    String   @map("story_id")
+  viewedAt   DateTime @default(now()) @map("viewed_at")
+  reaction   String?
+  userIdRel  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  storyIdRel Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
   @@unique([userId, storyId]) // Ensures each user can view a story only once
   @@index([storyId])
@@ -137,12 +143,14 @@ model StoryView {
 
 model Reaction {
   id           String   @id @default(uuid())
-  messageId    String   @map("message_id")
+  messageId    String?  @map("message_id")
+  storyId      String?  @map("story_id")
   userId       String   @map("user_id")
   emoji        String?
   createdAt    DateTime @default(now()) @map("created_at")
   // Relations
-  messageIdRel Message  @relation(fields: [messageId], references: [id])
+  messageIdRel Message? @relation(fields: [messageId], references: [id])
+  storyIdRel   Story?   @relation(fields: [storyId], references: [id])
   userIdRef    User     @relation(fields: [userId], references: [id])
 
   @@unique([messageId, userId])

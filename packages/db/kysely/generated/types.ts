@@ -68,10 +68,12 @@ export type Participant = {
     last_read_message_id: string | null;
     unread_count: Generated<number>;
     joined_at: Generated<Timestamp>;
+    updated_at: Timestamp;
 };
 export type Reaction = {
     id: string;
-    message_id: string;
+    message_id: string | null;
+    story_id: string | null;
     user_id: string;
     emoji: string | null;
     created_at: Generated<Timestamp>;
@@ -82,6 +84,7 @@ export type Story = {
     content_url: string | null;
     user_id: string;
     caption: string | null;
+    text: string | null;
     expires_at: Timestamp | null;
     created_at: Generated<Timestamp>;
 };
@@ -90,6 +93,9 @@ export type StoryView = {
     user_id: string;
     story_id: string;
     viewed_at: Generated<Timestamp>;
+    reaction: string | null;
+    created_at: Generated<Timestamp>;
+    updated_at: Timestamp;
 };
 export type User = {
     id: string;

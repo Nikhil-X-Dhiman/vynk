@@ -1,33 +1,25 @@
 import { createClient } from 'redis';
-import { env } from 'process';
 
-const redis = await createClient({
-  url: `redis://${env.REDIS_USERNAME}:${env.REDIS_PASSWORD}@${env.REDIS_HOST}:${env.REDIS_PORT}`,
+const { REDIS_USERNAME, REDIS_PASSWORD, REDIS_HOST, REDIS_PORT } = process.env;
+
+// Build URL: fallback to defaults if some are missing
+const redisUrl = `redis://${REDIS_USERNAME || ''}:${REDIS_PASSWORD || ''}@${
+  REDIS_HOST || 'localhost'
+}:${REDIS_PORT || '6379'}`;
+
+const redis = createClient({
+  url: redisUrl,
 });
 
-redis.connect();
+redis.on('error', (err) => console.error('Redis Client Error', err));
 
-redis.on('error', (err)=>{
-  console.error(`Redis Error: ${err}`);
-})
+// Connect immediately
+if (!redis.isOpen) {
+  redis.connect().catch(() => {
+    console.error(
+      'Failed to connect to Redis. Check if Docker container is running.'
+    );
+  });
+}
 
-export {redis};
-
-// Online Users
-// export const setOnline = (userId: string) =>
-//   redis.set(`online:${userId}`, '1', 'EX', 60);
-
-// export const setOffline = (userId: string) => redis.del(`online:${userId}`);
-
-// export const isOnline = async (userId: string) =>
-//   Boolean(await redis.get(`online:${userId}`));
-
-
-// // Typing Indicator
-// export const setTyping = (conversationId: string, userId: string) =>
-//   redis.set(`typing:${conversationId}:${userId}`, '1', 'EX', 5);
-
-
-// // Last Seen
-// export const updateLastSeen = (userId: string) =>
-//   redis.set(`lastSeen:${userId}`, Date.now().toString());
+export { redis };

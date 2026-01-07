@@ -10,6 +10,7 @@ function AuthFlow() {
   const [phoneNumber, setPhoneNumber] = useState<string>('');
   if (isPending) {
     console.log('Loading...');
+    return <h1>Loading Session!!!</h1>;
   }
   return (
     <>
