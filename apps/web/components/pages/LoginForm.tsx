@@ -1,5 +1,5 @@
 'use client';
-import { Dispatch, SetStateAction } from 'react';
+// import { Dispatch, SetStateAction } from 'react';
 import { loginSchema } from '@repo/validation';
 import { formOptions, useForm } from '@tanstack/react-form';
 import { Field, FieldGroup } from '@/components/ui/field';
@@ -31,6 +31,7 @@ import { Check, ChevronsUpDown, X } from 'lucide-react';
 import Image from 'next/image';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { sendOTPAction } from '@/app/actions/auth-actions';
+import { useLoginStore } from '@/store';
 
 // import loginActions from '@/app/login/login.actions';
 
@@ -44,10 +45,6 @@ interface PrevState {
   message: string;
 }
 
-interface LoginFormProps {
-  setPhoneNumber: Dispatch<SetStateAction<string>>;
-}
-
 const defaultValues: Login = {
   countryCode: '',
   phone: '',
@@ -57,7 +54,9 @@ export const formOpts = formOptions({
   defaultValues,
 });
 
-function LoginForm({ setPhoneNumber }: LoginFormProps) {
+function LoginForm() {
+  const setPhoneNumber = useLoginStore((state) => state.setPhoneNumber);
+  const setPhonePrefix = useLoginStore((state) => state.setPhonePrefix);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const parentRef = useRef(null);
@@ -98,10 +97,11 @@ function LoginForm({ setPhoneNumber }: LoginFormProps) {
       console.log('Validated TanStack Form values', value);
       const fd = new FormData();
       fd.append('countryCode', value.countryCode);
+      await setPhonePrefix(value.countryCode);
       fd.append('phone', value.phone);
       console.log('transition starting');
       startTransition(() => {
-        setPhoneNumber(`${value.countryCode}${value.phone}`);
+        setPhoneNumber(`${value.phone}`);
         formAction(fd);
       });
       // const result = await formAction(value);

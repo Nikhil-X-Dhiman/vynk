@@ -13,14 +13,12 @@ import avatarList from '@/lib/data/avatars.json' assert { type: 'json' };
 // import { avatarList } from '@/lib/avatar-list';
 import { avatarActions } from '@/app/actions/avatar-actions';
 import { useRouter } from 'next/navigation';
+import { useLoginStore } from '@/store';
 
 interface userAvatar {
   avatar_id: string;
   username: string;
   consent: string | null;
-}
-interface AvatarLoginProps {
-  phoneNumber: string;
 }
 
 const defaultValues: userAvatar = {
@@ -33,7 +31,14 @@ const formOpts = formOptions({
   defaultValues,
 });
 
-function AvatarLogin({ phoneNumber }: AvatarLoginProps) {
+function AvatarLogin() {
+  const avatarURL = useLoginStore((state) => state.avatarURL);
+  const setAvatarURL = useLoginStore((state) => state.setAvatarURL);
+  const about = useLoginStore((state) => state.about);
+  const setAbout = useLoginStore((state) => state.setAbout);
+  const name = useLoginStore((state) => state.name);
+  const setLoggedIn = useLoginStore((state) => state.setLoggedIn);
+  const setName = useLoginStore((state) => state.setName);
   const router = useRouter();
   const [selectedAvatar, setSelectedAvatar] = useState('avatar/3d_4.png');
   const [state, formAction, isPending] = useActionState(avatarActions, {
@@ -62,12 +67,15 @@ function AvatarLogin({ phoneNumber }: AvatarLoginProps) {
 
       const formData = new FormData();
       formData.append('avatarID', value.avatar_id);
+      setAvatarURL(value.avatar_id);
       formData.append('username', value.username);
+      setName(value.username);
       formData.append('consent', value.consent === 'true' ? 'true' : 'false');
       // formData requires string or Blob to be appended
       console.log('Form Upon OTP Submission', JSON.stringify(value));
       startTransition(() => {
         formAction(formData);
+        setLoggedIn(true);
       });
     },
   });

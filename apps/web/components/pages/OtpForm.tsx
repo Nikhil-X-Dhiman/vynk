@@ -11,6 +11,7 @@ import {
 import { REGEXP_ONLY_DIGITS } from 'input-otp';
 import { Button } from '../ui/button';
 import { verifyOTPAction } from '@/app/actions/auth-actions';
+import { useLoginStore } from '@/store';
 
 interface Otp {
   otp: string;
@@ -20,15 +21,13 @@ const defaultValues: Otp = {
   otp: '',
 };
 
-interface OTPFormProps {
-  phoneNumber: string;
-}
-
 const formOpts = formOptions({
   defaultValues,
 });
 
-function OTPForm({ phoneNumber }: OTPFormProps) {
+function OTPForm() {
+  const phoneNumber = useLoginStore((state) => state.phoneNumber);
+  const phonePrefix = useLoginStore((state) => state.phonePrefix);
   const [state, formAction, isPending] = useActionState(verifyOTPAction, {
     success: false,
     message: '',
@@ -45,7 +44,8 @@ function OTPForm({ phoneNumber }: OTPFormProps) {
       // formAction(value);
       const fd = new FormData();
       fd.append('otp', value.otp);
-      fd.append('phone', phoneNumber);
+      fd.append('phonePrefix', phonePrefix);
+      fd.append('phoneNumber', phoneNumber);
       console.log('transition starting');
       startTransition(() => {
         formAction(fd);
