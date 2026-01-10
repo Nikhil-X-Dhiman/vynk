@@ -9,7 +9,7 @@ const useLoginStore = create(
       // states
       step: 1,
       phoneNumber: '',
-      phonePrefix: '',
+      countryCode: '',
       avatarURL: '',
       about: '',
       name: '',
@@ -22,8 +22,8 @@ const useLoginStore = create(
         set({ phoneNumber });
       },
 
-      setPhonePrefix: (phonePrefix: string) => {
-        set({ phonePrefix });
+      setCountryCode: (countryCode: string) => {
+        set({ countryCode });
       },
       // otpCode: '',
       // setOtpCode: (otpCode: string) => {
@@ -45,7 +45,7 @@ const useLoginStore = create(
         set({
           step: 1,
           phoneNumber: '',
-          phonePrefix: '',
+          countryCode: '',
           avatarURL: '',
           about: '',
           name: '',

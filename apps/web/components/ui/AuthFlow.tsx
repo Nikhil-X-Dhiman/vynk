@@ -1,14 +1,14 @@
 'use client';
-import React, { useState } from 'react';
-import { authClient, Session, User } from '@/lib/auth/auth-client';
 import LoginForm from '../pages/LoginForm';
 import OTPForm from '../pages/OtpForm';
 import AvatarLogin from '../pages/AvatarLogin';
 import { useLoginStore } from '@/store/login';
 import { useAuthStore } from '@/store/auth';
+import { getCurrentSession } from '@/lib/auth/get-session';
+import { log } from 'console';
 
 function AuthFlow() {
-  const { data, isPending, error } = authClient.useSession();
+  const { data, isPending } = getCurrentSession();
   const session = useAuthStore((state) => state.session);
   const setUser = useAuthStore((state) => state.setUser);
   const setSession = useAuthStore((state) => state.setSession);
@@ -26,7 +26,8 @@ function AuthFlow() {
   }
   return (
     <>
-      {step == 1 || (!phoneNumber && <LoginForm />)}
+      {console.log(step)}
+      {step == 1 && <LoginForm />}
 
       {step == 2 && phoneNumber && <OTPForm />}
 

@@ -1,0 +1,276 @@
+'use client';
+
+import { useActionState, useMemo, useState, startTransition } from 'react';
+import { useForm, formOptions } from '@tanstack/react-form';
+import { useLoginStore } from '@/store';
+import { sendOTPAction } from '@/app/actions/auth-actions';
+import { loginSchema } from '@repo/validation';
+
+// UI Components
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Field, FieldGroup } from '@/components/ui/field';
+import { Spinner } from '@/components/ui/spinner';
+import { StatusAlert } from '@/components/ui/StatusAlert';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandGroup,
+} from '@/components/ui/command';
+import { Check, ChevronsUpDown } from 'lucide-react';
+import Image from 'next/image';
+import { toast } from 'sonner';
+
+// Countries Data
+import countries from '@/lib/data/countries.json';
+
+interface Login {
+  countryCode: string;
+  phoneNumber: string;
+}
+
+interface PrevState {
+  success: boolean;
+  message: string;
+}
+
+const defaultValues: Login = {
+  countryCode: '',
+  phoneNumber: '',
+};
+
+export const formOpts = formOptions({
+  defaultValues,
+});
+
+function LoginForm() {
+  const setPhoneNumber = useLoginStore((state) => state.setPhoneNumber);
+  const setCountryCode = useLoginStore((state) => state.setCountryCode);
+  const setStep = useLoginStore((state) => state.setStep);
+
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
+
+  const [state, formAction, isPending] = useActionState<PrevState, FormData>(
+    sendOTPAction,
+    { success: false, message: '' }
+  );
+
+  // Simple filtering for 250 items is instant
+  const filtered = useMemo(
+    () =>
+      countries.filter((c) =>
+        c.name.toLowerCase().includes(search.toLowerCase())
+      ),
+    [search]
+  );
+
+  const form = useForm({
+    ...formOpts,
+    validators: {
+      onSubmit: ({ value }) => {
+        if (!value.countryCode) {
+          const msg = 'Country Code Not Selected';
+          toast.warning(`${msg}`);
+          return `${msg}`;
+        }
+
+        return undefined;
+      },
+    },
+    onSubmit: async ({ value }) => {
+      const fd = new FormData();
+      fd.append('countryCode', value.countryCode);
+      fd.append('phoneNumber', value.phoneNumber);
+
+      startTransition(async () => {
+        await formAction(fd);
+        if (state.success) {
+          setPhoneNumber(value.phoneNumber);
+          setCountryCode(value.countryCode);
+          setStep(2);
+        } else {
+          setError(state.message);
+          toast.error('Unable to send OTP', {
+            description: state.message || 'Unknown error occurred',
+          });
+        }
+      });
+    },
+  });
+
+  return (
+    <>
+      {error && (
+        <StatusAlert
+          variant="destructive"
+          title="Unable to Send OTP"
+          description={error}
+        />
+      )}
+      <form
+        onSubmit={(e: React.FormEvent) => {
+          e.preventDefault();
+          form.handleSubmit();
+        }}
+      >
+        <FieldGroup>
+          {/* Country Code Field */}
+          <form.Field name="countryCode">
+            {(field) => (
+              <Field>
+                <Popover
+                  open={open}
+                  onOpenChange={setOpen}
+                >
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={open}
+                      className="w-full justify-between"
+                    >
+                      {field.state.value
+                        ? `+${field.state.value}`
+                        : 'Select country'}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    className="p-0"
+                    side="bottom"
+                    align="start"
+                  >
+                    <Command shouldFilter={false}>
+                      <CommandInput
+                        placeholder="Search country..."
+                        value={search}
+                        onValueChange={setSearch}
+                      />
+                      <CommandList className="max-h-[300px] overflow-y-auto">
+                        {filtered.length === 0 ? (
+                          <CommandEmpty>No Country Found</CommandEmpty>
+                        ) : (
+                          <CommandGroup>
+                            {filtered.map((country) => (
+                              <CommandItem
+                                key={country.code}
+                                value={country.name}
+                                onSelect={() => {
+                                  field.handleChange(String(country.phone));
+                                  setOpen(false);
+                                  setSearch(''); // Reset search on selection
+                                }}
+                              >
+                                <div className="flex items-center gap-2 w-full">
+                                  <Image
+                                    src={`https://cdn.jsdelivr.net/npm/circle-flags/flags/${country.code.toLowerCase()}.svg`}
+                                    alt={country.name}
+                                    width={20}
+                                    height={20}
+                                    className="shrink-0"
+                                    unoptimized // Optional: skip next/image optimization for CDN svgs
+                                  />
+                                  <span className="flex-1 truncate">
+                                    {country.name}
+                                  </span>
+                                  <span className="text-muted-foreground text-xs">
+                                    +{country.phone}
+                                  </span>
+                                  {Number(field.state.value) ===
+                                    country.phone && (
+                                    <Check className="h-4 w-4 ml-auto" />
+                                  )}
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        )}
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </Field>
+            )}
+          </form.Field>
+
+          {/* Phone Number Field */}
+          <form.Field
+            name="phoneNumber"
+            validators={{
+              onChangeListenTo: ['countryCode'],
+              onSubmit: ({ value, fieldApi }) => {
+                const countryCode = fieldApi.form.getFieldValue('countryCode');
+                if (!countryCode) return undefined;
+
+                const fullNumber = `+${countryCode}${value}`;
+                const { success, error } =
+                  loginSchema.shape.phoneNumber.safeParse(fullNumber);
+
+                if (!success) return error.issues[0].message;
+                return undefined;
+              },
+            }}
+          >
+            {(field) => (
+              <div className="space-y-1">
+                <Input
+                  type="tel"
+                  name={field.name}
+                  placeholder="Phone Number"
+                  value={field.state.value}
+                  onBlur={field.handleBlur}
+                  onChange={(e) => field.handleChange(e.target.value)}
+                  className={!field.state.meta.isValid ? 'border-red-500' : ''}
+                />
+                {!field.state.meta.isValid &&
+                  field.state.meta.errors.length > 0 && (
+                    <p className="text-xs text-red-500 font-medium">
+                      {field.state.meta.errors.join(', ')}
+                    </p>
+                  )}
+              </div>
+            )}
+          </form.Field>
+
+          <div className="flex items-center gap-4 py-2">
+            <hr className="flex-1 bg-border" />
+            <span className="text-xs text-muted-foreground uppercase">or</span>
+            <hr className="flex-1 bg-border" />
+          </div>
+
+          <form.Subscribe
+            selector={(state) => [state.canSubmit, state.isSubmitting]}
+          >
+            {([canSubmit, isSubmitting]) => (
+              <Button
+                type="submit"
+                variant="outline"
+                disabled={!canSubmit || isPending || isSubmitting}
+                className="w-full"
+                size="lg"
+              >
+                {isSubmitting || isPending ? (
+                  <Spinner className="mr-2" />
+                ) : (
+                  'Send OTP'
+                )}
+              </Button>
+            )}
+          </form.Subscribe>
+        </FieldGroup>
+      </form>
+    </>
+  );
+}
+
+export default LoginForm;

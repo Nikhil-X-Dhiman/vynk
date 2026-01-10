@@ -3,7 +3,7 @@ import { startTransition, useActionState, useEffect, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { formOptions, useForm } from '@tanstack/react-form';
 import { Field, FieldGroup } from '../ui/field';
-import { usernameSchema } from '@repo/validation';
+import { nameSchema } from '@repo/validation';
 
 import { Input } from '../ui/input';
 import { Checkbox } from '../ui/checkbox';
@@ -37,7 +37,6 @@ function AvatarLogin() {
   const about = useLoginStore((state) => state.about);
   const setAbout = useLoginStore((state) => state.setAbout);
   const name = useLoginStore((state) => state.name);
-  const setLoggedIn = useLoginStore((state) => state.setLoggedIn);
   const setName = useLoginStore((state) => state.setName);
   const router = useRouter();
   const [selectedAvatar, setSelectedAvatar] = useState('avatar/3d_4.png');
@@ -75,7 +74,6 @@ function AvatarLogin() {
       console.log('Form Upon OTP Submission', JSON.stringify(value));
       startTransition(() => {
         formAction(formData);
-        setLoggedIn(true);
       });
     },
   });

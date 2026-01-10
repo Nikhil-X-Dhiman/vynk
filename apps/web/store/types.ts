@@ -5,8 +5,8 @@ type loginStoreTypes = {
   setStep: (step: number) => void;
   phoneNumber: string;
   setPhoneNumber: (phoneNumber: string) => void;
-  phonePrefix: string;
-  setPhonePrefix: (phonePrefix: string) => void;
+  countryCode: string;
+  setCountryCode: (countryCode: string) => void;
   // otpCode: string;
   // setOtpCode: (otpCode: string) => void;
   avatarURL: string;

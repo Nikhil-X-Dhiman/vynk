@@ -27,7 +27,8 @@ const formOpts = formOptions({
 
 function OTPForm() {
   const phoneNumber = useLoginStore((state) => state.phoneNumber);
-  const phonePrefix = useLoginStore((state) => state.phonePrefix);
+  const countryCode = useLoginStore((state) => state.countryCode);
+  const setStep = useLoginStore((state) => state.setStep);
   const [state, formAction, isPending] = useActionState(verifyOTPAction, {
     success: false,
     message: '',
@@ -44,10 +45,11 @@ function OTPForm() {
       // formAction(value);
       const fd = new FormData();
       fd.append('otp', value.otp);
-      fd.append('phonePrefix', phonePrefix);
+      fd.append('phonePrefix', countryCode);
       fd.append('phoneNumber', phoneNumber);
       console.log('transition starting');
       startTransition(() => {
+        setStep(3);
         formAction(fd);
       });
     },

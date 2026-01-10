@@ -1,4 +1,5 @@
 'use client';
+// TODO: 1. Display Error Message from the server action stored in useState: error
 // import { Dispatch, SetStateAction } from 'react';
 import { loginSchema } from '@repo/validation';
 import { formOptions, useForm } from '@tanstack/react-form';
@@ -19,6 +20,7 @@ import {
 import {
   startTransition,
   useActionState,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -29,17 +31,23 @@ import { Button } from '@/components/ui/button';
 import countries from '@/lib/data/countries.json' assert { type: 'json' };
 import { Check, ChevronsUpDown, X } from 'lucide-react';
 import Image from 'next/image';
-import { useVirtualizer } from '@tanstack/react-virtual';
 import { sendOTPAction } from '@/app/actions/auth-actions';
 import { useLoginStore } from '@/store';
+import { Spinner } from '../ui/spinner';
+import { StatusAlert } from '../ui/StatusAlert';
+import { toast } from 'sonner';
+import { CountrySelect } from '../login/CountrySelect';
 
 // import loginActions from '@/app/login/login.actions';
 
 interface Login {
   countryCode: string;
-  phone: string;
+  phoneNumber: string;
 }
 
+// enum Status {
+//   ''
+// }
 interface PrevState {
   success: boolean;
   message: string;
@@ -47,7 +55,7 @@ interface PrevState {
 
 const defaultValues: Login = {
   countryCode: '',
-  phone: '',
+  phoneNumber: '',
 };
 
 export const formOpts = formOptions({
@@ -56,8 +64,10 @@ export const formOpts = formOptions({
 
 function LoginForm() {
   const setPhoneNumber = useLoginStore((state) => state.setPhoneNumber);
-  const setPhonePrefix = useLoginStore((state) => state.setPhonePrefix);
+  const setCountryCode = useLoginStore((state) => state.setCountryCode);
+  const setStep = useLoginStore((state) => state.setStep);
   const [open, setOpen] = useState(false);
+  const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const parentRef = useRef(null);
   const [state, formAction, isPending] = useActionState<PrevState, FormData>(
@@ -76,57 +86,48 @@ function LoginForm() {
     [search]
   );
 
-  const rowVirtualizer = useVirtualizer({
-    count: filtered.length,
-    getScrollElement: () => parentRef.current,
-    estimateSize: () => 40, // item height
-    overscan: 30, // render a few extra items above/below viewport
-  });
-
   const form = useForm({
     ...formOpts,
     validators: {
       onSubmit: ({ value }) => {
-        // alert(`Form Validator Value: ${value.email}`);
-        console.log(`onSubmit Validation: ${value.countryCode}${value.phone}`);
+        if (!value) return 'Country Code Not Selected';
+        return undefined;
       },
     },
     onSubmit: async ({ value }) => {
-      // alert(`Form Submitted Value: ${value.phone}`);
-      // alert(`Form Submitted Value: ${value.countryCode}`);
-      console.log('Validated TanStack Form values', value);
       const fd = new FormData();
       fd.append('countryCode', value.countryCode);
-      await setPhonePrefix(value.countryCode);
-      fd.append('phone', value.phone);
-      console.log('transition starting');
-      startTransition(() => {
-        setPhoneNumber(`${value.phone}`);
-        formAction(fd);
+      fd.append('phoneNumber', value.phoneNumber);
+      startTransition(async () => {
+        await formAction(fd);
+        if (state.success) {
+          setPhoneNumber(value.phoneNumber);
+          setCountryCode(value.countryCode);
+          setStep(2);
+        } else {
+          setError(state.message);
+          toast.error('Unable to send OTP', {
+            description: `${error}`,
+          });
+        }
       });
-      // const result = await formAction(value);
-      // console.log('Server Action Result: ', result);
-      // formAction(value);
     },
   });
 
-  useEffect(() => {
-    if (open) {
-      const timer = setTimeout(() => {
-        rowVirtualizer.measure();
-      }, 0);
-      return () => clearTimeout(timer);
-    }
-  }, [open, rowVirtualizer]);
-
   return (
     <>
+      {error && (
+        <StatusAlert
+          variant="destructive"
+          title="Unable to Send OTP"
+          description={error}
+        />
+      )}
       <form
         onSubmit={(e: React.FormEvent) => {
           e.preventDefault();
           form.handleSubmit();
         }}
-        // action={formAction}
       >
         <input
           type="hidden"
@@ -135,14 +136,13 @@ function LoginForm() {
         />
         <FieldGroup>
           <form.Field name="countryCode">
-            {(field) => {
+            {(field)=>(
+              <CountrySelect value={field.state.value} onChange={field.handleChange} />
+            )}
+            {/* {(field) => {
               return (
                 <Field>
-                  <input
-                    type="hidden"
-                    name="countryCode"
-                    value={field.state.value}
-                  />
+
                   <Popover
                     open={open}
                     onOpenChange={setOpen}
@@ -248,19 +248,24 @@ function LoginForm() {
                   </Popover>
                 </Field>
               );
-            }}
+            }} */}
           </form.Field>
           <form.Field
-            name="phone"
+            name="phoneNumber"
             validators={{
-              onBlur: ({ value }) => {
-                const { success, error } =
-                  loginSchema.shape.phone.safeParse(value);
-                if (!success) {
-                  console.log(error.issues[0]);
+              onChangeListenTo: ['countryCode'],
+              onChange: ({ value, fieldApi }) => {
+                // Access the value of country code
+                const countryCode = fieldApi.form.getFieldValue('countryCode');
+                if (!countryCode) return undefined;
 
-                  return error.issues[0].message;
-                }
+                const fullNumber = `+${countryCode}${value}`;
+                console.log('full', fullNumber);
+
+                const { success, error } =
+                  loginSchema.shape.phoneNumber.safeParse(fullNumber);
+                if (!success) return error.issues[0].message;
+                return undefined;
               },
             }}
           >
@@ -274,7 +279,7 @@ function LoginForm() {
                   /> */}
                   <Input
                     type="tel"
-                    name="phone"
+                    name={field.name}
                     placeholder="Phone Number"
                     value={field.state.value}
                     onBlur={field.handleBlur}
@@ -292,44 +297,6 @@ function LoginForm() {
             <span className="px-2 text-gray-600">or</span>
             <hr className="flex-1 bg-gray-300" />
           </div>
-
-          {/* <form.Field
-            name="email"
-            validators={{
-              onChange: ({ value }) => {
-                // const { success, error } = emailSchema.safeParse(value);
-                const { success, error } =
-                  loginSchema.shape.email.safeParse(value);
-                if (!success) {
-                  console.log(error.issues[0]);
-                  return error.issues[0].message;
-                }
-              },
-            }}
-          >
-            {(field) => {
-              return (
-                <>
-                  <input
-                    type="hidden"
-                    name="email"
-                    value={form.state.values.email}
-                  />
-                  <Input
-                    type="email"
-                    name="email"
-                    placeholder="Email (optional)"
-                    value={field.state.value}
-                    // onBlur={field.handleBlur}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                  />
-                  {!field.state.meta.isValid && (
-                    <em role="alert">{field.state.meta.errors.join(', ')}</em>
-                  )}
-                </>
-              );
-            }}
-          </form.Field> */}
         </FieldGroup>
         <form.Subscribe
           selector={(state) => [state.canSubmit, state.isSubmitting]}
@@ -337,29 +304,15 @@ function LoginForm() {
           {([canSubmit, isSubmitting]) => (
             <Button
               type="submit"
-              disabled={!canSubmit || isPending}
+              disabled={!canSubmit || isPending || isSubmitting}
               variant={'outline'}
               size={'lg'}
               aria-label="send-otp"
-              // onClick={(e) => {
-              //   const valid = form.handleSubmit();
-              //   if (!valid) {
-              //     e.preventDefault(); // block browser submit only on INVALID
-              //   }
-              // }}
             >
-              {isSubmitting ? '...' : 'Send OTP'}
+              {isSubmitting ? <Spinner /> : 'Send OTP'}
             </Button>
           )}
         </form.Subscribe>
-        {/*! Delete this code line */}
-        {isPending && 'Submitting using useActionState...'}
-        {/* Del it too */}
-        {state && (
-          <p>
-            {state.success} .. {state.message}
-          </p>
-        )}
       </form>
     </>
   );
