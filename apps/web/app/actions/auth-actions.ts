@@ -2,8 +2,10 @@
 
 import { auth } from '@/lib/auth/auth-server';
 import { loginSchema } from '@repo/validation';
+import { createNewUser, findUserByPhone } from '@repo/db';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { StringFormatParams, success } from 'better-auth';
 
 async function sendOTPAction(
   prevState: {
@@ -61,10 +63,54 @@ async function verifyOTPAction(
   }
 }
 
+async function handleGetUserAction(formData: FormData) {
+  const phoneNumber = formData.get('phoneNumber')?.toString();
+  const countryCode = formData.get('countryCode')?.toString();
+  if (!phoneNumber || !countryCode)
+    return { success: false, message: 'GetUser: Data is missing' };
+
+  // call db to check user exists
+  const existingUser = await findUserByPhone({
+    phoneNumber,
+    countryCode,
+  });
+  if (!existingUser) return { success: false, user: null };
+
+  return { success: true, user: existingUser };
+}
+
+async function handleNewUserAction(formData: FormData) {
+  // phonenumber, countrycode, username, bio, avatarurl
+  const phoneNumber = formData.get('phone')?.toString();
+  const countryCode = formData.get('countryCode')?.toString();
+  const username = formData.get('username')?.toString();
+  const bio = formData.get('bio')?.toString();
+  const avatarUrl = formData.get('avatarURL')?.toString();
+  if (!phoneNumber || !countryCode || !username || !bio || !avatarUrl)
+    return { success: false, message: 'NewUser: Data is missing' };
+
+  const newUser = await createNewUser({
+    phoneNumber,
+    countryCode,
+    username,
+    bio,
+    avatarUrl,
+  });
+  if (newUser) return { success: false, user: null };
+  return { success: true, user: newUser };
+}
+
 async function signOutAction() {
   await auth.api.signOut({
     headers: await headers(),
   });
   redirect('/login');
 }
-export { sendOTPAction, verifyOTPAction, signOutAction };
+
+export {
+  sendOTPAction,
+  verifyOTPAction,
+  handleGetUserAction,
+  handleNewUserAction,
+  signOutAction,
+};

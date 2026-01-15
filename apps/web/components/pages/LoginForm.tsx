@@ -5,7 +5,11 @@ import { loginSchema } from '@repo/validation';
 import { formOptions, useForm } from '@tanstack/react-form';
 import { FieldGroup } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { startTransition, useActionState, useState } from 'react';
+import {
+  // useActionState,
+  useState,
+  useTransition,
+} from 'react';
 import { Button } from '@/components/ui/button';
 // import { countries } from '@/utils/countries-list';
 import { sendOTPAction } from '@/app/actions/auth-actions';
@@ -14,23 +18,15 @@ import { Spinner } from '../ui/spinner';
 import { StatusAlert } from '../ui/StatusAlert';
 import { toast } from 'sonner';
 import { CountrySelect } from '../login/CountrySelect';
+import { authClient } from '@/lib/auth/auth-client';
 
 // import loginActions from '@/app/login/login.actions';
-
-type Country = {
-  name: string;
-  code: string;
-  phone: number;
-};
 
 interface Login {
   countryCode: string;
   phoneNumber: string;
 }
 
-// enum Status {
-//   ''
-// }
 interface PrevState {
   success: boolean;
   message: string;
@@ -46,17 +42,18 @@ export const formOpts = formOptions({
 });
 
 function LoginForm() {
+  const [isPending, startTransition] = useTransition();
   const setPhoneNumber = useLoginStore((state) => state.setPhoneNumber);
   const setCountryCode = useLoginStore((state) => state.setCountryCode);
   const setStep = useLoginStore((state) => state.setStep);
   const [error, setError] = useState('');
-  const [state, formAction, isPending] = useActionState<PrevState, FormData>(
-    sendOTPAction,
-    {
-      success: false,
-      message: '',
-    }
-  );
+  // const [state, formAction, isPending] = useActionState<PrevState, FormData>(
+  //   sendOTPAction,
+  //   {
+  //     success: false,
+  //     message: '',
+  //   }
+  // );
 
   const form = useForm({
     ...formOpts,
@@ -67,19 +64,34 @@ function LoginForm() {
       },
     },
     onSubmit: async ({ value }) => {
-      const fd = new FormData();
-      fd.append('countryCode', String(value.countryCode));
-      fd.append('phoneNumber', value.phoneNumber);
+      // const fd = new FormData();
+      // fd.append('countryCode', String(value.countryCode));
+      // fd.append('phoneNumber', value.phoneNumber);
+      // startTransition(async () => {
+      //   await formAction(fd);
+      //   if (state.success) {
+      //     setPhoneNumber(value.phoneNumber);
+      //     setCountryCode(String(value.countryCode));
+      //     setStep(2);
+      //   } else {
+      //     setError(state.message);
+      //     toast.error('Unable to send OTP', {
+      //       description: `${error}`,
+      //     });
+      //   }
+      // });
       startTransition(async () => {
-        await formAction(fd);
-        if (state.success) {
+        const fullPhoneNumber = `${value.countryCode}${value.phoneNumber}`;
+        const result = await authClient.phoneNumber.sendOtp({
+          phoneNumber: fullPhoneNumber,
+        });
+        if (!result.error) {
           setPhoneNumber(value.phoneNumber);
           setCountryCode(String(value.countryCode));
           setStep(2);
         } else {
-          setError(state.message);
           toast.error('Unable to send OTP', {
-            description: `${error}`,
+            description: `${result.error.message}`,
           });
         }
       });
@@ -137,11 +149,6 @@ function LoginForm() {
             {(field) => {
               return (
                 <>
-                  {/* <input
-                    type="hidden"
-                    name="phone"
-                    value={form.state.values.phone}
-                  /> */}
                   <Input
                     type="tel"
                     name={field.name}

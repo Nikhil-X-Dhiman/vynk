@@ -121,7 +121,7 @@ function CountrySelect({ value, onChange }: CountrySelectProps) {
                 data={filtered}
                 itemContent={(index, country) => (
                   <div
-                    className={`flex items-center gap-2 w-full p-2 hover:bg-accent cursor-pointer transform-gpu ${
+                    className={`flex items-center gap-2 w-full px-3 py-2 hover:bg-accent cursor-pointer transform-gpu ${
                       focusedIndex === index ? 'bg-accent' : ''
                     }`}
                     key={country.code}

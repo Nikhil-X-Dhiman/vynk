@@ -1,6 +1,6 @@
 'use client';
 import { formOptions, useForm } from '@tanstack/react-form';
-import { startTransition, useActionState } from 'react';
+import { useTransition } from 'react';
 import { Field, FieldGroup } from '../ui/field';
 import {
   InputOTP,
@@ -10,8 +10,12 @@ import {
 } from '../ui/input-otp';
 import { REGEXP_ONLY_DIGITS } from 'input-otp';
 import { Button } from '../ui/button';
-import { verifyOTPAction } from '@/app/actions/auth-actions';
+import { handleGetUserAction } from '@/app/actions/auth-actions';
 import { useLoginStore } from '@/store';
+import { authClient } from '@/lib/auth/auth-client';
+import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
+import { Spinner } from '../ui/spinner';
 
 interface Otp {
   otp: string;
@@ -26,13 +30,15 @@ const formOpts = formOptions({
 });
 
 function OTPForm() {
+  const [isPending, startTransition] = useTransition();
+  const router = useRouter();
   const phoneNumber = useLoginStore((state) => state.phoneNumber);
   const countryCode = useLoginStore((state) => state.countryCode);
   const setStep = useLoginStore((state) => state.setStep);
-  const [state, formAction, isPending] = useActionState(verifyOTPAction, {
-    success: false,
-    message: '',
-  });
+  // const [state, formAction, isPending] = useActionState(verifyOTPAction, {
+  //   success: false,
+  //   message: '',
+  // });
   const form = useForm({
     ...formOpts,
     validators: {
@@ -42,15 +48,39 @@ function OTPForm() {
     },
     onSubmit: async ({ value }) => {
       console.log('Form Upon OTP Submission', value.otp);
-      // formAction(value);
-      const fd = new FormData();
-      fd.append('otp', value.otp);
-      fd.append('phonePrefix', countryCode);
-      fd.append('phoneNumber', phoneNumber);
-      console.log('transition starting');
-      startTransition(() => {
-        setStep(3);
-        formAction(fd);
+      // // formAction(value);
+      // const fd = new FormData();
+      // fd.append('otp', value.otp);
+      // fd.append('phonePrefix', countryCode);
+      // fd.append('phoneNumber', phoneNumber);
+      // console.log('transition starting');
+      // startTransition(() => {
+      //   setStep(3);
+      //   formAction(fd);
+      // });
+      startTransition(async () => {
+        const fullPhoneNumber = `${countryCode}${phoneNumber}`;
+        const result = await authClient.phoneNumber.verify({
+          phoneNumber: fullPhoneNumber,
+          code: value.otp,
+        });
+        if (!result.error) {
+          const fd = new FormData();
+          fd.append('phoneNumber', phoneNumber);
+          fd.append('countryCode', countryCode);
+          const { success, message, user } = await handleGetUserAction(fd);
+          if (success) {
+            // TODO: Enter user name in greetings
+            toast.success('Welcome Back');
+            router.push('/chats');
+          } else {
+            setStep(3);
+          }
+        } else {
+          toast.error('Unable to send OTP', {
+            description: `${result.error.message}`,
+          });
+        }
       });
     },
   });
@@ -97,27 +127,23 @@ function OTPForm() {
             }}
           </form.Field>
         </FieldGroup>
-        <form.Subscribe selector={(state) => [state.canSubmit]}>
-          {([canSubmit]) => (
+        <form.Subscribe
+          selector={(state) => [state.canSubmit, state.isSubmitting]}
+        >
+          {([canSubmit, isSubmitting]) => (
             <Button
               type="submit"
+              disabled={!canSubmit || isPending || isSubmitting}
               className="w-full mt-4"
               variant={'outline'}
-              disabled={!canSubmit || isPending}
+              aria-label="verify-otp"
             >
-              Verify OTP
+              {isSubmitting ? <Spinner /> : 'Verify OTP'}
             </Button>
           )}
         </form.Subscribe>
       </form>
       {/*! Delete this code line */}
-      {isPending && 'Submitting using useActionState...'}
-      {/* Del it too */}
-      {state && (
-        <p>
-          {state.success} .. {state.message}
-        </p>
-      )}
       <Button variant={'destructive'}>Wrong Number? Go Back</Button>
     </>
   );

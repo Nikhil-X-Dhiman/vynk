@@ -8,3 +8,4 @@ export * from './delivery';
 export * from './message';
 export * from './participant';
 export * from './story';
+export * from './auth';
