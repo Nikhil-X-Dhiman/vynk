@@ -16,6 +16,7 @@ import { authClient } from '@/lib/auth/auth-client';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { Spinner } from '../ui/spinner';
+import { useAuthStore } from '@/store/auth';
 
 interface Otp {
   otp: string;
@@ -35,6 +36,10 @@ function OTPForm() {
   const phoneNumber = useLoginStore((state) => state.phoneNumber);
   const countryCode = useLoginStore((state) => state.countryCode);
   const setStep = useLoginStore((state) => state.setStep);
+  const setUser = useAuthStore((state) => state.setUser);
+  const toggleIsAuthenticated = useAuthStore(
+    (store) => store.toggleIsAuthenticated
+  );
   // const [state, formAction, isPending] = useActionState(verifyOTPAction, {
   //   success: false,
   //   message: '',
@@ -60,11 +65,16 @@ function OTPForm() {
       // });
       startTransition(async () => {
         const fullPhoneNumber = `${countryCode}${phoneNumber}`;
-        const result = await authClient.phoneNumber.verify({
+        const { data, error } = await authClient.phoneNumber.verify({
           phoneNumber: fullPhoneNumber,
           code: value.otp,
         });
-        if (!result.error) {
+
+        if (!error) {
+          // set data in the zustand
+          setUser(data?.user);
+          toggleIsAuthenticated();
+
           const fd = new FormData();
           fd.append('phoneNumber', phoneNumber);
           fd.append('countryCode', countryCode);
@@ -74,11 +84,12 @@ function OTPForm() {
             toast.success('Welcome Back');
             router.push('/chats');
           } else {
+            // navigate to onboarding for username & profile pic
             setStep(3);
           }
         } else {
           toast.error('Unable to send OTP', {
-            description: `${result.error.message}`,
+            description: `${error.message}`,
           });
         }
       });

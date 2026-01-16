@@ -13,7 +13,7 @@ async function findUserByPhone({
       .selectAll()
       .where('phone_number', '=', phoneNumber)
       .where('country_code', '=', countryCode)
-      .executeTakeFirst();
+      .executeTakeFirstOrThrow();
 
     if (!user) {
       return false;

@@ -14,10 +14,15 @@ const useAuthStore = create(
 
       // actions
       setSession: (session: Session) => {
-        set({ session, isAuthenticated: true });
+        set({ session });
       },
       setUser: (user: User) => {
-        set({ user, isAuthenticated: true });
+        set({ user });
+      },
+      toggleIsAuthenticated: () => {
+        set((state) => ({
+          isAuthenticated: !state.isAuthenticated,
+        }));
       },
       reset: () => {
         set({

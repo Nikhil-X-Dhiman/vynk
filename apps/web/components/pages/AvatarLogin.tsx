@@ -3,7 +3,7 @@ import { startTransition, useActionState, useEffect, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { formOptions, useForm } from '@tanstack/react-form';
 import { Field, FieldGroup } from '../ui/field';
-import { nameSchema } from '@repo/validation';
+import { usernameSchema } from '@repo/validation';
 
 import { Input } from '../ui/input';
 import { Checkbox } from '../ui/checkbox';
