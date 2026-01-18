@@ -21,7 +21,6 @@ import { useRouter } from 'next/navigation';
 import { useLoginStore } from '@/store';
 import { handleCloudinarySignature } from '@/app/actions/cloudinary-actions';
 import { toast } from 'sonner';
-import { env } from 'process';
 import { Textarea } from '../ui/textarea';
 import { Spinner } from '../ui/spinner';
 import {
@@ -54,7 +53,7 @@ function AvatarLogin() {
   const countryCode = useLoginStore((state) => state.countryCode);
   const setAvatarURL = useLoginStore((state) => state.setAvatarURL);
   const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState('avatar/3d_4.png');
+  const [preview, setPreview] = useState('assets/avatar/3d_4.png');
   const setName = useLoginStore((state) => state.setName);
   const setAbout = useLoginStore((state) => state.setAbout);
   const reset = useLoginStore((state) => state.reset);
@@ -68,10 +67,20 @@ function AvatarLogin() {
   });
 
   useEffect(() => {
+    console.log('State Changed: ', state);
+    if (state.message === '' && !state.success) return;
+
     if (state.success) {
       router.push('/chats');
       reset();
-    } else toast.error("Something Went Wrong!!! Can't Login User");
+    } else {
+      toast.error(
+        typeof state.message === 'string'
+          ? state.message
+          : 'Something Went Wrong!!!',
+      );
+    }
+    console.log('State Changed Ended: ', state.message);
   }, [state, router, reset]);
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -81,11 +90,9 @@ function AvatarLogin() {
     setFile(tmpFile);
     // Show local preview immediately
     setPreview(URL.createObjectURL(tmpFile));
-    console.log('Avatar Changed with URL: ', preview);
   };
 
   const handleAvatarUpload = async () => {
-    console.log(`Avatar Upload Begin`);
     if (!file)
       return {
         success: false,
@@ -111,13 +118,14 @@ function AvatarLogin() {
       // 2. Prepare Form Data
       const fd = new FormData();
       fd.append('file', file);
-      fd.append('api_key', env.CLOUDINARY_API_KEY!);
+      fd.append('api_key', process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY!);
       fd.append('signature', signature!);
       fd.append('timestamp', timestamp!.toString());
       fd.append('folder', 'vynk_profilePic'); // Must match what you signed
 
       // 3. Direct Upload to Cloudinary
-      const cloudName = env.CLOUDINARY_CLOUD_NAME!;
+      const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME!;
+
       const response = await fetch(
         `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
         {
@@ -159,35 +167,38 @@ function AvatarLogin() {
           return `Submission Failed. Check Values Again: ${JSON.stringify(formattedError?.fieldErrors)}`;
       },
     },
-    onSubmit: ({ value }) => {
+    onSubmit: async ({ value }) => {
       // console.log('Consent: ', typeof value.consent);
-      startTransition(async () => {
-        console.log(`onSubmit Begins`);
+      console.log(`onSubmit Begins`);
 
-        setLoading(true);
-        const formData = new FormData();
-        formData.append('phoneNumber', phoneNumber);
-        formData.append('countryCode', countryCode);
-        formData.append('username', value.username);
-        setName(value.username);
-        formData.append('consent', value.consent === 'true' ? 'true' : 'false');
-        formData.append('bio', value.bio);
-        setAbout(value.bio);
-        // formData requires string or Blob to be appended
-        console.log('Form Upon OTP Submission', JSON.stringify(value));
-        if (file) {
-          const { success, data } = await handleAvatarUpload();
-          if (success) {
-            setAvatarURL(data);
-            formData.append('avatarUrl', value.avatarUrl);
-          }
-        } else {
-          setAvatarURL(preview);
-          formData.append('avatarUrl', preview);
+      setLoading(true);
+      const formData = new FormData();
+      formData.append('phoneNumber', phoneNumber);
+      formData.append('countryCode', countryCode);
+      formData.append('username', value.username);
+      setName(value.username);
+      formData.append('consent', value.consent === 'true' ? 'true' : 'false');
+      formData.append('bio', value.bio);
+      setAbout(value.bio);
+      // formData requires string or Blob to be appended
+      console.log('Form Upon OTP Submission', JSON.stringify(value));
+      if (file) {
+        const { success, data } = await handleAvatarUpload();
+        if (success) {
+          setAvatarURL(data);
+          formData.append('avatarUrl', data);
         }
-        formData.append('avatarID', value.avatarUrl);
-        setAvatarURL(value.avatarUrl);
-        await formAction(formData);
+      } else {
+        setAvatarURL(preview);
+        formData.append('avatarUrl', preview);
+      }
+      formData.append('avatarID', value.avatarUrl);
+      setAvatarURL(value.avatarUrl);
+
+      setLoading(false);
+      startTransition(() => {
+        console.log('Form Action Transition Begins');
+        formAction(formData);
       });
     },
   });

@@ -13,11 +13,11 @@ async function createNewUser(payload: CreateUser) {
   const { countryCode, phoneNumber, username, avatarUrl, bio } = payload;
   try {
     const result = await findUserByPhone({ phoneNumber, countryCode });
-    if (!result) return { success: false, message: 'User Already Exists' };
+    if (result) return { success: false, message: 'User Already Exists' };
     const newUser = await db
       .insertInto('user')
       .values({
-        id: randomUUID, // Generating ID manually
+        id: randomUUID(), // Generating ID manually
         phone_number: phoneNumber,
         country_code: countryCode,
         user_name: username,

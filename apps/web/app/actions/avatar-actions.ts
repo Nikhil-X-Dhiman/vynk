@@ -10,6 +10,7 @@ async function avatarActions(
   },
   formData: FormData,
 ) {
+  console.log('Form Action Begins');
   try {
     const session = await auth.api.getSession({
       headers: await headers(),
@@ -35,6 +36,7 @@ async function avatarActions(
         message: 'Server Action: Consent is Negative(False)',
       };
     }
+    console.log('Form Action Passed Checks');
 
     const payload = {
       phoneNumber: phoneNumber,

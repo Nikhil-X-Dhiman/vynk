@@ -1,6 +1,5 @@
 'use server';
 import { v2 as cloudinary } from 'cloudinary';
-import { env } from 'process';
 
 async function handleCloudinarySignature() {
   const timestamp = Math.round(new Date().getTime() / 1000);
@@ -10,7 +9,7 @@ async function handleCloudinarySignature() {
         timestamp: timestamp,
         folder: 'vynk_profilePic', // Optional: Organize in folders
       },
-      env.CLOUDINARY_API_SECRET!,
+      process.env.CLOUDINARY_API_SECRET!,
     );
     return { success: true, response: { signature, timestamp } };
   } catch (err) {

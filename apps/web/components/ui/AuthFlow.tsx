@@ -6,22 +6,24 @@ import { useLoginStore } from '@/store/login';
 import { useAuthStore } from '@/store/auth';
 import { getCurrentSession } from '@/lib/auth/get-session';
 import { log } from 'console';
+import { useEffect } from 'react';
 
 function AuthFlow() {
   const { data, isPending } = getCurrentSession();
   const session = useAuthStore((state) => state.session);
   const setUser = useAuthStore((state) => state.setUser);
   const setSession = useAuthStore((state) => state.setSession);
-  if (data != null) {
-    setUser(data.user);
-    setSession(data.session);
-  }
+  useEffect(() => {
+    if (data != null) {
+      setUser(data.user);
+      setSession(data.session);
+    }
+  }, [data, setUser, setSession]);
   const phoneNumber = useLoginStore((state) => state.phoneNumber);
   const step = useLoginStore((state) => state.step);
 
   // const [phoneNumber, setPhoneNumber] = useState<string>('');
   if (isPending) {
-    console.log('Loading...');
     return <h1>Loading Session!!!</h1>;
   }
   return (
