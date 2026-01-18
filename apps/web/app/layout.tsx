@@ -3,6 +3,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { Toaster } from '@/components/ui/sonner';
+import SessionProvider from '@/components/providers/SessionProvider';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -38,8 +39,10 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
-          <Toaster position="bottom-right" />
+          <SessionProvider>
+            {children}
+            <Toaster position="bottom-right" />
+          </SessionProvider>
         </ThemeProvider>
       </body>
     </html>
