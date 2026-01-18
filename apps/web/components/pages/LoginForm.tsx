@@ -12,7 +12,7 @@ import {
 } from 'react';
 import { Button } from '@/components/ui/button';
 // import { countries } from '@/utils/countries-list';
-import { sendOTPAction } from '@/app/actions/auth-actions';
+// import { sendOTPAction } from '@/app/actions/auth-actions';
 import { useLoginStore } from '@/store';
 import { Spinner } from '../ui/spinner';
 import { StatusAlert } from '../ui/StatusAlert';
@@ -59,7 +59,9 @@ function LoginForm() {
     ...formOpts,
     validators: {
       onSubmit: ({ value }) => {
-        if (!value) return 'Country Code Not Selected';
+        if (!value.countryCode) return 'Country Code Not Selected';
+        if (!value.phoneNumber) return 'Phone Number Required';
+
         return undefined;
       },
     },
@@ -81,13 +83,13 @@ function LoginForm() {
       //   }
       // });
       startTransition(async () => {
-        const fullPhoneNumber = `${value.countryCode}${value.phoneNumber}`;
+        const fullPhoneNumber = `+${value.countryCode}${value.phoneNumber}`;
         const result = await authClient.phoneNumber.sendOtp({
           phoneNumber: fullPhoneNumber,
         });
         if (!result.error) {
           setPhoneNumber(value.phoneNumber);
-          setCountryCode(String(value.countryCode));
+          setCountryCode(`+${String(value.countryCode)}`);
           setStep(2);
         } else {
           toast.error('Unable to send OTP', {
@@ -113,11 +115,11 @@ function LoginForm() {
           form.handleSubmit();
         }}
       >
-        <input
+        {/* <input
           type="hidden"
           name="countryCode"
           value={form.state.values.countryCode}
-        />
+        /> */}
         <FieldGroup>
           <form.Field name="countryCode">
             {(field) => (
@@ -131,7 +133,7 @@ function LoginForm() {
             name="phoneNumber"
             validators={{
               onChangeListenTo: ['countryCode'],
-              onChange: ({ value, fieldApi }) => {
+              onSubmit: ({ value, fieldApi }) => {
                 // Access the value of country code
                 const countryCode = fieldApi.form.getFieldValue('countryCode');
                 if (!countryCode) return undefined;
@@ -181,7 +183,7 @@ function LoginForm() {
               size={'lg'}
               aria-label="send-otp"
             >
-              {isSubmitting ? <Spinner /> : 'Send OTP'}
+              {isSubmitting || isPending ? <Spinner /> : 'Send OTP'}
             </Button>
           )}
         </form.Subscribe>

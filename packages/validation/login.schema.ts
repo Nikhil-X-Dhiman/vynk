@@ -8,16 +8,36 @@ const loginSchema = z.object({
   email: z.email('Invalid Email Address').optional(),
 });
 
-const otpSchema = z.object({
-  pin: z.string().trim().min(6, {
-    message: 'Your one-time password must be 6 characters.',
-  }),
+const otpSchema = z.string().trim().min(6, {
+  message: 'Your one-time password must be 6 characters.',
 });
 
-const nameSchema = z
-  .string()
-  .min(2, 'Name must be at least 2 characters')
-  .max(50, 'Name is too long')
-  .trim();
 
-export { loginSchema, otpSchema, nameSchema };
+const avatarPageSchema = z.object({
+  username: z
+    .string()
+    .min(2, 'Name must be at least 2 characters')
+    .max(50, 'Name is too long')
+    .trim(),
+  bio: z.string().trim().max(150, 'Bio is too long'),
+  avatarUrl: z.string(),
+});
+
+const usernameOnlySchema = avatarPageSchema.pick({username: true});
+const bioOnlySchema = avatarPageSchema.pick({bio: true});
+
+// const usernameSchema = z
+//   .string()
+//   .min(2, 'Name must be at least 2 characters')
+//   .max(50, 'Name is too long')
+//   .trim();
+
+// const bioSchema = z.string().trim().max(150, 'Bio is too long');
+
+export {
+  loginSchema,
+  otpSchema,
+  usernameOnlySchema,
+  bioOnlySchema,
+  avatarPageSchema,
+};

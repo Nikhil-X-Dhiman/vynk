@@ -1,9 +1,14 @@
 'use client';
-import { startTransition, useActionState, useEffect, useState } from 'react';
+import {
+  useActionState,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+} from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { formOptions, useForm } from '@tanstack/react-form';
 import { Field, FieldGroup } from '../ui/field';
-import { usernameSchema } from '@repo/validation';
 
 import { Input } from '../ui/input';
 import { Checkbox } from '../ui/checkbox';
@@ -14,17 +19,30 @@ import avatarList from '@/lib/data/avatars.json' assert { type: 'json' };
 import { avatarActions } from '@/app/actions/avatar-actions';
 import { useRouter } from 'next/navigation';
 import { useLoginStore } from '@/store';
+import { handleCloudinarySignature } from '@/app/actions/cloudinary-actions';
+import { toast } from 'sonner';
+import { env } from 'process';
+import { Textarea } from '../ui/textarea';
+import { Spinner } from '../ui/spinner';
+import {
+  avatarPageSchema,
+  bioOnlySchema,
+  usernameOnlySchema,
+} from '@repo/validation/login.schema';
 
 interface userAvatar {
-  avatar_id: string;
+  avatarUrl: string;
   username: string;
   consent: string | null;
+
+  bio: string;
 }
 
 const defaultValues: userAvatar = {
-  avatar_id: '',
+  avatarUrl: '',
   username: '',
   consent: null,
+  bio: '',
 };
 
 const formOpts = formOptions({
@@ -32,14 +50,18 @@ const formOpts = formOptions({
 });
 
 function AvatarLogin() {
-  const avatarURL = useLoginStore((state) => state.avatarURL);
+  const phoneNumber = useLoginStore((state) => state.phoneNumber);
+  const countryCode = useLoginStore((state) => state.countryCode);
   const setAvatarURL = useLoginStore((state) => state.setAvatarURL);
-  const about = useLoginStore((state) => state.about);
-  const setAbout = useLoginStore((state) => state.setAbout);
-  const name = useLoginStore((state) => state.name);
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState('avatar/3d_4.png');
   const setName = useLoginStore((state) => state.setName);
+  const setAbout = useLoginStore((state) => state.setAbout);
+  const reset = useLoginStore((state) => state.reset);
   const router = useRouter();
-  const [selectedAvatar, setSelectedAvatar] = useState('avatar/3d_4.png');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [isLoading, startTransition] = useTransition();
   const [state, formAction, isPending] = useActionState(avatarActions, {
     success: false,
     message: '',
@@ -48,8 +70,79 @@ function AvatarLogin() {
   useEffect(() => {
     if (state.success) {
       router.push('/chats');
+      reset();
+    } else toast.error("Something Went Wrong!!! Can't Login User");
+  }, [state, router, reset]);
+
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const tmpFile = e.target.files?.[0];
+    if (!tmpFile) return;
+
+    setFile(tmpFile);
+    // Show local preview immediately
+    setPreview(URL.createObjectURL(tmpFile));
+    console.log('Avatar Changed with URL: ', preview);
+  };
+
+  const handleAvatarUpload = async () => {
+    console.log(`Avatar Upload Begin`);
+    if (!file)
+      return {
+        success: false,
+        data: null,
+        message: '',
+        error: 'File Not Selected to upload',
+      };
+    setLoading(true);
+
+    try {
+      // 1. Get Permission (Signature) from Server
+      const { success, response: result } = await handleCloudinarySignature();
+      const { signature, timestamp, error } = result;
+      if (!success) {
+        toast.error(`${error}`);
+        return {
+          success: false,
+          data: null,
+          message: '',
+          error: 'Avatar Signing Failed',
+        };
+      }
+      // 2. Prepare Form Data
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('api_key', env.CLOUDINARY_API_KEY!);
+      fd.append('signature', signature!);
+      fd.append('timestamp', timestamp!.toString());
+      fd.append('folder', 'vynk_profilePic'); // Must match what you signed
+
+      // 3. Direct Upload to Cloudinary
+      const cloudName = env.CLOUDINARY_CLOUD_NAME!;
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+        {
+          method: 'POST',
+          body: fd,
+        },
+      );
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error.message);
+      // const fdx = new FormData();
+      // fdx.append('phoneNumber', phoneNumber);
+      // fdx.append('countryCode', countryCode);
+      // fdx.append('username', name);
+      // fdx.append('bio', about);
+
+      return { success: true, data: data.secure_url };
+    } catch (error) {
+      console.error('Upload failed:', error);
+      alert('Upload failed');
+      return { success: false, data: null, message: '', error: error };
+    } finally {
+      setLoading(false);
     }
-  }, [state.success, router]);
+  };
 
   const form = useForm({
     ...formOpts,
@@ -59,21 +152,42 @@ function AvatarLogin() {
           'Form Validation upon username Submission',
           JSON.stringify(value)
         );
+        if (!value.consent) return 'You have not given consent yet';
+        const { success, error } = avatarPageSchema.safeParse(value);
+        const formattedError = error?.flatten();
+        if (!success)
+          return `Submission Failed. Check Values Again: ${JSON.stringify(formattedError?.fieldErrors)}`;
       },
     },
     onSubmit: ({ value }) => {
       // console.log('Consent: ', typeof value.consent);
+      startTransition(async () => {
+        console.log(`onSubmit Begins`);
 
-      const formData = new FormData();
-      formData.append('avatarID', value.avatar_id);
-      setAvatarURL(value.avatar_id);
-      formData.append('username', value.username);
-      setName(value.username);
-      formData.append('consent', value.consent === 'true' ? 'true' : 'false');
-      // formData requires string or Blob to be appended
-      console.log('Form Upon OTP Submission', JSON.stringify(value));
-      startTransition(() => {
-        formAction(formData);
+        setLoading(true);
+        const formData = new FormData();
+        formData.append('phoneNumber', phoneNumber);
+        formData.append('countryCode', countryCode);
+        formData.append('username', value.username);
+        setName(value.username);
+        formData.append('consent', value.consent === 'true' ? 'true' : 'false');
+        formData.append('bio', value.bio);
+        setAbout(value.bio);
+        // formData requires string or Blob to be appended
+        console.log('Form Upon OTP Submission', JSON.stringify(value));
+        if (file) {
+          const { success, data } = await handleAvatarUpload();
+          if (success) {
+            setAvatarURL(data);
+            formData.append('avatarUrl', value.avatarUrl);
+          }
+        } else {
+          setAvatarURL(preview);
+          formData.append('avatarUrl', preview);
+        }
+        formData.append('avatarID', value.avatarUrl);
+        setAvatarURL(value.avatarUrl);
+        await formAction(formData);
       });
     },
   });
@@ -84,24 +198,36 @@ function AvatarLogin() {
           e.preventDefault();
           form.handleSubmit();
         }}
-        // action={formAction}
       >
         <FieldGroup>
-          <form.Field name="avatar_id">
+          <form.Field name="avatarUrl">
             {(field) => {
               return (
                 <Field>
                   <div>
-                    <Avatar>
+                    <Avatar className="relative">
                       <input
                         type="hidden"
-                        name="avatar_id"
-                        value={selectedAvatar}
+                        name="avatarUrl"
+                        value={preview}
+                      />
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleAvatarChange}
+                        className="hidden"
+                        accept="image/*"
                       />
                       <AvatarImage
-                        src={selectedAvatar}
+                        src={preview}
                         alt="main-avatar"
                       />
+                      <div
+                        className="w-2 h-2 font-bold border border-b-neutral-900 rounded-full absolute cursor-pointer opacity-80 hover:opacity-100 transition"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        +
+                      </div>
                     </Avatar>
                   </div>
                   <p>Choose an Avatar</p>
@@ -113,7 +239,8 @@ function AvatarLogin() {
                           key={avatar.id}
                           type="button"
                           onClick={() => {
-                            setSelectedAvatar(avatar.url);
+                            setPreview(avatar.url);
+                            setFile(null);
                             field.handleChange(avatar.id);
                           }}
                           className={`rounded-full p-1 transition ${
@@ -141,13 +268,14 @@ function AvatarLogin() {
             name="username"
             validators={{
               onChange: ({ value }) => {
-                const { success, error } = usernameSchema.safeParse({
+                const { success, error } = usernameOnlySchema.safeParse({
                   username: value,
                 });
                 if (!success) {
                   console.log(error.issues[0]);
                   return error.issues[0].message;
                 }
+                return undefined;
               },
             }}
           >
@@ -169,7 +297,42 @@ function AvatarLogin() {
               );
             }}
           </form.Field>
-          <form.Field name="consent">
+          <form.Field
+            name="bio"
+            validators={{
+              onChange: ({ value }) => {
+                const { success, error } = bioOnlySchema.safeParse({
+                  bio: value,
+                });
+                if (!success) {
+                  console.log(error.issues[0]);
+                  return error.issues[0].message;
+                }
+              },
+            }}
+          >
+            {(field) => {
+              return (
+                <Field>
+                  <Label htmlFor="about">User About</Label>
+                  <Textarea
+                    placeholder="Type your bio here."
+                    id="about"
+                    value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                  />
+                </Field>
+              );
+            }}
+          </form.Field>
+          <form.Field
+            name="consent"
+            validators={{
+              onChange: (value) => {
+                if (!value) return 'Consent is Required to Continue';
+              },
+            }}
+          >
             {(field) => {
               return (
                 <div className="flex items-start gap-3">
@@ -199,21 +362,19 @@ function AvatarLogin() {
           {([canSubmit, isSubmitting]) => (
             <Button
               type="submit"
-              disabled={!canSubmit || isPending}
+              disabled={!canSubmit || isPending || isLoading || loading}
               variant={'outline'}
               size={'lg'}
               aria-label="Continue-to-chats"
             >
-              {isSubmitting ? '...' : 'Continue to Chats'}
+              {isSubmitting || isPending || isLoading || loading ? (
+                <Spinner />
+              ) : (
+                'Save & Continue'
+              )}
             </Button>
           )}
         </form.Subscribe>
-        {/* Del it too */}
-        {state && (
-          <p>
-            {state.success} .. {state.message}
-          </p>
-        )}
       </form>
     </>
   );

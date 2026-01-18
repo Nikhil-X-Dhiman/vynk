@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { Spinner } from '../ui/spinner';
 import { useAuthStore } from '@/store/auth';
+import { otpSchema } from '@repo/validation';
 
 interface Otp {
   otp: string;
@@ -48,7 +49,9 @@ function OTPForm() {
     ...formOpts,
     validators: {
       onSubmit: ({ value }) => {
-        console.log('Form Validation upon OTP Submission', value.otp);
+        const { success, error } = otpSchema.safeParse(value.otp);
+        if (!success) return error.issues[0].message;
+        return undefined;
       },
     },
     onSubmit: async ({ value }) => {
@@ -78,7 +81,7 @@ function OTPForm() {
           const fd = new FormData();
           fd.append('phoneNumber', phoneNumber);
           fd.append('countryCode', countryCode);
-          const { success, message, user } = await handleGetUserAction(fd);
+          const { success } = await handleGetUserAction(fd);
           if (success) {
             // TODO: Enter user name in greetings
             toast.success('Welcome Back');
