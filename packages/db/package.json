@@ -7,17 +7,16 @@
   "types": "src/index.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "db:validate": "PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1 prisma validate --schema ./prisma/schema/schema.prisma",
-    "db:format": "PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1 prisma format --schema ./prisma/schema/schema.prisma",
-    "db:generate": "PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1 prisma generate --schema ./prisma/schema/schema.prisma",
-    "db:migrate": "PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1 prisma migrate dev --schema ./prisma/schema/schema.prisma"
+    "db:validate": "prisma validate --schema ./prisma/schema/schema.prisma",
+    "db:format": "prisma format --schema ./prisma/schema/schema.prisma",
+    "db:generate": "prisma generate --schema ./prisma/schema/schema.prisma",
+    "db:migrate": "prisma migrate dev --schema ./prisma/schema/schema.prisma"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "packageManager": "pnpm@10.26.1",
   "dependencies": {
-    "dotenv": "^17.2.3",
     "kysely": "^0.28.9",
     "pg": "^8.16.3",
     "prisma-kysely": "^2.2.1",

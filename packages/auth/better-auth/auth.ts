@@ -2,17 +2,9 @@ import { betterAuth } from 'better-auth';
 import { phoneNumber } from 'better-auth/plugins';
 import { nextCookies } from 'better-auth/next-js';
 import { env } from 'process';
-// import { Pool } from 'pg';
 import { Pool } from '@repo/db';
 import { twilioClient } from '@repo/services';
-// import { twilioClient } from '../../services/src';
-// import { twilioClient } from '../services/sms/twilio';
-// import { request } from 'https';
-// import { resend } from './resend';
-// import { request } from 'http';
-import { config } from 'dotenv';
 
-config({ path: '../../../.env' });
 
 
 const auth = betterAuth({
@@ -23,16 +15,6 @@ const auth = betterAuth({
     cookiePrefix: 'vynk',
     useSecureCookies: true,
   },
-  // emailVerification: {
-  //   sendVerificationEmail: async ({ user, url, token }, request) => {
-  //     void sendEmail({
-  //       to: user.email,
-  //       subject: 'Verify your email address',
-  //       text: `Click the link to verify your email: ${url}`,
-  //     });
-  //   },
-  //   sendOnSignUp: true,
-  // },
   rateLimit: {
     enabled: true,
     window: 60,
@@ -50,19 +32,6 @@ const auth = betterAuth({
     },
   },
   plugins: [
-    // emailOTP({
-    //   async sendVerificationOTP({ email, otp, type }) {
-    //     if (type === 'email-verification') {
-    //       await resend.emails.send({
-    //         from: 'onboarding@resend.dev',
-    //         to: 'nikhil.x.dhiman@gmail.com',
-    //         subject: 'Hello World',
-    //         html: `<p>Congrats on sending your <strong>first email</strong>!</p>
-    //         <br /><p>OTP: ${otp}</p>`,
-    //       });
-    //     }
-    //   },
-    // }),
     phoneNumber({
       async sendOTP({ phoneNumber, code }) {
         await twilioClient.messages.create({
