@@ -13,7 +13,8 @@ import {
   Star,
   Archive,
 } from 'lucide-react';
-import { signOutAction } from '@/app/actions/auth-actions';
+import { authClient } from '@/lib/auth/auth-client';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -68,10 +69,17 @@ const SidebarItem = ({
 };
 
 export function Sidebar() {
+  const router = useRouter();
   const pathname = usePathname();
 
   const handleLogout = async () => {
-    await signOutAction();
+    await authClient.signOut({
+      fetchOptions: {
+        onSuccess: () => {
+          router.push('/login');
+        },
+      },
+    });
   };
 
   return (
