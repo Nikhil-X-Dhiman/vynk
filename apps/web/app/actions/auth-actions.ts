@@ -6,14 +6,15 @@ import { createNewUser, findUserByPhone } from '@repo/db';
 import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { StringFormatParams, success } from 'better-auth';
+import { publicAction, protectedAction, publicDirectAction, type AuthContext } from '@/lib/safe-action';
 
-async function sendOTPAction(
+const sendOTPAction = publicAction(async (
   prevState: {
     success: boolean;
     message: string;
   },
   formData: FormData
-) {
+) => {
   try {
     const countryCode = formData.get('countryCode')?.toString();
     const number = formData.get('phoneNumber')?.toString().trim();
@@ -34,12 +35,12 @@ async function sendOTPAction(
     console.error('Verification Error:', error);
     return { success: false, message: `Error during verification: ${error}` };
   }
-}
+});
 
-async function verifyOTPAction(
+const verifyOTPAction = publicAction(async (
   prevState: { success: boolean; message: string },
   formData: FormData
-) {
+) => {
   try {
     let phoneNumber = formData.get('phoneNumber')?.toString();
     phoneNumber = `+${phoneNumber}`;
@@ -61,9 +62,9 @@ async function verifyOTPAction(
     console.error('Verification Error:', error);
     return { success: false, message: 'Error during verification' };
   }
-}
+});
 
-async function handleGetUserAction(formData: FormData) {
+const handleGetUserAction = publicDirectAction(async (formData: FormData) => {
   const phoneNumber = formData.get('phoneNumber')?.toString();
   const countryCode = formData.get('countryCode')?.toString();
   if (!phoneNumber || !countryCode)
@@ -77,9 +78,9 @@ async function handleGetUserAction(formData: FormData) {
   if (!existingUser) return { success: false, user: null };
 
   return { success: true, user: existingUser };
-}
+});
 
-async function handleNewUserAction(formData: FormData) {
+const handleNewUserAction = protectedAction(async (ctx: AuthContext, formData: FormData) => {
   // phonenumber, countrycode, username, bio, avatarurl
   const phoneNumber = formData.get('phone')?.toString();
   const countryCode = formData.get('countryCode')?.toString();
@@ -98,14 +99,14 @@ async function handleNewUserAction(formData: FormData) {
   });
   if (newUser) return { success: false, user: null };
   return { success: true, user: newUser };
-}
+});
 
-async function signOutAction() {
+const signOutAction = protectedAction(async () => {
   await auth.api.signOut({
     headers: await headers(),
   });
   redirect('/login');
-}
+});
 
 export {
   sendOTPAction,

@@ -1,7 +1,8 @@
 'use server';
 import { v2 as cloudinary } from 'cloudinary';
+import { protectedAction } from '@/lib/safe-action';
 
-async function handleCloudinarySignature() {
+const handleCloudinarySignature = protectedAction(async () => {
   const timestamp = Math.round(new Date().getTime() / 1000);
   try {
     const signature = cloudinary.utils.api_sign_request(
@@ -15,6 +16,6 @@ async function handleCloudinarySignature() {
   } catch (err) {
     return { success: false, response: { signature: null, error: `${err}` } };
   }
-}
+});
 
 export { handleCloudinarySignature };
