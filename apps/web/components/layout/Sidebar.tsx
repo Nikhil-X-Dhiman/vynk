@@ -25,6 +25,7 @@ import {
 import { ModeToggle } from '@/components/ui/ModeToggle';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils/tailwind-helpers';
+import { useLoginStore } from '@/store';
 
 interface SidebarItemProps {
   icon: React.ElementType;
@@ -71,11 +72,19 @@ const SidebarItem = ({
 export function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
+  const reset = useLoginStore((state) => state.reset);
+
+  React.useEffect(() => {
+    // When the user reaches the authenticated area, we clear any stale login progress.
+    // This avoids flickers on the login page and handles the "session expired" edge case.
+    reset();
+  }, [reset]);
 
   const handleLogout = async () => {
     await authClient.signOut({
       fetchOptions: {
         onSuccess: () => {
+          useLoginStore.getState().reset();
           router.push('/login');
         },
       },
