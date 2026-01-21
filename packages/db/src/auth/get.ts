@@ -16,13 +16,13 @@ async function findUserByPhone({
       .executeTakeFirst();
 
     if (!user) {
-      return false;
+      return { success: true, data: null };
     }
 
-    return user;
+    return { success: true, data: user };
   } catch (error) {
     console.error('Error finding user:', error);
-    throw new Error('Database query failed');
+    return { success: false, error: 'Database query failed' };
   }
 }
 

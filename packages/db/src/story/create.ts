@@ -1,27 +1,40 @@
 import { randomUUID } from 'crypto';
 import { db } from '../../kysely/db';
 
-function createStory({
+async function createStory({
   userId,
   contentUrl,
   caption,
   expiresAt,
+  type,
+  text,
 }: {
   userId: string;
   contentUrl?: string;
   caption?: string;
   expiresAt?: Date;
+  type: string;
+  text?: string;
 }) {
-  return db
-    .insertInto('story')
-    .values({
-      id: randomUUID(),
-      user_id: userId,
-      content_url: contentUrl,
-      caption,
-      expires_at: expiresAt,
-    })
-    .executeTakeFirst();
+  try {
+    await db
+      .insertInto('story')
+      .values({
+        id: randomUUID(),
+        type,
+        content_url: contentUrl,
+        user_id: userId,
+        caption,
+        text,
+        expires_at: expiresAt,
+        created_at: new Date(),
+      })
+      .execute();
+    return { success: true };
+  } catch (error) {
+    console.error('Error creating story:', error);
+    return { success: false, error: 'Failed to create story' };
+  }
 }
 
 export { createStory };

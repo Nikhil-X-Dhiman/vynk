@@ -17,32 +17,37 @@ async function createConversation({
   participantInfo: { userId: string; role: 'member' | 'admin' }[];
 }) {
   const conversationId = randomUUID();
-  await db.transaction().execute(async (trx) => {
-    const result = await trx
-      .insertInto('conversation')
-      .values({
-        id: conversationId,
-        type,
-        title,
-        created_by: createdByUserId,
-        group_img: groupImg,
-        group_bio: groupDesc,
-        updated_at: new Date(),
-      })
-      .execute();
-    await trx
-      .insertInto('participant')
-      .values(
-        participantInfo.map((participant) => ({
-          id: randomUUID(),
-          conversation_id: conversationId,
-          user_id: participant.userId,
-          role: participant.role,
-        }))
-      )
-      .execute();
-  });
-  return conversationId;
+  try {
+    await db.transaction().execute(async (trx) => {
+      const result = await trx
+        .insertInto('conversation')
+        .values({
+          id: conversationId,
+          type,
+          title,
+          created_by: createdByUserId,
+          group_img: groupImg,
+          group_bio: groupDesc,
+          updated_at: new Date(),
+        })
+        .execute();
+      await trx
+        .insertInto('participant')
+        .values(
+          participantInfo.map((participant) => ({
+            id: randomUUID(),
+            conversation_id: conversationId,
+            user_id: participant.userId,
+            role: participant.role,
+          }))
+        )
+        .execute();
+    });
+    return { success: true, data: conversationId };
+  } catch (error) {
+    console.error('Error creating conversation:', error);
+    return { success: false, error: 'Failed to create conversation' };
+  }
 }
 
 export { createConversation };

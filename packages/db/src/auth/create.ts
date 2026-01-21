@@ -12,8 +12,11 @@ type CreateUser = {
 async function createNewUser(payload: CreateUser) {
   const { countryCode, phoneNumber, username, avatarUrl, bio } = payload;
   try {
-    const result = await findUserByPhone({ phoneNumber, countryCode });
-    if (result) return { success: false, message: 'User Already Exists' };
+    const existingUser = await findUserByPhone({ phoneNumber, countryCode });
+    if (existingUser.success && existingUser.data) {
+      return { success: false, error: 'User Already Exists' };
+    }
+
     const newUser = await db
       .insertInto('user')
       .values({
@@ -31,17 +34,17 @@ async function createNewUser(payload: CreateUser) {
       .returningAll()
       .executeTakeFirstOrThrow();
 
-    return { success: true, message: newUser };
+    return { success: true, data: newUser };
   } catch (error) {
     console.error('Error creating user:', error);
     // Check for unique constraint violation (e.g., phone number already exists)
     if ((error as any).code === '23505') {
       return {
         success: false,
-        message: 'User with this phone number already exists',
+        error: 'User with this phone number already exists',
       };
     }
-    throw new Error('Failed to create user');
+    return { success: false, error: 'Failed to create user' };
   }
 }
 
