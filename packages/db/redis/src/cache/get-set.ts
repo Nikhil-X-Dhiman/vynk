@@ -6,15 +6,25 @@ async function getOrSetCache<T>(
   ttlSeconds: number,
   fetcher: () => Promise<T>
 ): Promise<T> {
-  const cached = await redis.get(cacheKey(key));
+  try {
+    const cached = await redis.get(cacheKey(key));
 
-  if (cached) {
-    return JSON.parse(cached) as T;
+    if (cached) {
+      return JSON.parse(cached) as T;
+    }
+  } catch (error) {
+    console.error('Redis Get Error:', error);
+    // Fallback to fresh fetch if Redis fails
   }
 
   const fresh = await fetcher();
 
-  await redis.set(cacheKey(key), JSON.stringify(fresh), { EX: ttlSeconds });
+  try {
+    await redis.set(cacheKey(key), JSON.stringify(fresh), { EX: ttlSeconds });
+  } catch (error) {
+    console.error('Redis Set Error:', error);
+    // Proceed even if caching fails
+  }
 
   return fresh;
 }

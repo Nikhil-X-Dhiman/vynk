@@ -6,14 +6,19 @@ function registerStoryEvents(socket: Socket) {
   const userId = socket.data.user.id;
 
   socket.on(SOCKET_EVENTS.STORY_PUBLISH, async (payload) => {
-    const story = createStory({ ...payload, userId });
-    //     const contacts = await getUserContacts(userId);
-    //     const rooms = contacts.map(c => `user:${c.id}`);
-    //     rooms.push(`user:${userId}`);
-    // io.to(rooms).emit(SOCKET_EVENTS.STORY_NEW, story);
-    socket.broadcast.emit(SOCKET_EVENTS.STORY_NEW, {
-      story,
-    });
+    try {
+      const result = await createStory({ ...payload, userId });
+
+      if (result.success) {
+        socket.broadcast.emit(SOCKET_EVENTS.STORY_NEW, {
+          story: payload, // Ideally send the Created Story object if returned, but payload+ID is okay for now if full object needed
+        });
+      } else {
+         console.error('Failed to publish story:', result.error);
+      }
+    } catch (error) {
+      console.error('Error handling STORY_PUBLISH:', error);
+    }
   });
 }
 

@@ -9,16 +9,28 @@ function registerReadEvents(socket: Socket) {
   socket.on(
     SOCKET_EVENTS.MESSAGE_READ,
     async ({ conversationId, messageId }) => {
-      await markAsRead({
-        conversationId,
-        userId,
-        lastReadMessageId: messageId,
-      });
+      try {
+        const result = await markAsRead({
+          conversationId,
+          userId,
+          lastReadMessageId: messageId,
+        });
 
-      io.to(`conversation:${conversationId}`).emit(SOCKET_EVENTS.MESSAGE_SEEN, {
-        userId,
-        messageId,
-      });
+        if (result.success) {
+          io.to(`conversation:${conversationId}`).emit(
+            SOCKET_EVENTS.MESSAGE_SEEN,
+            {
+              userId,
+              messageId,
+              conversationId, // Sending convId helps client routing
+            }
+          );
+        } else {
+          console.error('Failed to mark as read:', result.error);
+        }
+      } catch (error) {
+        console.error('Error handling MESSAGE_READ:', error);
+      }
     }
   );
 }

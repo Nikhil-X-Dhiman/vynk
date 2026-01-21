@@ -14,6 +14,7 @@ export const SOCKET_EVENTS = {
   TYPING_STOP: 'typing:stop',
   USER_TYPING: 'user:typing',
   USER_ONLINE: 'user:online',
+  USER_OFFLINE: 'user:offline',
   USER_SEEN: 'user:seen',
   CONVERSATION_JOIN: 'conversation:join',
   STORY_PUBLISH: 'story:publish',

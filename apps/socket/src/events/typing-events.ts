@@ -8,21 +8,29 @@ function registerTypingEvents(socket: Socket) {
   const userId = socket.data.user.id;
 
   socket.on(SOCKET_EVENTS.TYPING_START, async ({ conversationId }) => {
-    setUserTyping({ conversationId, userId });
-    // await redis.set(`typing:${conversationId}:${userId}`, '1', 'EX', 5);
+    try {
+      await setUserTyping({ conversationId, userId });
+      // await redis.set(`typing:${conversationId}:${userId}`, '1', 'EX', 5);
 
-    socket
-      .to(`conversation:${conversationId}`)
-      .emit(SOCKET_EVENTS.TYPING_START, { userId });
+      socket
+        .to(`conversation:${conversationId}`)
+        .emit(SOCKET_EVENTS.TYPING_START, { userId });
+    } catch (error) {
+      console.error('Error handling TYPING_START:', error);
+    }
   });
 
   socket.on(SOCKET_EVENTS.TYPING_STOP, async ({ conversationId }) => {
-    clearUserTyping(conversationId, userId);
-    // await redis.del(`typing:${conversationId}:${userId}`);
+    try {
+      await clearUserTyping(conversationId, userId);
+      // await redis.del(`typing:${conversationId}:${userId}`);
 
-    socket
-      .to(`conversation:${conversationId}`)
-      .emit(SOCKET_EVENTS.TYPING_STOP, { userId });
+      socket
+        .to(`conversation:${conversationId}`)
+        .emit(SOCKET_EVENTS.TYPING_STOP, { userId });
+    } catch (error) {
+      console.error('Error handling TYPING_STOP:', error);
+    }
   });
 }
 
