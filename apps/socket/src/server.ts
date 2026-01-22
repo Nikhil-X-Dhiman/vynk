@@ -1,61 +1,64 @@
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-import { SOCKET_EVENTS } from '@repo/shared';
-import { joinRoomHandler } from './contracts/rooms';
-import { sendMessageHandler } from './contracts/message';
-import { getSession } from './auth/get-session';
+import { createAdapter } from '@socket.io/redis-adapter';
+import { createClient } from 'redis';
 import { authMiddleware } from './auth/middleware';
-import { registerPresenceEvents } from '../events/presence-events';
-import { registerMessageEvents } from '../events/message-events';
-import { registerReadEvents } from '../events/read-events';
-import { registerTypingEvents } from '../events/typing-events';
-import { joinSelf } from './rooms';
+import { RoomService } from './services/room-service';
+import { registerMessageEvents } from './events/message-events';
+import { registerPresenceEvents } from './events/presence-events';
+import { registerReadEvents } from './events/read-events';
+import { registerTypingEvents } from './events/typing-events';
+import { registerStoryEvents } from './events/story-events';
 
 const PORT = 3001;
 const httpServer = createServer();
-let users = 0;
+
+// Redis setup for Adapter
+const { REDIS_USERNAME, REDIS_PASSWORD, REDIS_HOST, REDIS_PORT } = process.env;
+const redisUrl = `redis://${REDIS_USERNAME || ''}:${REDIS_PASSWORD || ''}@${
+  REDIS_HOST || 'localhost'
+}:${REDIS_PORT || '6379'}`;
+
+const pubClient = createClient({ url: redisUrl });
+const subClient = pubClient.duplicate();
 
 const io = new Server(httpServer, {
-  connectionStateRecovery: {},
   cors: { origin: process.env.NEXT_URL, credentials: true },
-  pingTimeout: 30000,
+  transports: ['websocket', 'polling'],
 });
 
-// TODO: Middleware for AUTH Checking
-io.use(authMiddleware);
+Promise.all([pubClient.connect(), subClient.connect()]).then(() => {
+  io.adapter(createAdapter(pubClient, subClient));
+  console.log('Redis Adapter connected');
+});
 
-io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
-  joinSelf(socket);
+// Chat Namespace
+const chatNamespace = io.of('/chat');
+
+// Middleware
+chatNamespace.use(authMiddleware);
+
+chatNamespace.on('connection', async (socket) => {
+  const userId = socket.data.user.id;
+  console.log(`User connected: ${userId}`);
+
+  // Auto-join user rooms
+  await RoomService.joinUserRooms(socket, userId);
+
+  // Register Events
   registerPresenceEvents(socket);
   registerMessageEvents(socket);
   registerReadEvents(socket);
   registerTypingEvents(socket);
+  registerStoryEvents(socket);
+
+  socket.on('disconnect', () => {
+    console.log(`User disconnected: ${userId}`);
+  });
 });
-// io.on(SOCKET_EVENTS.CONNECTION, (socket) => {
-//   // TODO: Event Listener Constants for error prone approach
-//   users++;
-//   console.log(`connected: ${socket.id}`);
-//   // registerMessageHandlers(socket);
-//   // registerPresenceHandlers(socket);
-//   socket.broadcast.emit('user:connected', users);
-
-//   socket.emit('welcome:user', 'Welcome to Vynk...');
-//   socket.on(SOCKET_EVENTS.JOIN_ROOM, (data) => {
-//     joinRoomHandler(io, socket, data);
-//   });
-
-//   socket.on(SOCKET_EVENTS.SEND_MESSAGE, (data) => {
-//     sendMessageHandler(io, socket, data);
-//   });
-
-//   socket.on(SOCKET_EVENTS.DISCONNECT, () => {
-//     socket.broadcast.emit('user:connected', users);
-//     console.log(`disconnected: ${socket.id}`);
-//   });
-// });
 
 httpServer.listen(PORT, () => {
   console.log(`Socket server running on ${PORT}`);
 });
 
-export { io };
+export { io, chatNamespace };

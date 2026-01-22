@@ -3,6 +3,7 @@ export const SOCKET_EVENTS = {
   // GREETING: 'greeting',
   // MESSAGE_DELIVERED: 'message:delivered',
   // MESSAGE_SEEN: 'message:seen',
+  GET_USER_STATUS: 'user:get-status',
   DISCONNECT: 'disconnect',
   // JOIN_ROOM: 'room:join',
   MESSAGE_SEND: 'message:send',

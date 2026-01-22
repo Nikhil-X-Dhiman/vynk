@@ -1,33 +1,54 @@
-import { clearUserTyping, setUserTyping } from '@repo/db';
-import { SOCKET_EVENTS } from '@repo/shared';
 import { Socket } from 'socket.io';
-// import { redis } from '../redis';
-// import { io } from '../io';
+import { setUserTyping, clearUserTyping } from '@repo/db';
+import { chatNamespace } from '../server';
+import { RoomService } from '../services/room-service';
+import { SOCKET_EVENTS } from '@repo/shared';
 
 function registerTypingEvents(socket: Socket) {
   const userId = socket.data.user.id;
 
-  socket.on(SOCKET_EVENTS.TYPING_START, async ({ conversationId }) => {
+  socket.on(SOCKET_EVENTS.TYPING_START, async ({ conversationId, receiverId, type }) => {
     try {
-      await setUserTyping({ conversationId, userId });
-      // await redis.set(`typing:${conversationId}:${userId}`, '1', 'EX', 5);
+      // Optimistic Redis update (fire & forget, or await if critical)
+      await setUserTyping({conversationId, userId});
 
-      socket
-        .to(`conversation:${conversationId}`)
-        .emit(SOCKET_EVENTS.TYPING_START, { userId });
+      // Determine Room
+      let targetRoom = '';
+      if (type === 'group') {
+          targetRoom = `group:${conversationId}`;
+      } else if (receiverId) {
+          targetRoom = RoomService.getPrivateRoomId(userId, receiverId);
+      }
+
+      if (targetRoom) {
+          // Broadcast to room (excluding sender)
+          socket.to(targetRoom).emit(SOCKET_EVENTS.USER_TYPING, {
+              conversationId,
+              userId
+          });
+      }
     } catch (error) {
       console.error('Error handling TYPING_START:', error);
     }
   });
 
-  socket.on(SOCKET_EVENTS.TYPING_STOP, async ({ conversationId }) => {
+  socket.on(SOCKET_EVENTS.TYPING_STOP, async ({ conversationId, receiverId, type }) => {
     try {
-      await clearUserTyping(conversationId, userId);
-      // await redis.del(`typing:${conversationId}:${userId}`);
+      await clearUserTyping({ conversationId, userId });
 
-      socket
-        .to(`conversation:${conversationId}`)
-        .emit(SOCKET_EVENTS.TYPING_STOP, { userId });
+      let targetRoom = '';
+      if (type === 'group') {
+          targetRoom = `group:${conversationId}`;
+      } else if (receiverId) {
+          targetRoom = RoomService.getPrivateRoomId(userId, receiverId);
+      }
+
+      if (targetRoom) {
+          socket.to(targetRoom).emit(SOCKET_EVENTS.TYPING_STOP, {
+              conversationId,
+              userId
+          });
+      }
     } catch (error) {
       console.error('Error handling TYPING_STOP:', error);
     }

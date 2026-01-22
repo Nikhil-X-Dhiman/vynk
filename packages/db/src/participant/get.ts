@@ -15,4 +15,21 @@ async function getConversationParticipants(conversationId: string) {
   }
 }
 
-export { getConversationParticipants };
+async function getUserJoinedGroups(userId: string) {
+  try {
+    const groups = await db
+      .selectFrom('participant')
+      .innerJoin('conversation', 'conversation.id', 'participant.conversation_id')
+      .select(['conversation.id', 'conversation.type'])
+      .where('participant.user_id', '=', userId)
+      .where('conversation.type', 'in', ['group', 'broadcast'])
+      .execute();
+
+    return { success: true, data: groups };
+  } catch (error) {
+    console.error('Error fetching joined groups:', error);
+    return { success: false, error: 'Failed to fetch joined groups' };
+  }
+}
+
+export { getConversationParticipants, getUserJoinedGroups };

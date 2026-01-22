@@ -1,25 +1,27 @@
 import { Socket } from 'socket.io';
-import { joinConversation } from '../rooms';
-import { sendMessage, getConversationParticipants } from '@repo/db';
-import { io } from '../server';
+import { sendMessage } from '@repo/db';
+import { chatNamespace } from '../server';
+import { RoomService } from '../services/room-service';
 import { SOCKET_EVENTS } from '@repo/shared';
 
 function registerMessageEvents(socket: Socket) {
   const userId = socket.data.user.id;
 
-  socket.on(SOCKET_EVENTS.CONVERSATION_JOIN, ({ conversationId }) => {
-    try {
-      joinConversation(socket, conversationId);
-    } catch (error) {
-      console.error('Error joining conversation:', error);
-    }
-  });
+  // CONVERSATION_JOIN removed as per requirement.
+  // Clients rely on auto-join (groups) or lazy-join (private).
 
   socket.on(SOCKET_EVENTS.MESSAGE_SEND, async (payload, callback) => {
     try {
+      const { conversationId, content, mediaUrl, mediaType, replyTo, receiverId, type } = payload;
+
+      // 1. Persist to DB
       const result = await sendMessage({
-        ...payload,
+        conversationId,
         senderId: userId,
+        content,
+        mediaUrl,
+        mediaType,
+        replyTo
       });
 
       if (!result.success || !result.data) {
@@ -28,30 +30,45 @@ function registerMessageEvents(socket: Socket) {
       }
 
       const messageId = result.data;
-
-      // 1. Emit to the conversation room (for open chats)
-      io.to(`conversation:${payload.conversationId}`).emit(
-        SOCKET_EVENTS.MESSAGE_NEW,
-        {
+      const messageData = {
           messageId,
-          conversationId: payload.conversationId,
-        }
-      );
+          conversationId,
+          senderId: userId,
+          content, // Optimistic update support
+          createdAt: new Date()
+      };
 
-      // 2. Notify all participants to update their chat list
-      const participantsResult = await getConversationParticipants(
-        payload.conversationId
-      );
+      // 2. Emit to Room based on Type
+      if (type === 'group') {
+          // Direct emit to group room
+          chatNamespace.to(`group:${conversationId}`).emit(SOCKET_EVENTS.MESSAGE_NEW, messageData);
+      } else if (receiverId) {
+          // Private Chat
+          const privateRoom = RoomService.getPrivateRoomId(userId, receiverId);
 
-      if (participantsResult.success && participantsResult.data) {
-        // Emit event to each user's personal room
-        participantsResult.data.forEach((p) => {
-          io.to(`user:${p.userId}`).emit('conversation:update', {
-            conversationId: payload.conversationId,
-            lastMessageId: messageId,
-          });
-        });
+          // Lazy Join: Ensure target is in room if online
+          // We can try to force join the target if they are connected to this namespace
+          // Since we don't have easy access to target's socket ID without a map,
+          // we rely on the client or a previous 'invite' mechanism.
+          // WAIT! Socket.IO 4.0+ `io.in(id).socketsJoin(room)` WORKS across nodes with Redis Adapter!
+          // So we CAN do:
+          await chatNamespace.in(`user:${receiverId}`).socketsJoin(privateRoom);
+
+          // Ensure sender is also in it (should be, but just in case)
+          await chatNamespace.in(`user:${userId}`).socketsJoin(privateRoom);
+
+          // Now emit to the private room
+          chatNamespace.to(privateRoom).emit(SOCKET_EVENTS.MESSAGE_NEW, messageData);
+      } else {
+          // Fallback if type/receiver not provided?
+          // Maybe try to fetch from DB? But user wants to avoid DB lookups.
+          console.warn('Message send missing type or receiverId');
       }
+
+      // 3. Update Chat Lists (Optimized)
+      // Usually `MESSAGE_NEW` is enough if payload has details.
+      // User didn't explicitly ban `conversation:update` but said "don't do manual getting participants".
+      // Since we emit to `group:{id}` or `private_...`, everyone in there gets `MESSAGE_NEW`.
 
       if (callback) callback({ success: true, messageId });
     } catch (error) {
@@ -60,6 +77,5 @@ function registerMessageEvents(socket: Socket) {
     }
   });
 }
-// TODO: When userA join the conversation with userB, userA will join conversation but how will userB join the same conversation? need to write the logic to add the userB to conversation if not present already
-// TODO: Here, if i am at conversation page, then how will the above will behave if i an neither inside any conversation & neither the page will refresh, how will it give the latest update of new msg in conversation page
+
 export { registerMessageEvents };

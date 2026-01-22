@@ -10,9 +10,15 @@ async function authMiddleware(socket: Socket, next: (err?: Error) => void) {
 
     const session = await getSession(cookie);
 
-    // Strict check: session AND session.session must exist (Better-auth structure)
+    // Strict check: session AND session.session must exist
     if (!session || !session.session || !session.user) {
+      console.warn(`Auth failed for socket ${socket.id}: Valid cookie but invalid session.`);
       return next(new Error('Authentication failed: Invalid session'));
+    }
+
+    // Check if session is expired (if not handled by getSession)
+    if (new Date(session.session.expiresAt) < new Date()) {
+      return next(new Error('Authentication failed: Session expired'));
     }
 
     socket.data.user = session.user;

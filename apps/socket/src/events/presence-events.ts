@@ -1,29 +1,7 @@
 import { Socket } from 'socket.io';
-import { setUserOffline, setUserOnline } from '@repo/db';
-import { io } from '../server';
+import { setUserOnline, setUserOffline, getUserPresence } from '@repo/db';
 import { SOCKET_EVENTS } from '@repo/shared';
-// import { redis } from '../redis';
 
-// function registerPresenceEvents(socket: Socket) {
-//   const userId = socket.data.user.id;
-//
-//   // Mark new user online on redis
-//   setUserOnline(userId).catch((err) =>
-//     console.error('Error setting user online:', err)
-//   );
-//
-//   // Announce new user presence to others
-//   io.emit(SOCKET_EVENTS.USER_ONLINE, { userId });
-//
-//   socket.on('disconnect', async () => {
-//     try {
-//       await setUserOffline(userId);
-//       io.emit(SOCKET_EVENTS.USER_OFFLINE, { userId });
-//     } catch (error) {
-//       console.error('Error handling disconnect:', error);
-//     }
-//   });
-// }
 function registerPresenceEvents(socket: Socket) {
   const userId = socket.data.user.id;
 
@@ -32,19 +10,32 @@ function registerPresenceEvents(socket: Socket) {
     console.error('Error setting user online:', err)
   );
 
-  // Announce new user presence to others
-  io.emit(SOCKET_EVENTS.USER_ONLINE, { userId });
-
-  socket.on(SOCKET_EVENTS.DISCONNECT, async () => {
+  /**
+   * On-demand presence check
+   * Clients request status when needed (opening chat, viewing profile)
+   */
+  socket.on(SOCKET_EVENTS.GET_USER_STATUS, async ({ userId: targetId }, callback) => {
     try {
-      await setUserOffline(userId);
-      // Optional: Emit offline event if needed
-      io.emit(SOCKET_EVENTS.USER_OFFLINE, { userId });
+      if (!targetId) return;
+      const statusData = await getUserPresence(targetId);
+      if (callback) {
+        callback({
+          userId: targetId,
+          isOnline: statusData?.status === 'online',
+          lastSeen: statusData?.lastSeen
+        });
+      }
     } catch (error) {
-      console.error('Error handling disconnect:', error);
+       console.error('Error getting user status:', error);
+       if (callback) callback({ error: 'Failed to fetch status' });
     }
   });
+
+  socket.on('disconnect', () => {
+    setUserOffline(userId).catch((err) =>
+      console.error('Error setting user offline:', err)
+    );
+  });
 }
-//TODO: what if i am in converssation & user goes online, how will it handle it: maybe a anew emit for announcing online presence
 
 export { registerPresenceEvents };
