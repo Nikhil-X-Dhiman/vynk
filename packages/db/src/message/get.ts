@@ -1,13 +1,12 @@
 import { db } from '../../kysely/db';
 
-async function getMessages(conversationId: string, limit = 30) {
-  return db
+export async function getMessages(conversationId: string, limit = 50, offset = 0) {
+  return await db
     .selectFrom('message')
     .selectAll()
-    .where('message.conversation_id', '=', conversationId)
-    .orderBy('message.created_at', 'desc')
+    .where('conversation_id', '=', conversationId)
+    .orderBy('created_at', 'desc')
     .limit(limit)
+    .offset(offset)
     .execute();
 }
-
-export { getMessages };

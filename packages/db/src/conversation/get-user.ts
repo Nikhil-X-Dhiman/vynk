@@ -1,23 +1,22 @@
 import { db } from '../../kysely/db';
 
-function getUserConversation(userId: string) {
-  return db
-    .selectFrom('conversation')
-    .innerJoin('participant', 'participant.conversation_id', 'conversation.id')
-    .leftJoin('message', 'message.id', 'conversation.last_message_id')
+export async function getUserConversations(userId: string) {
+  return await db
+    .selectFrom('participant as p')
+    .innerJoin('conversation as c', 'p.conversation_id', 'c.id')
+    .leftJoin('message as m', 'c.last_message_id', 'm.id')
     .select([
-      'conversation.id',
-      'conversation.type',
-      'conversation.title',
-      'conversation.group_img',
-      'conversation.updated_at',
-      'message.content as lastMessage',
-      'message.created_at as lastMessageAt',
-      'participant.unread_count',
+      'c.id',
+      'c.updated_at',
+      'c.name',
+      'c.is_group',
+      'c.group_img',
+      'p.unread_count',
+      'm.content as last_message',
+      'm.created_at as last_message_at',
+      'm.media_type'
     ])
-    .where('user_id', '=', userId)
-    .orderBy('conversation.updated_at', 'desc')
+    .where('p.user_id', '=', userId)
+    .orderBy('c.updated_at', 'desc')
     .execute();
 }
-
-export { getUserConversation };

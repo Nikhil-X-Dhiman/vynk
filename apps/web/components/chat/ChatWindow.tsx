@@ -20,15 +20,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-
-// --- MOCK DATA ---
-const MOCK_MESSAGES = Array.from({ length: 50 }, (_, i) => ({
-  id: `msg-${i}`,
-  text: i % 2 === 0 ? `Hello there! This is message ${i}` : `I am doing great, standard reply ${i}`,
-  sender: i % 2 === 0 ? 'them' : 'me',
-  timestamp: '10:30 AM',
-  status: 'read',
-}));
+import { getConversationDetails } from '@/app/actions/conversations';
+import { getMessages } from '@/app/actions/messages';
+import { getSocket } from '@/lib/services/socket/client';
+import { SOCKET_EVENTS } from '@repo/shared';
+import { useAuthStore } from '@/store/auth';
 
 // --- SKELETON ---
 
@@ -55,38 +51,36 @@ export const ChatWindowSkeleton = () => (
 
 // --- COMPONENTS ---
 
-import { MOCK_CHATS } from '@/lib/mock-data';
-
-export function ChatHeader({ chatId }: { chatId: string }) {
+export function ChatHeader({ conversationId, otherUser }: { conversationId: string, otherUser?: any }) {
   const { startCall } = useCallStore();
-  const chatUser = MOCK_CHATS.find(c => c.id === chatId);
+
+  const name = otherUser?.name || 'Unknown User';
+  const avatar = otherUser?.avatar;
 
   const handleStartCall = (type: 'audio' | 'video') => {
-      if (!chatUser) return;
+      if (!otherUser) return;
 
       const callee = {
-          id: chatUser.id,
-          name: chatUser.name,
-          avatar: chatUser.avatar
+          id: otherUser.id,
+          name: name,
+          avatar: avatar
       };
       startCall(callee, type);
   };
-
-  if (!chatUser) return null; // Or skeleton
 
   return (
     <div className="flex items-center justify-between border-b bg-muted/40 px-4 py-2">
       <div className="flex items-center gap-3">
         <Avatar>
-          <AvatarImage src={chatUser.avatar} alt={chatUser.name} className="object-cover" />
-          <AvatarFallback>{chatUser.name[0]}</AvatarFallback>
+          <AvatarImage src={avatar} alt={name} className="object-cover" />
+          <AvatarFallback>{name[0]}</AvatarFallback>
         </Avatar>
         <div>
           <h3 className="font-semibold text-sm">
-            {chatUser.name}
+            {name}
           </h3>
           <p className="text-xs text-muted-foreground">
-            {chatUser.isOnline ? 'Online' : 'Offline'}
+             {/* Simple presence check could be added here later */}
           </p>
         </div>
       </div>
@@ -119,15 +113,14 @@ export function ChatHeader({ chatId }: { chatId: string }) {
   );
 }
 
-const MessageBubble = React.memo(({ msg }: { msg: any }) => {
-  const isMe = msg.sender === 'me';
+const MessageBubble = React.memo(({ msg, isMe }: { msg: any, isMe: boolean }) => {
   return (
     <div
       className={cn(
-        'flex w-full mb-2 transform-gpu px-4', // Base horizontal padding for all
+        'flex w-full mb-2 transform-gpu px-4',
         isMe ? 'justify-end' : 'justify-start'
       )}
-      style={{ contain: 'content' }} // Isolation for better render performance including paint containment
+      style={{ contain: 'content' }}
     >
       <div
         className={cn(
@@ -137,12 +130,12 @@ const MessageBubble = React.memo(({ msg }: { msg: any }) => {
             : 'bg-background border rounded-tl-none'
         )}
       >
-        <p className="mb-1 leading-relaxed break-words">{msg.text}</p>
+        <p className="mb-1 leading-relaxed break-words">{msg.content || msg.text || ''}</p>
         <div className="flex items-center justify-end gap-1 text-[10px] text-muted-foreground">
-          <span>{msg.timestamp}</span>
+          <span>{new Date(msg.createdAt || msg.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           {isMe && (
             <span>
-               {msg.status === 'sending' ? (
+               {msg.status === 'pending' ? (
                    <span className="text-muted-foreground animate-pulse">...</span>
                ) : (
                    <CheckCheck className="h-3 w-3 text-blue-500" />
@@ -157,10 +150,10 @@ const MessageBubble = React.memo(({ msg }: { msg: any }) => {
 
 MessageBubble.displayName = 'MessageBubble';
 
-export function MessageList({ messages }: { messages: any[] }) {
+export function MessageList({ messages, currentUserId }: { messages: any[], currentUserId?: string }) {
   const virtuosoRef = useRef<VirtuosoHandle>(null);
 
-  const FooterView = () => <div className="h-4" />; // Bottom margin for the last bubble
+  const FooterView = () => <div className="h-4" />;
 
   return (
     <div className="h-full w-full bg-background overflow-hidden relative">
@@ -174,8 +167,8 @@ export function MessageList({ messages }: { messages: any[] }) {
         }}
         initialTopMostItemIndex={messages.length - 1}
         followOutput={'auto'}
-        increaseViewportBy={800} // Significant overscan to prevent jitter on appearance
-        itemContent={(index, msg) => <MessageBubble msg={msg} />}
+        increaseViewportBy={800}
+        itemContent={(index, msg) => <MessageBubble msg={msg} isMe={msg.senderId === currentUserId || msg.sender === 'me'} />}
       />
     </div>
   );
@@ -226,35 +219,89 @@ export function MessageInput({ onSend }: { onSend?: (text: string) => void }) {
 }
 
 export function ChatWindow({ chatId }: { chatId: string }) {
-    const [messages, setMessages] = useState(MOCK_MESSAGES);
+    const [messages, setMessages] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [otherUser, setOtherUser] = useState<any>(null);
+    const { user } = useAuthStore();
+
+    // Optimistic updates
     const [optimisticMessages, addOptimisticMessage] = useOptimistic(
         messages,
         (state, newMessage: any) => [...state, newMessage]
     );
 
     useEffect(() => {
-        setIsLoading(true);
-        const timer = setTimeout(() => setIsLoading(false), 1200); // Simulated delay
-        return () => clearTimeout(timer);
+        const load = async () => {
+            setIsLoading(true);
+            try {
+                // Fetch Conversation Details
+                const convoRes = await getConversationDetails(chatId);
+                if (convoRes.success && convoRes.data) {
+                    setOtherUser(convoRes.data.otherUser);
+                }
+
+                // Fetch Messages
+                const msgRes = await getMessages(chatId);
+                if (msgRes.success && msgRes.data) {
+                    setMessages(msgRes.data);
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        load();
+
+        // Subscribe to real-time messages
+        const socket = getSocket();
+        if (socket) {
+            socket.emit('conversation:join', { conversationId: chatId });
+
+            const handleNewMessage = (msg: any) => {
+                if (msg.conversationId === chatId) {
+                    setMessages((prev) => [...prev, msg]);
+                }
+            };
+
+            socket.on(SOCKET_EVENTS.MESSAGE_NEW, handleNewMessage);
+
+            return () => {
+                socket.off(SOCKET_EVENTS.MESSAGE_NEW, handleNewMessage);
+                socket.emit('conversation:leave', { conversationId: chatId });
+            };
+        }
     }, [chatId]);
 
     const handleSendMessage = async (text: string) => {
+        if (!user) return;
+
         const newMsg = {
             id: `temp-${Date.now()}`,
-            text,
-            sender: 'me',
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            status: 'sending'
+            content: text,
+            senderId: user.id,
+            conversationId: chatId,
+            createdAt: new Date().toISOString(),
+            status: 'pending'
         };
+
         addOptimisticMessage(newMsg);
+
+        // Emit socket event
+        const socket = getSocket();
+        socket?.emit(SOCKET_EVENTS.MESSAGE_SEND, {
+            conversationId: chatId,
+            content: text,
+            type: 'text'
+        });
     };
 
     return (
         <div className="flex flex-col h-full w-full bg-background overflow-hidden preserve-3d">
-            <ChatHeader chatId={chatId} />
+            <ChatHeader conversationId={chatId} otherUser={otherUser} />
             <div className="flex-1 overflow-hidden relative">
-                {isLoading ? <ChatWindowSkeleton /> : <MessageList messages={optimisticMessages} />}
+                {isLoading ? <ChatWindowSkeleton /> : <MessageList messages={optimisticMessages} currentUserId={user?.id} />}
             </div>
             {!isLoading && <MessageInput onSend={handleSendMessage} />}
         </div>

@@ -2,9 +2,8 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Virtuoso } from 'react-virtuoso';
-import { Search, SquarePen, EllipsisVertical } from 'lucide-react';
+import { Search, SquarePen, EllipsisVertical, UserPlus, X, MessageSquareDashed } from 'lucide-react';
 import { cn } from '@/lib/utils/tailwind-helpers';
-import { MOCK_CHATS } from '@/lib/mock-data';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Input } from '@/components/ui/input';
@@ -12,6 +11,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getUserConversations } from '@/app/actions/user-conversations';
+import { getOnlineUsers } from '@/app/actions/online-users';
+import { startConversation } from '@/app/actions/conversations';
+import { useRouter } from 'next/navigation';
 
 type FilterType = 'All' | 'Unread' | 'Favourites' | 'Groups';
 
@@ -101,16 +104,50 @@ export function ChatList() {
   const [filter, setFilter] = useState<FilterType>('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [chats, setChats] = useState<any[]>([]); // Use appropriate type if available
+  const [showOnlineUsers, setShowOnlineUsers] = useState(false);
+  const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
+  const [onlineUsersSearchQuery, setOnlineUsersSearchQuery] = useState('');
   const params = useParams();
+  const router = useRouter(); // Initialize router
   const selectedId = params?.id;
 
+  const handleToggleOnlineUsers = async () => {
+    if (!showOnlineUsers) {
+      const res = await getOnlineUsers();
+      if (res.success && res.data) {
+        setOnlineUsers(res.data);
+      }
+    }
+    setShowOnlineUsers(!showOnlineUsers);
+  };
+
+  const handleUserClick = async (userId: string) => {
+    const res = await startConversation(userId);
+    if (res.success && res.data) {
+      router.push(`/chats/${res.data}`);
+      setShowOnlineUsers(false);
+    }
+  };
+
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 1500);
-    return () => clearTimeout(timer);
+    const loadChats = async () => {
+      try {
+        const result = await getUserConversations();
+        if (result.success && result.data) {
+          setChats(result.data);
+        }
+      } catch (error) {
+        console.error('Failed to load chats', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadChats();
   }, []);
 
   const filteredChats = useMemo(() => {
-    return MOCK_CHATS.filter((chat) => {
+    return chats.filter((chat) => {
       if (
         searchQuery &&
         !chat.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -126,67 +163,140 @@ export function ChatList() {
   }, [filter, searchQuery]);
 
   return (
-    <div className="flex h-full w-full flex-col bg-background">
+    <div className="flex h-full w-full flex-col bg-background relative">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3">
-        <h1 className="text-2xl font-bold text-foreground">
-          Chats
-        </h1>
-        <div className="flex gap-2 text-muted-foreground">
-          <Button variant="ghost" size="icon" className="rounded-full">
-            <SquarePen className="h-5 w-5" />
-          </Button>
-          <Button variant="ghost" size="icon" className="rounded-full">
-            <EllipsisVertical className="h-5 w-5" />
-          </Button>
-        </div>
-      </div>
+      {!showOnlineUsers && (
+        <>
+          <div className="flex items-center justify-between px-4 py-3">
+            <h1 className="text-2xl font-bold text-foreground">
+              Chats
+            </h1>
+            <div className="flex gap-2 text-muted-foreground">
+              <Button variant="ghost" size="icon" className="rounded-full">
+                <SquarePen className="h-5 w-5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="rounded-full">
+                <EllipsisVertical className="h-5 w-5" />
+              </Button>
+            </div>
+          </div>
 
-      {/* Search Bar */}
-      <div className="px-4 pb-2">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Search or ask Meta AI"
-            className="pl-10 bg-secondary/50 border-none shadow-none focus-visible:ring-1"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-      </div>
+          {/* Search Bar */}
+          <div className="px-4 pb-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search or ask Meta AI"
+                className="pl-10 bg-secondary/50 border-none shadow-none focus-visible:ring-1"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+          </div>
 
-      {/* Filter Chips */}
-      <div className="flex gap-2 overflow-x-auto px-4 py-2 no-scrollbar">
-        {(['All', 'Unread', 'Favourites', 'Groups'] as FilterType[]).map((f) => (
-          <FilterChip
-            key={f}
-            label={f}
-            isActive={filter === f}
-            onClick={() => setFilter(f)}
-          />
-        ))}
-      </div>
+          {/* Filter Chips */}
+          <div className="flex gap-2 overflow-x-auto px-4 py-2 no-scrollbar">
+            {(['All', 'Unread', 'Favourites', 'Groups'] as FilterType[]).map((f) => (
+              <FilterChip
+                key={f}
+                label={f}
+                isActive={filter === f}
+                onClick={() => setFilter(f)}
+              />
+            ))}
+          </div>
+        </>
+      )}
 
       {/* List */}
-      <div className="flex-1 overflow-hidden preserve-3d">
-        {isLoading ? (
-          <ChatListSkeleton />
+      <div className="flex-1 overflow-hidden preserve-3d relative">
+        {showOnlineUsers ? (
+          <div className="absolute inset-0 bg-background z-10 overflow-y-auto w-full h-full">
+            <div className="sticky top-0 bg-background/95 backdrop-blur z-20 border-b">
+                 <h3 className="px-4 py-3 font-semibold text-muted-foreground w-full">
+                  Online Users ({onlineUsers.length})
+                </h3>
+                <div className="px-4 pb-2">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        type="text"
+                        placeholder="Search online users"
+                        className="pl-10 bg-secondary/50 border-none shadow-none focus-visible:ring-1"
+                        value={onlineUsersSearchQuery}
+                        onChange={(e) => setOnlineUsersSearchQuery(e.target.value)}
+                      />
+                    </div>
+                 </div>
+            </div>
+
+            <div className="flex flex-col">
+              {onlineUsers
+                .filter(user => user.name.toLowerCase().includes(onlineUsersSearchQuery.toLowerCase()))
+                .map((user) => (
+                <div
+                  key={user.id}
+                  className="flex items-center gap-3 p-3 transition-colors hover:bg-accent cursor-pointer"
+                  onClick={() => handleUserClick(user.id)}
+                >
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={user.avatar} alt={user.name} />
+                    <AvatarFallback>{user.name?.[0] || '?'}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold text-foreground truncate">
+                      {user.name}
+                    </h3>
+                    <p className="text-xs text-green-500 font-medium">Online</p>
+                  </div>
+                </div>
+              ))}
+              {onlineUsers.length === 0 && (
+                 <div className="p-4 text-center text-muted-foreground">
+                     No users online
+                 </div>
+              )}
+            </div>
+          </div>
         ) : (
-          <Virtuoso
-            style={{ height: '100%', outline: 'none' }}
-            data={filteredChats}
-            increaseViewportBy={500}
-            computeItemKey={(_, chat) => chat.id}
-            itemContent={(index, chat) => (
-              <ChatListItem
-                chat={chat}
-                isSelected={selectedId === chat.id}
-              />
-            )}
-          />
+          isLoading ? (
+            <ChatListSkeleton />
+          ) : filteredChats.length === 0 ? (
+             <div className="flex flex-col items-center justify-center h-full text-center p-4 text-muted-foreground animate-in fade-in duration-500">
+                <MessageSquareDashed className="h-16 w-16 mb-4 opacity-20" />
+                <p className="font-medium">No conversations yet</p>
+                <p className="text-sm opacity-70">Start a new chat to connect</p>
+             </div>
+          ) : (
+            <Virtuoso
+              style={{ height: '100%', outline: 'none' }}
+              data={filteredChats}
+              increaseViewportBy={500}
+              computeItemKey={(_, chat) => chat.id}
+              itemContent={(index, chat) => (
+                <ChatListItem
+                  chat={chat}
+                  isSelected={selectedId === chat.id}
+                />
+              )}
+            />
+          )
         )}
       </div>
+
+      {/* Floating Action Button */}
+      <Button
+        className="absolute bottom-6 right-6 rounded-full h-14 w-14 shadow-lg z-30 transition-all duration-300 hover:scale-105 bg-slate-600 text-white hover:bg-slate-700 border-2 border-white dark:border-gray-900"
+        size="icon"
+        onClick={handleToggleOnlineUsers}
+      >
+        {showOnlineUsers ? (
+            <X className="h-6 w-6" />
+        ) : (
+            <UserPlus className="h-6 w-6" />
+        )}
+      </Button>
     </div>
   );
 }

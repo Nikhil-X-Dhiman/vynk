@@ -4,9 +4,8 @@ import { phoneNumberClient } from 'better-auth/client/plugins';
 import { User, Session } from 'better-auth';
 
 // import { createAuthClient, phoneNumberClient } from '@repo/auth';
-import { env } from 'process';
 const authClient = createAuthClient({
-  baseURL: env.BETTER_AUTH_URL,
+  baseURL: process.env.NEXT_PUBLIC_APP_URL, // Ensure this env var exists or defaults
   plugins: [phoneNumberClient()],
 });
 
