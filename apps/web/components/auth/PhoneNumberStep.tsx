@@ -1,5 +1,6 @@
 'use client';
 
+import countries from '@/lib/data/countries.json';
 import { loginSchema } from '@repo/validation';
 import { formOptions, useForm } from '@tanstack/react-form';
 import { FieldGroup } from '@/components/ui/field';
@@ -33,6 +34,8 @@ export const formOpts = formOptions({
   defaultValues,
 });
 
+
+
 function PhoneNumberStep() {
   const [isPending, startTransition] = useTransition();
   const setPhoneNumber = useLoginStore((state) => state.setPhoneNumber);
@@ -50,13 +53,16 @@ function PhoneNumberStep() {
     },
     onSubmit: async ({ value }) => {
       startTransition(async () => {
-        const fullPhoneNumber = `+${value.countryCode}${value.phoneNumber}`;
+        const country = countries.find((c) => c.code === value.countryCode);
+        const phoneCode = country ? country.phone : '';
+
+        const fullPhoneNumber = `+${phoneCode}${value.phoneNumber}`;
         const result = await authClient.phoneNumber.sendOtp({
           phoneNumber: fullPhoneNumber,
         });
         if (!result.error) {
           setPhoneNumber(value.phoneNumber);
-          setCountryCode(`+${String(value.countryCode)}`);
+          setCountryCode(`+${phoneCode}`); // Store formatted code with plus
           setStep(2);
         } else {
           toast.error('Unable to send OTP', {
@@ -81,7 +87,7 @@ function PhoneNumberStep() {
             <form.Field name="countryCode">
               {(field) => (
                 <CountrySelect
-                  value={field.state.value}
+                  value={field.state.value} // This is now ISO code
                   onChange={field.handleChange}
                 />
               )}
@@ -91,10 +97,13 @@ function PhoneNumberStep() {
               validators={{
                 onChangeListenTo: ['countryCode'],
                 onSubmit: ({ value, fieldApi }) => {
-                  const countryCode = fieldApi.form.getFieldValue('countryCode');
-                  if (!countryCode) return undefined;
+                  const countryCodeISO = fieldApi.form.getFieldValue('countryCode');
+                  if (!countryCodeISO) return undefined;
 
-                  const fullNumber = `+${countryCode}${value}`;
+                  const country = countries.find(c => c.code === countryCodeISO);
+                  const phoneCode = country ? country.phone : '';
+
+                  const fullNumber = `+${phoneCode}${value}`;
                   const { success, error } =
                     loginSchema.shape.phoneNumber.safeParse(fullNumber);
                   if (!success) return error.issues[0].message;

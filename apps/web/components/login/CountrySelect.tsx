@@ -7,7 +7,7 @@ import { Command, CommandInput } from '../ui/command';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 
 type CountrySelectProps = {
-  value: string | null; // phone code as string, e.g., "91"
+  value: string | null; // ISO code string, e.g., "US", "IN"
   onChange: (code: string) => void;
 };
 
@@ -61,7 +61,7 @@ function CountrySelect({ value, onChange }: CountrySelectProps) {
 
   const selectedCountry = useMemo(() => {
     if (!value) return null;
-    return countries.find((c) => c.phone.toString() === value) || null;
+    return countries.find((c) => c.code === value) || null;
   }, [value]);
 
   const filtered = useMemo(() => {
@@ -105,7 +105,7 @@ function CountrySelect({ value, onChange }: CountrySelectProps) {
       onOpenChange={(newOpen) => {
         setOpen(newOpen);
         if (newOpen) {
-          const idx = filtered.findIndex((c) => c.phone.toString() === value);
+          const idx = filtered.findIndex((c) => c.code === value);
           setFocusedIndex(idx >= 0 ? idx : 0);
         }
       }}
@@ -151,7 +151,7 @@ function CountrySelect({ value, onChange }: CountrySelectProps) {
               e.preventDefault();
               const country = filtered[focusedIndex];
               if (country) {
-                onChange(country.phone.toString());
+                onChange(country.code); // Emit ISO code
                 setOpen(false);
               }
             }
@@ -175,7 +175,7 @@ function CountrySelect({ value, onChange }: CountrySelectProps) {
                   index={index}
                   isFocused={focusedIndex === index}
                   onClick={() => {
-                    onChange(country.phone.toString());
+                    onChange(country.code); // Emit ISO code
                     setOpen(false);
                   }}
                 />
