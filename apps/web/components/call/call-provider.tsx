@@ -10,9 +10,13 @@ import { ActiveCall } from './active-call';
 
 import { useAuthStore } from '@/store/auth';
 
+import { usePresenceStore } from '@/store/use-presence-store';
+import { SOCKET_EVENTS } from '@repo/shared';
+
 export function CallProvider({ children }: { children: React.ReactNode }) {
   const { incomingCall, callState, startCall: _startCall, caller, callee, callType, endCall: storeEndCall } = useCallStore();
   const { user } = useAuthStore();
+  const { setOnline, setOffline } = usePresenceStore(); // Use new store
 
   // We need to trigger the OFFER when callState becomes 'outgoing'.
   // However, startCall action sets state to 'outgoing'.
@@ -52,11 +56,25 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
        webRTCManager.endCall();
     }
 
+    const handleUserOnline = (payload: { userId: string }) => {
+        setOnline(payload.userId);
+    };
+
+    const handleUserOffline = (payload: { userId: string }) => {
+        setOffline(payload.userId);
+    };
+
     socket.on(CALL_EVENTS.OFFER, handleOffer);
     socket.on(CALL_EVENTS.ANSWER, handleAnswer);
     socket.on(CALL_EVENTS.ICE_CANDIDATE, handleIceCandidate);
     socket.on(CALL_EVENTS.REJECT, handleReject);
     socket.on(CALL_EVENTS.END, handleEnd);
+
+    // Use string literals matching server implementation for now if import is tricky
+    // socket.on('user:online', handleUserOnline); // SOCKET_EVENTS.USER_ONLINE
+    // socket.on('user:offline', handleUserOffline); // SOCKET_EVENTS.USER_OFFLINE
+    socket.on(SOCKET_EVENTS.USER_ONLINE, handleUserOnline);
+    socket.on(SOCKET_EVENTS.USER_OFFLINE, handleUserOffline);
 
     return () => {
       socket.off(CALL_EVENTS.OFFER, handleOffer);
@@ -64,6 +82,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       socket.off(CALL_EVENTS.ICE_CANDIDATE, handleIceCandidate);
       socket.off(CALL_EVENTS.REJECT, handleReject);
       socket.off(CALL_EVENTS.END, handleEnd);
+      socket.off(SOCKET_EVENTS.USER_ONLINE, handleUserOnline);
+      socket.off(SOCKET_EVENTS.USER_OFFLINE, handleUserOffline);
     };
   }, []);
 

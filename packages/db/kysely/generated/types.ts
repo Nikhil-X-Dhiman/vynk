@@ -78,6 +78,15 @@ export type Reaction = {
     emoji: string | null;
     created_at: Generated<Timestamp>;
 };
+export type Settings = {
+    id: string;
+    user_id: string;
+    theme: Generated<string>;
+    notifications: Generated<boolean>;
+    sound_enabled: Generated<boolean>;
+    created_at: Generated<Timestamp>;
+    updated_at: Timestamp;
+};
 export type Story = {
     id: string;
     type: Generated<Media | null>;
@@ -116,6 +125,7 @@ export type DB = {
     message: Message;
     participant: Participant;
     reaction: Reaction;
+    settings: Settings;
     story: Story;
     story_view: StoryView;
     user: User;

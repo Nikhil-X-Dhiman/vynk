@@ -39,8 +39,23 @@ model User {
   stories       Story[]
   deliveries    Delivery[]
   storyViews    StoryView[]
+  settings      Settings?
 
   @@map("user")
+}
+
+model Settings {
+  id            String   @id @default(uuid())
+  userId        String   @unique @map("user_id")
+  theme         String   @default("system")
+  notifications Boolean  @default(true)
+  soundEnabled  Boolean  @default(true) @map("sound_enabled")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("settings")
 }
 
 model Conversation {
