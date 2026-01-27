@@ -12,6 +12,7 @@ import {
   SendHorizontal,
   CheckCheck,
 } from 'lucide-react';
+import { useCallStore } from '@/store/use-call-store';
 import { cn } from '@/lib/utils/tailwind-helpers';
 import { Virtuoso, VirtuosoHandle } from 'react-virtuoso';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -54,28 +55,56 @@ export const ChatWindowSkeleton = () => (
 
 // --- COMPONENTS ---
 
+import { MOCK_CHATS } from '@/lib/mock-data';
+
 export function ChatHeader({ chatId }: { chatId: string }) {
+  const { startCall } = useCallStore();
+  const chatUser = MOCK_CHATS.find(c => c.id === chatId);
+
+  const handleStartCall = (type: 'audio' | 'video') => {
+      if (!chatUser) return;
+
+      const callee = {
+          id: chatUser.id,
+          name: chatUser.name,
+          avatar: chatUser.avatar
+      };
+      startCall(callee, type);
+  };
+
+  if (!chatUser) return null; // Or skeleton
+
   return (
     <div className="flex items-center justify-between border-b bg-muted/40 px-4 py-2">
       <div className="flex items-center gap-3">
         <Avatar>
-          <AvatarImage src={`https://i.pravatar.cc/150?u=${chatId}`} alt="User" className="object-cover" />
-          <AvatarFallback>U{chatId}</AvatarFallback>
+          <AvatarImage src={chatUser.avatar} alt={chatUser.name} className="object-cover" />
+          <AvatarFallback>{chatUser.name[0]}</AvatarFallback>
         </Avatar>
         <div>
           <h3 className="font-semibold text-sm">
-            User {chatId}
+            {chatUser.name}
           </h3>
           <p className="text-xs text-muted-foreground">
-            Online today at 10:30 AM
+            {chatUser.isOnline ? 'Online' : 'Offline'}
           </p>
         </div>
       </div>
       <div className="flex items-center gap-1">
-        <Button variant="ghost" size="icon" className="rounded-full">
+        <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full"
+            onClick={() => handleStartCall('video')}
+        >
           <Video className="h-5 w-5 text-muted-foreground" />
         </Button>
-        <Button variant="ghost" size="icon" className="rounded-full">
+        <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full"
+            onClick={() => handleStartCall('audio')}
+        >
           <Phone className="h-5 w-5 text-muted-foreground" />
         </Button>
         <Separator orientation="vertical" className="h-6 mx-2" />

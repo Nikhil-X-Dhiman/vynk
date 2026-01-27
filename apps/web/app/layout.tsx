@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { ThemeProvider } from '@/components/theme-provider';
+import { CallProvider } from '@/components/call/call-provider';
 import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { Toaster } from '@/components/ui/sonner';
@@ -40,8 +41,10 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <SessionProvider>
-            {children}
-            <Toaster position="bottom-right" />
+            <CallProvider>
+              {children}
+              <Toaster position="bottom-right" />
+            </CallProvider>
           </SessionProvider>
         </ThemeProvider>
       </body>

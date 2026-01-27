@@ -9,6 +9,7 @@ import { registerPresenceEvents } from './events/presence-events';
 import { registerReadEvents } from './events/read-events';
 import { registerTypingEvents } from './events/typing-events';
 import { registerStoryEvents } from './events/story-events';
+import { registerCallEvents } from './events/call-events';
 
 const PORT = 3001;
 const httpServer = createServer();
@@ -51,6 +52,7 @@ chatNamespace.on('connection', async (socket) => {
   registerReadEvents(socket);
   registerTypingEvents(socket);
   registerStoryEvents(socket);
+  registerCallEvents(socket);
 
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${userId}`);
