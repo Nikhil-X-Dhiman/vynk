@@ -29,6 +29,12 @@ export const Status = {
     seen: "seen"
 } as const;
 export type Status = (typeof Status)[keyof typeof Status];
+export const FriendshipStatus = {
+    PENDING: "PENDING",
+    ACCEPTED: "ACCEPTED",
+    BLOCKED: "BLOCKED"
+} as const;
+export type FriendshipStatus = (typeof FriendshipStatus)[keyof typeof FriendshipStatus];
 export type Conversation = {
     id: string;
     type: ConversationType;
@@ -45,6 +51,14 @@ export type Delivery = {
     message_id: string;
     user_id: string;
     status: Generated<Status | null>;
+    created_at: Generated<Timestamp>;
+    updated_at: Timestamp;
+};
+export type Friendship = {
+    id: string;
+    user_id: string;
+    friend_id: string;
+    status: Generated<FriendshipStatus>;
     created_at: Generated<Timestamp>;
     updated_at: Timestamp;
 };
@@ -122,6 +136,7 @@ export type User = {
 export type DB = {
     conversation: Conversation;
     delivery: Delivery;
+    friendship: Friendship;
     message: Message;
     participant: Participant;
     reaction: Reaction;

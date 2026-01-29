@@ -1,9 +1,9 @@
 import { db } from '../../kysely/db';
 
 /**
- * Returns all stories from the database joined with user information.
+ * Returns stories from the database for a specific user and their friends.
  */
-export async function getAllStories() {
+export async function getFriendsStories(userId: string) {
   return await db
     .selectFrom('story as s')
     .innerJoin('user as u', 's.user_id', 'u.id')
@@ -19,6 +19,34 @@ export async function getAllStories() {
       'u.user_name',
       'u.avatar_url',
     ])
+    .where((eb) =>
+      eb.or([
+        // User's own stories
+        eb('s.user_id', '=', userId),
+        // Stories from users who accepted the current user's friend request
+        eb('s.user_id', 'in', (subeb: any) =>
+          subeb
+            .selectFrom('friendship')
+            .select('friend_id')
+            .where('user_id', '=', userId)
+            .where('status', '=', 'ACCEPTED')
+        ),
+        // Stories from users whose friend request the current user accepted
+        eb('s.user_id', 'in', (subeb: any) =>
+          subeb
+            .selectFrom('friendship')
+            .select('user_id')
+            .where('friend_id', '=', userId)
+            .where('status', '=', 'ACCEPTED')
+        ),
+      ])
+    )
+    .where((eb) =>
+      eb.or([
+        eb('s.expires_at', '>', new Date()),
+        eb('s.expires_at', 'is', null),
+      ])
+    )
     .orderBy('s.created_at', 'desc')
     .execute();
 }
@@ -42,4 +70,3 @@ export async function getStoryViewers(storyId: string) {
     .execute();
 }
 // TODO 1:  here, count of viewers by checking the length of the returned array.
-// TODO 2:  here, count of reactions by checking the length of the returned array.

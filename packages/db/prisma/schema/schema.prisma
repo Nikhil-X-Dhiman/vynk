@@ -17,29 +17,31 @@ datasource db {
 }
 
 model User {
-  id            String         @id @default(uuid())
-  phoneNumber   String         @unique @map("phone_number")
-  countryCode   String         @map("country_code")
-  userName      String         @map("user_name")
-  email         String?        @unique
-  avatarUrl     String?        @default("avatar/3d_4.png") @map("avatar_url")
-  bio           String?        @default("Hi There, I am using Vynk")
-  isVerified    Boolean?       @default(false) @map("is_verified")
-  reConsent     Boolean?       @default(true) @map("re_consent")
-  createdAt     DateTime       @default(now()) @map("created_at")
-  updatedAt     DateTime       @updatedAt @map("updated_at")
+  id                  String         @id @default(uuid())
+  phoneNumber         String         @unique @map("phone_number")
+  countryCode         String         @map("country_code")
+  userName            String         @map("user_name")
+  email               String?        @unique
+  avatarUrl           String?        @default("avatar/3d_4.png") @map("avatar_url")
+  bio                 String?        @default("Hi There, I am using Vynk")
+  isVerified          Boolean?       @default(false) @map("is_verified")
+  reConsent           Boolean?       @default(true) @map("re_consent")
+  createdAt           DateTime       @default(now()) @map("created_at")
+  updatedAt           DateTime       @updatedAt @map("updated_at")
   // apply in redis db
   // isOnline  Boolean @map("is_boolean")
   // lastSeen  DateTime @map("last_seen")
   // Relations
-  participants  Participant[]
-  conversations Conversation[]
-  messages      Message[]
-  reactions     Reaction[]
-  stories       Story[]
-  deliveries    Delivery[]
-  storyViews    StoryView[]
-  settings      Settings?
+  participants        Participant[]
+  conversations       Conversation[]
+  messages            Message[]
+  reactions           Reaction[]
+  stories             Story[]
+  deliveries          Delivery[]
+  storyViews          StoryView[]
+  settings            Settings?
+  sentFriendships     Friendship[]   @relation("UserSentRequest")
+  receivedFriendships Friendship[]   @relation("UserReceivedRequest")
 
   @@map("user")
 }
@@ -156,6 +158,24 @@ model StoryView {
   @@map("story_view") // Name of the join table
 }
 
+model Friendship {
+  id        String           @id @default(uuid())
+  userId    String           @map("user_id")
+  friendId  String           @map("friend_id")
+  status    FriendshipStatus @default(PENDING)
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+
+  // Relations
+  user   User @relation("UserSentRequest", fields: [userId], references: [id], onDelete: Cascade)
+  friend User @relation("UserReceivedRequest", fields: [friendId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, friendId]) // Prevents duplicate friend requests between same users
+  @@index([userId, status]) // Faster queries for "Get my accepted friends"
+  @@index([friendId, status])
+  @@map("friendship")
+}
+
 model Reaction {
   id           String   @id @default(uuid())
   messageId    String?  @map("message_id")
@@ -211,4 +231,10 @@ enum Status {
   sent
   delivered
   seen
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  BLOCKED
 }
