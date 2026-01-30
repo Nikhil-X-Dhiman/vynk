@@ -1,6 +1,8 @@
 import { randomUUID } from 'crypto';
 import { db } from '../../kysely/db';
 
+import { Media } from '../../kysely/generated/types';
+
 async function createStory({
   userId,
   contentUrl,
@@ -13,7 +15,7 @@ async function createStory({
   contentUrl?: string;
   caption?: string;
   expiresAt?: Date;
-  type: string;
+  type: Media;
   text?: string;
 }) {
   try {
@@ -28,6 +30,7 @@ async function createStory({
         text,
         expires_at: expiresAt,
         created_at: new Date(),
+        updated_at: new Date(),
       })
       .execute();
     return { success: true };

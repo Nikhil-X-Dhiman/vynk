@@ -1,13 +1,8 @@
+// next.config.ts
 import type { NextConfig } from 'next';
-const withPWA = require("@ducanh2912/next-pwa").default({
-  dest: "public",
-  swSrc: "worker/index.ts",
-  sw: "sw.js",
-  reloadOnOnline: true,
-});
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // No PWA wrapper needed here anymore!
   images: {
     remotePatterns: [
       {
@@ -16,7 +11,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // transpilePackages: ['@repo/db'],
 };
 
-export default withPWA(nextConfig);
+export default nextConfig;

@@ -5,5 +5,5 @@ export function onMessageReceived(
   callback: (msg: { id: string; text: string }) => void
 ) {
   const socket = getSocket();
-  socket.on(SOCKET_EVENTS.RECEIVE_MESSAGE, callback);
+  socket.on(SOCKET_EVENTS.MESSAGE_NEW, callback);
 }

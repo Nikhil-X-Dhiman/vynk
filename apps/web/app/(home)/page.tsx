@@ -2,24 +2,27 @@
 
 import { joinRoom, sendMessage } from '@/lib/services/socket/emitters';
 import { onMessageReceived } from '@/lib/services/socket/listeners';
-import { useEffect } from 'react';
+import { use, useEffect } from 'react';
 // import { joinRoom, sendMessage } from '@/lib/socket/emitters';
 // import { onMessageReceived } from '@/lib/socket/listeners';
 
-export default function ChatPage({ params }) {
+export default function ChatPage({ params }: { params: Promise<{ id?: string }> }) {
+  const { id } = use(params);
+
   useEffect(() => {
-    joinRoom(params.id);
+    // joinRoom(id);
 
     onMessageReceived((msg) => {
       console.log('New message:', msg);
     });
-  }, [params.id]);
+  }, [id]);
 
   return (
-    <button
-      onClick={() => sendMessage({ conversationId: params.id, text: 'Hello' })}
-    >
-      Send
-    </button>
+    // <button
+    //   onClick={() => sendMessage({ conversationId: id, text: 'Hello' })}
+    // >
+    //   Send
+    // </button>
+    <p>hello</p>
   );
 }

@@ -298,6 +298,7 @@ export async function POST(req: Request) {
         if (groups.REACTION_ADD.length > 0) {
              try {
                 const rows = groups.REACTION_ADD.map(p => ({
+                    id: crypto.randomUUID(),
                     message_id: p.messageId || null,
                     story_id: p.storyId || null,
                     user_id: userId,
@@ -345,6 +346,7 @@ export async function POST(req: Request) {
                              // Add Self
                              await trx.insertInto('participant')
                                 .values({
+                                    id: crypto.randomUUID(),
                                     conversation_id: p.id || p.conversationId,
                                     user_id: userId,
                                     role: 'admin',
@@ -357,6 +359,7 @@ export async function POST(req: Request) {
                              // Add Others
                              if (p.participants && Array.isArray(p.participants)) {
                                  const otherParts = p.participants.map((uid: string) => ({
+                                     id: crypto.randomUUID(),
                                      conversation_id: p.id || p.conversationId,
                                      user_id: uid,
                                      role: 'member', // Default

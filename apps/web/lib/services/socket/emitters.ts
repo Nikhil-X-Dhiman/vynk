@@ -8,5 +8,5 @@ export function joinRoom(conversationId: string) {
 
 export function sendMessage(payload: { conversationId: string; text: string }) {
   const socket = getSocket();
-  socket.emit(SOCKET_EVENTS.SEND_MESSAGE, payload);
+  socket.emit(SOCKET_EVENTS.MESSAGE_SEND, payload);
 }

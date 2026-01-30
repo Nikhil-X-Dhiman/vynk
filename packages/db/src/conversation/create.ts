@@ -39,6 +39,7 @@ async function createConversation({
             conversation_id: conversationId,
             user_id: participant.userId,
             role: participant.role,
+            updated_at: new Date(),
           }))
         )
         .execute();

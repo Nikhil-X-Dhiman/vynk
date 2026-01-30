@@ -1,7 +1,6 @@
 'use client';
 
 import { usePresenceStore } from '@/store/use-presence-store';
-import { MOCK_CHATS } from '@/lib/mock-data';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
