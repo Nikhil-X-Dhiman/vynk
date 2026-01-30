@@ -9421,14 +9421,16 @@ This is generally NOT safe. Learn more at https://bit.ly/wb-precache`;
   var VynkLocalDB = class extends import_wrapper_default {
     constructor() {
       super("VynkLocalDB");
-      this.version(1).stores({
+      this.version(2).stores({
         messages: "++id, conversationId, timestamp",
         stories: "++id, expiresAt",
         conversations: "++id, conversationId, updatedAt",
         queue: "++id, action, timestamp",
         meta: "key",
         settings: "id",
-        calls: "++id, status"
+        calls: "++id, status",
+        users: "id, name, updatedAt"
+        // Primary key is 'id' (UUID), index on 'updatedAt'
       });
     }
     async cleanupOldStories() {

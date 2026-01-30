@@ -12,7 +12,6 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getUserConversations } from '@/app/actions/user-conversations';
-import { getOnlineUsers } from '@/app/actions/online-users';
 import { startConversation } from '@/app/actions/conversations';
 import { useRouter } from 'next/navigation';
 
@@ -100,33 +99,32 @@ const ChatListItem = React.memo(({ chat, isSelected }: { chat: any; isSelected: 
 
 ChatListItem.displayName = 'ChatListItem';
 
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '@/lib/db';
+
 export function ChatList() {
   const [filter, setFilter] = useState<FilterType>('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [chats, setChats] = useState<any[]>([]); // Use appropriate type if available
-  const [showOnlineUsers, setShowOnlineUsers] = useState(false);
-  const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
-  const [onlineUsersSearchQuery, setOnlineUsersSearchQuery] = useState('');
+  const [showAllUsers, setShowAllUsers] = useState(false);
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+
+  const allUsers = useLiveQuery(() => db.users.orderBy('name').toArray()) ?? [];
+
   const params = useParams();
   const router = useRouter(); // Initialize router
   const selectedId = params?.id;
 
-  const handleToggleOnlineUsers = async () => {
-    if (!showOnlineUsers) {
-      const res = await getOnlineUsers();
-      if (res.success && res.data) {
-        setOnlineUsers(res.data);
-      }
-    }
-    setShowOnlineUsers(!showOnlineUsers);
+  const handleToggleUsersView = () => {
+    setShowAllUsers(!showAllUsers);
   };
 
   const handleUserClick = async (userId: string) => {
     const res = await startConversation(userId);
     if (res.success && res.data) {
       router.push(`/chats/${res.data}`);
-      setShowOnlineUsers(false);
+      setShowAllUsers(false);
     }
   };
 
@@ -165,7 +163,7 @@ export function ChatList() {
   return (
     <div className="flex h-full w-full flex-col bg-background relative">
       {/* Header */}
-      {!showOnlineUsers && (
+      {!showAllUsers && (
         <>
           <div className="flex items-center justify-between px-4 py-3">
             <h1 className="text-2xl font-bold text-foreground">
@@ -211,29 +209,29 @@ export function ChatList() {
 
       {/* List */}
       <div className="flex-1 overflow-hidden preserve-3d relative">
-        {showOnlineUsers ? (
+        {showAllUsers ? (
           <div className="absolute inset-0 bg-background z-10 overflow-y-auto w-full h-full">
             <div className="sticky top-0 bg-background/95 backdrop-blur z-20 border-b">
                  <h3 className="px-4 py-3 font-semibold text-muted-foreground w-full">
-                  Online Users ({onlineUsers.length})
+                  All Users ({allUsers.length})
                 </h3>
                 <div className="px-4 pb-2">
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                       <Input
                         type="text"
-                        placeholder="Search online users"
+                        placeholder="Search users"
                         className="pl-10 bg-secondary/50 border-none shadow-none focus-visible:ring-1"
-                        value={onlineUsersSearchQuery}
-                        onChange={(e) => setOnlineUsersSearchQuery(e.target.value)}
+                        value={userSearchQuery}
+                        onChange={(e) => setUserSearchQuery(e.target.value)}
                       />
                     </div>
                  </div>
             </div>
 
             <div className="flex flex-col">
-              {onlineUsers
-                .filter(user => user.name.toLowerCase().includes(onlineUsersSearchQuery.toLowerCase()))
+              {allUsers
+                .filter(user => user.name.toLowerCase().includes(userSearchQuery.toLowerCase()))
                 .map((user) => (
                 <div
                   key={user.id}
@@ -241,20 +239,20 @@ export function ChatList() {
                   onClick={() => handleUserClick(user.id)}
                 >
                   <Avatar className="h-10 w-10">
-                    <AvatarImage src={user.avatar} alt={user.name} />
-                    <AvatarFallback>{user.name?.[0] || '?'}</AvatarFallback>
+                    <AvatarImage src={user.avatar || undefined} alt={user.name} />
+                    <AvatarFallback>{user.name?.[0]?.toUpperCase() || '?'}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-semibold text-foreground truncate">
                       {user.name}
                     </h3>
-                    <p className="text-xs text-green-500 font-medium">Online</p>
+                    <p className="text-xs text-muted-foreground truncate">{user.bio}</p>
                   </div>
                 </div>
               ))}
-              {onlineUsers.length === 0 && (
+              {allUsers.length === 0 && (
                  <div className="p-4 text-center text-muted-foreground">
-                     No users online
+                     No users found
                  </div>
               )}
             </div>
@@ -289,9 +287,9 @@ export function ChatList() {
       <Button
         className="absolute bottom-6 right-6 rounded-full h-14 w-14 shadow-lg z-30 transition-all duration-300 hover:scale-105 bg-slate-600 text-white hover:bg-slate-700 border-2 border-white dark:border-gray-900"
         size="icon"
-        onClick={handleToggleOnlineUsers}
+        onClick={handleToggleUsersView}
       >
-        {showOnlineUsers ? (
+        {showAllUsers ? (
             <X className="h-6 w-6" />
         ) : (
             <UserPlus className="h-6 w-6" />

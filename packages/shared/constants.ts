@@ -21,4 +21,6 @@ export const SOCKET_EVENTS = {
   STORY_NEW: 'story:new',
   STORY_READ: 'story:read',
   STORY_REACTION: 'story:reaction',
+  USER_LIST_INITIAL: 'user:list-initial',
+  USER_NEW: 'user:new',
 } as const;

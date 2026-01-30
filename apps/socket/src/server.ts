@@ -10,6 +10,8 @@ import { registerReadEvents } from './events/read-events';
 import { registerTypingEvents } from './events/typing-events';
 import { registerStoryEvents } from './events/story-events';
 import { registerCallEvents } from './events/call-events';
+import { registerUserEvents } from './events/user-events';
+import { SOCKET_EVENTS } from '@repo/shared';
 
 const PORT = 3001;
 const httpServer = createServer();
@@ -47,16 +49,28 @@ chatNamespace.on('connection', async (socket) => {
   await RoomService.joinUserRooms(socket, userId);
 
   // Register Events
+  // Register Events
   registerPresenceEvents(socket);
   registerMessageEvents(socket);
   registerReadEvents(socket);
   registerTypingEvents(socket);
   registerStoryEvents(socket);
   registerCallEvents(socket);
+  registerUserEvents(socket);
 
   socket.on('disconnect', () => {
     console.log(`User disconnected: ${userId}`);
   });
+});
+
+// Redis Pub/Sub for New Users
+subClient.subscribe('user:registered', (message) => {
+  try {
+    const user = JSON.parse(message);
+    chatNamespace.emit(SOCKET_EVENTS.USER_NEW, user);
+  } catch (err) {
+    console.error('Failed to process user:registered message', err);
+  }
 });
 
 httpServer.listen(PORT, () => {

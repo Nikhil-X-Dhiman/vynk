@@ -71,7 +71,7 @@ const handleGetUserAction = publicDirectAction(async (formData: FormData) => {
     return { success: false, message: 'GetUser: Data is missing' };
 
   // call db to check user exists
-  const existingUser = await findUserByPhone({
+  const { data: existingUser } = await findUserByPhone({
     phoneNumber,
     countryCode,
   });

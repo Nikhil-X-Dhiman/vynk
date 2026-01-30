@@ -1,7 +1,7 @@
 'use client';
 
+import { checkClientAuth } from '@/lib/auth/check-client-auth';
 import { useAuthStore } from '@/store/auth';
-import { getCurrentSession } from '@/lib/auth/get-session';
 import { useEffect } from 'react';
 
 export default function SessionProvider({
@@ -9,16 +9,23 @@ export default function SessionProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const { data } = getCurrentSession();
   const setUser = useAuthStore((state) => state.setUser);
   const setSession = useAuthStore((state) => state.setSession);
 
   useEffect(() => {
-    if (data?.session && data?.user) {
-      setUser(data.user);
-      setSession(data.session);
-    }
-  }, [data, setUser, setSession]);
+    const fetchSession = async () => {
+      try {
+        const { isAuth, session } = await checkClientAuth();
+        if (isAuth && session?.data?.user && session.data.session) {
+          setUser(session?.data?.user);
+          setSession(session?.data?.session);
+        }
+      } catch (error) {
+        console.error('Failed to fetch Session: ', error);
+      }
+    };
+    fetchSession();
+  }, [setSession, setUser]);
 
   return <>{children}</>;
-}
+};

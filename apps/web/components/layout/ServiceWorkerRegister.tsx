@@ -3,9 +3,13 @@
 import { useEffect } from 'react';
 import { Workbox } from 'workbox-window';
 import { db } from '@/lib/db';
+import { registerUserSyncListeners } from '@/lib/services/socket/listeners';
 
 export default function SWRegister() {
   useEffect(() => {
+    // 0. Register Socket Listeners
+    registerUserSyncListeners();
+
     // 1. Cleanup old stories on boot
     db.cleanupOldStories().catch(console.error);
 

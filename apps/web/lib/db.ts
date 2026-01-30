@@ -29,6 +29,15 @@ export interface LocalConversation {
   unreadCount: number;
 }
 
+export interface LocalUser {
+  id: string; // User ID
+  name: string;
+  avatar: string | null;
+  phoneNumber?: string;
+  bio?: string;
+  updatedAt: number;
+}
+
 export type SyncAction =
   | 'MESSAGE_SEND'
   | 'MESSAGE_READ'
@@ -60,10 +69,11 @@ export class VynkLocalDB extends Dexie {
   conversations!: Table<LocalConversation>;
   queue!: Table<QueueItem>;
   meta!: Table<Meta>;
+  users!: Table<LocalUser>;
 
   constructor() {
     super('VynkLocalDB');
-    this.version(1).stores({
+    this.version(2).stores({
       messages: '++id, conversationId, timestamp',
       stories: '++id, expiresAt',
       conversations: '++id, conversationId, updatedAt',
@@ -71,6 +81,7 @@ export class VynkLocalDB extends Dexie {
       meta: 'key',
       settings: 'id',
       calls: '++id, status',
+      users: 'id, name, updatedAt', // Primary key is 'id' (UUID), index on 'updatedAt'
     });
   }
 
