@@ -16,6 +16,19 @@ export interface LocalStory {
   expiresAt: number;
 }
 
+export interface LocalConversation {
+  id?: number;
+  conversationId: string; // Server ID
+  title?: string;
+  type: 'private' | 'group' | 'broadcast';
+  groupImg?: string;
+  groupBio?: string;
+  createdAt: number;
+  updatedAt: number;
+  lastMessageId?: string;
+  unreadCount: number;
+}
+
 export type SyncAction =
   | 'MESSAGE_SEND'
   | 'MESSAGE_READ'
@@ -24,7 +37,10 @@ export type SyncAction =
   | 'STORY_READ'
   | 'STORY_DELETE'
   | 'REACTION_ADD'
-  | 'REACTION_REMOVE';
+  | 'REACTION_REMOVE'
+  | 'CONVERSATION_CREATE'
+  | 'CONVERSATION_UPDATE'
+  | 'CONVERSATION_DELETE';
 
 export interface QueueItem {
   id?: number;
@@ -41,6 +57,7 @@ export interface Meta {
 export class VynkLocalDB extends Dexie {
   messages!: Table<LocalMessage>;
   stories!: Table<LocalStory>;
+  conversations!: Table<LocalConversation>;
   queue!: Table<QueueItem>;
   meta!: Table<Meta>;
 
@@ -49,14 +66,7 @@ export class VynkLocalDB extends Dexie {
     this.version(1).stores({
       messages: '++id, conversationId, timestamp',
       stories: '++id, expiresAt',
-      queue: '++id, action, timestamp',
-      settings: 'id',
-      calls: '++id, status',
-    });
-
-    this.version(2).stores({
-      messages: '++id, conversationId, timestamp',
-      stories: '++id, expiresAt',
+      conversations: '++id, conversationId, updatedAt',
       queue: '++id, action, timestamp',
       meta: 'key',
       settings: 'id',
@@ -120,10 +130,20 @@ export class VynkLocalDB extends Dexie {
       if (!response.ok) throw new Error('Pull failed');
 
       const data = await response.json();
-      // data: { messages, stories, deletedMessageIds, deletedStoryIds, timestamp }
+      // data: { messages, stories, conversations, deletedMessageIds, deletedStoryIds, deletedConversationIds, timestamp }
 
-      await this.transaction('rw', this.messages, this.stories, this.meta, async () => {
+      await this.transaction('rw', this.messages, this.stories, this.conversations, this.meta, async () => {
           // 1. Apply Changes (Upsert)
+          if (data.conversations?.length) {
+              for (const conv of data.conversations) {
+                  const existing = await this.conversations.where('conversationId').equals(conv.conversationId).first();
+                  if (existing) {
+                      await this.conversations.update(existing.id!, conv);
+                  } else {
+                      await this.conversations.add(conv);
+                  }
+              }
+          }
           if (data.messages?.length) {
               for (const msg of data.messages) {
                   const existing = await this.messages.where('messageId').equals(msg.messageId).first();
@@ -151,6 +171,9 @@ export class VynkLocalDB extends Dexie {
           }
           if (data.deletedStoryIds?.length) {
              await this.stories.where('storyId').anyOf(data.deletedStoryIds).delete();
+          }
+          if (data.deletedConversationIds?.length) {
+             await this.conversations.where('conversationId').anyOf(data.deletedConversationIds).delete();
           }
 
           // 3. Update Timestamp

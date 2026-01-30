@@ -45,6 +45,7 @@ export type Conversation = {
     group_bio: Generated<string | null>;
     created_at: Generated<Timestamp>;
     updated_at: Timestamp;
+    is_deleted: Generated<boolean>;
 };
 export type Delivery = {
     id: string;
@@ -109,7 +110,9 @@ export type Story = {
     caption: string | null;
     text: string | null;
     expires_at: Timestamp | null;
+    is_deleted: Generated<boolean>;
     created_at: Generated<Timestamp>;
+    updated_at: Timestamp;
 };
 export type StoryView = {
     id: string;

@@ -70,6 +70,7 @@ model Conversation {
   groupBio        String?          @default("Enter a group description here!!!") @map("group_bio")
   createdAt       DateTime         @default(now()) @map("created_at")
   updatedAt       DateTime         @updatedAt @map("updated_at")
+  isDeleted       Boolean          @default(false) @map("is_deleted")
   // Relations
   participants    Participant[]
   messages        Message[]
