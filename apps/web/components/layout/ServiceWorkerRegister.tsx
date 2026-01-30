@@ -33,6 +33,15 @@ export default function SWRegister() {
       // Register the worker
       wb.register();
     }
+
+    // 3. Socket Event for Delta Sync
+    // Assuming you have a socket instance exported or accessible
+    // import { socket } from '@/lib/socket';
+    // socket.on('new-updates', () => db.pullDelta().catch(console.error));
+
+    // For now, we stub it or use window event if socket is global
+    window.addEventListener('online', () => db.sync().catch(console.error));
+
   }, []);
 
   return null;

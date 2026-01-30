@@ -132,7 +132,9 @@ model Story {
   caption       String?
   text          String?
   expiresAt     DateTime?   @map("expires_at")
+  isDeleted     Boolean     @default(false) @map("is_deleted")
   createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
   // Relations
   storyViews    StoryView[]
   storyReaction Reaction[]
