@@ -126,7 +126,9 @@ function CountrySelect({ value, onChange }: CountrySelectProps) {
                 decoding="async"
                 className="shrink-0"
               />
-              <span className="flex-1 truncate font-medium">{selectedCountry.name}</span>
+              <span className="flex-1 truncate font-medium">
+                {selectedCountry.name}
+              </span>
               <span className="text-muted-foreground text-sm tabular-nums">
                 +{selectedCountry.phone}
               </span>
@@ -137,13 +139,18 @@ function CountrySelect({ value, onChange }: CountrySelectProps) {
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="p-0 w-[300px]" align="start">
+      <PopoverContent
+        className="p-0 w-[300px]"
+        align="start"
+      >
         <Command
           shouldFilter={false}
           onKeyDown={(e) => {
             if (e.key === 'ArrowDown') {
               e.preventDefault();
-              setFocusedIndex((prev) => Math.min(prev + 1, filtered.length - 1));
+              setFocusedIndex((prev) =>
+                Math.min(prev + 1, filtered.length - 1),
+              );
             } else if (e.key === 'ArrowUp') {
               e.preventDefault();
               setFocusedIndex((prev) => Math.max(prev - 1, 0));

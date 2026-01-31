@@ -5,20 +5,15 @@ import { loginSchema } from '@repo/validation';
 import { formOptions, useForm } from '@tanstack/react-form';
 import { FieldGroup } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { useState, useTransition } from 'react';
+import { useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { useLoginStore } from '@/store';
 import { Spinner } from '@/components/ui/spinner';
 import { toast } from 'sonner';
 import { CountrySelect } from '@/components/login/CountrySelect';
 import { authClient } from '@/lib/auth/auth-client';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { Label } from '../ui/label';
 
 interface Login {
   countryCode: string;
@@ -75,7 +70,16 @@ function PhoneNumberStep() {
 
   return (
     <Card className="w-full border-0 bg-transparent shadow-none">
-      <CardContent>
+      <CardContent className="space-y-6 pt-2">
+        <div className="space-y-1">
+          <h2 className="text-md font-bold tracking-tight text-center">
+            Enter your phone number
+          </h2>
+          <p className="text-sm text-muted-foreground font-medium">
+            Vynk will send an SMS message to verify your identity.
+          </p>
+        </div>
+
         <form
           onSubmit={(e: React.FormEvent) => {
             e.preventDefault();
@@ -83,13 +87,15 @@ function PhoneNumberStep() {
           }}
           className="space-y-4"
         >
-          <FieldGroup>
+          <FieldGroup className="gap-4">
             <form.Field name="countryCode">
               {(field) => (
-                <CountrySelect
-                  value={field.state.value} // This is now ISO code
-                  onChange={field.handleChange}
-                />
+                <div>
+                  <CountrySelect
+                    value={field.state.value}
+                    onChange={field.handleChange}
+                  />
+                </div>
               )}
             </form.Field>
             <form.Field
@@ -97,10 +103,13 @@ function PhoneNumberStep() {
               validators={{
                 onChangeListenTo: ['countryCode'],
                 onSubmit: ({ value, fieldApi }) => {
-                  const countryCodeISO = fieldApi.form.getFieldValue('countryCode');
+                  const countryCodeISO =
+                    fieldApi.form.getFieldValue('countryCode');
                   if (!countryCodeISO) return undefined;
 
-                  const country = countries.find(c => c.code === countryCodeISO);
+                  const country = countries.find(
+                    (c) => c.code === countryCodeISO,
+                  );
                   const phoneCode = country ? country.phone : '';
 
                   const fullNumber = `+${phoneCode}${value}`;
@@ -112,7 +121,7 @@ function PhoneNumberStep() {
               }}
             >
               {(field) => (
-                <div className="space-y-1">
+                <div>
                   <Input
                     type="tel"
                     name={field.name}
@@ -120,6 +129,7 @@ function PhoneNumberStep() {
                     value={field.state.value}
                     onBlur={field.handleBlur}
                     onChange={(e) => field.handleChange(e.target.value)}
+                    className="focus-visible:ring-indigo-900/30 focus-visible:border-indigo-900/50 transition-all duration-300"
                   />
                   {!field.state.meta.isValid && (
                     <p className="text-sm text-destructive">
@@ -138,7 +148,7 @@ function PhoneNumberStep() {
               <Button
                 type="submit"
                 disabled={!canSubmit || isPending || isSubmitting}
-                className="w-full bg-gradient-to-r from-indigo-500/90 via-sky-500/90 to-teal-500/90 hover:from-indigo-600 hover:via-sky-600 hover:to-teal-600 text-white border-0 transition-all duration-500 shadow-md hover:shadow-lg active:scale-[0.98]"
+                className="cursor-pointer w-full bg-linear-to-r from-indigo-500/90 via-sky-500/90 to-teal-500/90 hover:from-indigo-600 hover:via-sky-600 hover:to-teal-600 text-white border-0 transition-all duration-500 shadow-md hover:shadow-lg active:scale-[0.98]"
                 size={'lg'}
               >
                 {isSubmitting || isPending ? <Spinner /> : 'Send OTP'}

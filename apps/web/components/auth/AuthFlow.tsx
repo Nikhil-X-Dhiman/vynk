@@ -11,10 +11,21 @@ function AuthFlow() {
   const step = useLoginStore((state) => state.step);
 
   return (
-    <div className="w-full max-w-md mx-auto">
-      {step === 1 && <PhoneNumberStep key="phone-step" />}
-      {step === 2 && phoneNumber && <OTPStep key="otp-step" />}
-      {step === 3 && session && <ProfileStep key="profile-step" />}
+    <div className="w-full max-w-md mx-auto flex flex-col justify-center">
+      <div
+        key={step}
+        className="animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-500"
+      >
+        {step === 1 && <PhoneNumberStep key="phone-step" />}
+        {step === 2 && phoneNumber && <OTPStep key="otp-step" />}
+        {step === 3 && session && <ProfileStep key="profile-step" />}
+        {/* Fallback: If something goes wrong */}
+        {step === 2 && !phoneNumber && (
+          <p className="text-center text-sm text-destructive">
+            Error: Session lost. Please restart.
+          </p>
+        )}
+      </div>
     </div>
   );
 }
