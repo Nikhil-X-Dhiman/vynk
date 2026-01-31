@@ -22,9 +22,9 @@ type authStoreTypes = {
   session?: Session | null;
   user?: User | null;
   isAuthenticated: boolean;
-  toggleIsAuthenticated: () => void;
-  setUser: (user: User) => void;
-  setSession: (session: Session) => void;
+  setUser: (user: User | null) => void;
+  setSession: (session: Session | null) => void;
+  setAuth: (user: User | null, session: Session | null) => void;
   reset: () => void;
 };
 

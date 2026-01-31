@@ -13,16 +13,14 @@ const useAuthStore = create(
       isAuthenticated: false,
 
       // actions
-      setSession: (session: Session) => {
-        set({ session });
+      setSession: (session: Session | null) => {
+        set({ session, isAuthenticated: !!session });
       },
-      setUser: (user: User) => {
+      setUser: (user: User | null) => {
         set({ user });
       },
-      toggleIsAuthenticated: () => {
-        set((state) => ({
-          isAuthenticated: !state.isAuthenticated,
-        }));
+      setAuth: (user: User | null, session: Session | null) => {
+        set({ user, session, isAuthenticated: !!(user && session) });
       },
       reset: () => {
         set({
@@ -35,8 +33,8 @@ const useAuthStore = create(
     {
       name: 'auth-storage', // unique name for the IndexedDB key
       storage: createJSONStorage(() => idbStorage), // Use the custom IDB storage
-    }
-  )
+    },
+  ),
 );
 
 export { useAuthStore }; // Use the custom IDB storage
