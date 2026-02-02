@@ -16,7 +16,7 @@ async function findUserByPhone({
       .executeTakeFirst();
 
     if (!user) {
-      return { success: true, data: null };
+      return { success: false, data: null };
     }
 
     return { success: true, data: user };

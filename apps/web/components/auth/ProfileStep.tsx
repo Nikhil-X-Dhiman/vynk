@@ -37,7 +37,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { ArrowLeft, Camera, Upload } from 'lucide-react';
+import { ArrowLeft, Camera } from 'lucide-react';
 import { cn } from '@/lib/utils/tailwind-helpers';
 
 interface userAvatar {
@@ -66,7 +66,6 @@ function ProfileStep() {
   const [preview, setPreview] = useState('assets/avatar/3d_4.png');
   const setName = useLoginStore((state) => state.setName);
   const setAbout = useLoginStore((state) => state.setAbout);
-  const reset = useLoginStore((state) => state.reset);
   const setStep = useLoginStore((state) => state.setStep);
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -89,10 +88,10 @@ function ProfileStep() {
       toast.error(
         typeof state.message === 'string'
           ? state.message
-          : 'Something Went Wrong!!!'
+          : 'Something Went Wrong!!!',
       );
     }
-  }, [state, router, reset]);
+  }, [state, router]);
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const tmpFile = e.target.files?.[0];
@@ -174,7 +173,7 @@ function ProfileStep() {
         const { success, error } = avatarPageSchema.safeParse(value);
         const formattedError = error?.flatten();
         if (!success)
-          return `Submission Failed. Please check your inputs.`;
+          return `Submission Failed. Please check your inputs.: ${formattedError}`;
       },
     },
     onSubmit: async ({ value }) => {
@@ -229,7 +228,11 @@ function ProfileStep() {
                 <div className="flex flex-col items-center gap-4">
                   <div className="relative group">
                     <Avatar className="h-24 w-24 cursor-pointer ring-2 ring-offset-2 ring-primary">
-                      <AvatarImage src={preview} alt="Profile preview" className="object-cover" />
+                      <AvatarImage
+                        src={preview}
+                        alt="Profile preview"
+                        className="object-cover"
+                      />
                       <AvatarFallback>UP</AvatarFallback>
                     </Avatar>
                     <div
@@ -248,8 +251,9 @@ function ProfileStep() {
                   </div>
 
                   <div className="flex gap-2 pb-2 overflow-x-auto max-w-full px-2 scrollbar-hide">
-                     {avatarList.map((avatar) => {
-                      const isSelected = field.state.value === avatar.id && !file;
+                    {avatarList.map((avatar) => {
+                      const isSelected =
+                        field.state.value === avatar.id && !file;
                       return (
                         <button
                           key={avatar.id}
@@ -260,18 +264,25 @@ function ProfileStep() {
                             field.handleChange(avatar.id);
                           }}
                           className={cn(
-                            "relative h-10 w-10 flex-shrink-0 rounded-full overflow-hidden transition-all",
-                            isSelected ? "ring-2 ring-primary scale-110" : "opacity-70 hover:opacity-100"
+                            'relative h-10 w-10 shrink-0 rounded-full overflow-hidden transition-all',
+                            isSelected
+                              ? 'ring-2 ring-primary scale-110'
+                              : 'opacity-70 hover:opacity-100',
                           )}
                         >
                           <Avatar className="h-full w-full">
-                            <AvatarImage src={avatar.url} alt={avatar.name} />
+                            <AvatarImage
+                              src={avatar.url}
+                              alt={avatar.name}
+                            />
                           </Avatar>
                         </button>
                       );
                     })}
                   </div>
-                  <p className="text-xs text-muted-foreground">Choose an avatar or upload your own</p>
+                  <p className="text-xs text-muted-foreground">
+                    Choose an avatar or upload your own
+                  </p>
                 </div>
               )}
             </form.Field>
@@ -298,7 +309,9 @@ function ProfileStep() {
                     onChange={(e) => field.handleChange(e.target.value)}
                   />
                   {!field.state.meta.isValid && (
-                    <p className="text-xs text-destructive">{field.state.meta.errors.join(', ')}</p>
+                    <p className="text-xs text-destructive">
+                      {field.state.meta.errors.join(', ')}
+                    </p>
                   )}
                 </div>
               )}
@@ -308,14 +321,21 @@ function ProfileStep() {
               name="bio"
               validators={{
                 onChange: ({ value }) => {
-                  const { success, error } = bioOnlySchema.safeParse({ bio: value });
+                  const { success, error } = bioOnlySchema.safeParse({
+                    bio: value,
+                  });
                   if (!success) return error.issues[0].message;
                 },
               }}
             >
               {(field) => (
                 <div className="space-y-1">
-                   <Label htmlFor="bio" className="sr-only">Bio</Label>
+                  <Label
+                    htmlFor="bio"
+                    className="sr-only"
+                  >
+                    Bio
+                  </Label>
                   <Textarea
                     id="bio"
                     placeholder="Tell us about yourself"
@@ -345,11 +365,15 @@ function ProfileStep() {
                     }
                   />
                   <div className="grid gap-1.5 leading-none">
-                    <Label htmlFor="consent" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    <Label
+                      htmlFor="consent"
+                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
                       Accept terms and conditions
                     </Label>
                     <p className="text-xs text-muted-foreground">
-                      By clicking this checkbox, you agree to our terms of service and privacy policy.
+                      By clicking this checkbox, you agree to our terms of
+                      service and privacy policy.
                     </p>
                   </div>
                 </div>
@@ -364,7 +388,7 @@ function ProfileStep() {
               <Button
                 type="submit"
                 disabled={!canSubmit || isPending || isLoading || loading}
-                className="w-full bg-gradient-to-r from-indigo-500/90 via-sky-500/90 to-teal-500/90 hover:from-indigo-600 hover:via-sky-600 hover:to-teal-600 text-white border-0 transition-all duration-500 shadow-md hover:shadow-lg active:scale-[0.98]"
+                className="w-full bg-linear-to-r from-indigo-500/90 via-sky-500/90 to-teal-500/90 hover:from-indigo-600 hover:via-sky-600 hover:to-teal-600 text-white border-0 transition-all duration-500 shadow-md hover:shadow-lg active:scale-[0.98]"
                 size={'lg'}
               >
                 {isSubmitting || isPending || isLoading || loading ? (
@@ -377,8 +401,8 @@ function ProfileStep() {
           </form.Subscribe>
         </form>
       </CardContent>
-       <CardFooter className="justify-center">
-         <Button
+      <CardFooter className="justify-center">
+        <Button
           variant="link"
           onClick={handleBack}
           className="text-muted-foreground hover:text-destructive gap-2"

@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/input-otp';
 import { REGEXP_ONLY_DIGITS } from 'input-otp';
 import { Button } from '@/components/ui/button';
-import { handleGetUserAction } from '@/app/actions/auth-actions';
+
 import { useLoginStore } from '@/store';
 import { authClient } from '@/lib/auth/auth-client';
 import { toast } from 'sonner';
@@ -28,6 +28,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { ArrowLeft } from 'lucide-react';
+import { handleCheckUserAndSessionAction } from '@/app/actions/login-auth';
 
 interface Otp {
   otp: string;
@@ -47,11 +48,7 @@ function OTPStep() {
   const phoneNumber = useLoginStore((state) => state.phoneNumber);
   const countryCode = useLoginStore((state) => state.countryCode);
   const setStep = useLoginStore((state) => state.setStep);
-  const reset = useLoginStore((state) => state.reset);
-  const setUser = useAuthStore((state) => state.setUser);
-  const toggleIsAuthenticated = useAuthStore(
-    (store) => store.toggleIsAuthenticated
-  );
+  const setAuth = useAuthStore((state) => state.setAuth);
 
   const form = useForm({
     ...formOpts,
@@ -65,20 +62,19 @@ function OTPStep() {
     onSubmit: async ({ value }) => {
       startTransition(async () => {
         const fullPhoneNumber = `${countryCode}${phoneNumber}`;
-        const { data, error } = await authClient.phoneNumber.verify({
+        const { error } = await authClient.phoneNumber.verify({
           phoneNumber: fullPhoneNumber,
           code: value.otp,
         });
 
         if (!error) {
-          setUser(data?.user);
-          toggleIsAuthenticated();
-
           const fd = new FormData();
           fd.append('phoneNumber', phoneNumber);
           fd.append('countryCode', countryCode);
           // Check if user exists in DB to decide navigation
-          const { success } = await handleGetUserAction(fd);
+          const { success, session } =
+            await handleCheckUserAndSessionAction(fd);
+          setAuth(session.user, session.session);
           if (success) {
             toast.success('Welcome Back');
             router.push('/chats');
@@ -99,7 +95,11 @@ function OTPStep() {
       <CardHeader>
         <CardTitle className="text-2xl text-center">Verify OTP</CardTitle>
         <CardDescription className="text-center">
-          Enter the code sent to <span className="font-semibold text-foreground">{countryCode}{phoneNumber}</span>
+          Enter the code sent to{' '}
+          <span className="font-semibold text-foreground">
+            {countryCode}
+            {phoneNumber}
+          </span>
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -151,7 +151,7 @@ function OTPStep() {
               <Button
                 type="submit"
                 disabled={!canSubmit || isPending || isSubmitting}
-                className="w-full bg-gradient-to-r from-indigo-500/90 via-sky-500/90 to-teal-500/90 hover:from-indigo-600 hover:via-sky-600 hover:to-teal-600 text-white border-0 transition-all duration-500 shadow-md hover:shadow-lg active:scale-[0.98]"
+                className="w-full bg-linear-to-r from-indigo-500/90 via-sky-500/90 to-teal-500/90 hover:from-indigo-600 hover:via-sky-600 hover:to-teal-600 text-white border-0 transition-all duration-500 shadow-md hover:shadow-lg active:scale-[0.98]"
                 size={'lg'}
               >
                 {isSubmitting || isPending ? <Spinner /> : 'Verify Code'}
