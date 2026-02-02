@@ -72,13 +72,13 @@ const SidebarItem = ({
 export function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
-  const reset = useLoginStore((state) => state.reset);
+  const resetLogin = useLoginStore((state) => state.reset);
 
   React.useEffect(() => {
     // When the user reaches the authenticated area, we clear any stale login progress.
     // This avoids flickers on the login page and handles the "session expired" edge case.
-    reset();
-  }, [reset]);
+    resetLogin();
+  }, [resetLogin]);
 
   const handleLogout = async () => {
     await authClient.signOut({

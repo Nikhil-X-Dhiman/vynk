@@ -2,7 +2,7 @@
 
 import countries from '@/lib/data/countries.json';
 import { loginSchema } from '@repo/validation';
-import { formOptions, useForm } from '@tanstack/react-form';
+import { useForm } from '@tanstack/react-form';
 import { FieldGroup } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { useTransition } from 'react';
@@ -11,66 +11,76 @@ import { useLoginStore } from '@/store';
 import { Spinner } from '@/components/ui/spinner';
 import { toast } from 'sonner';
 import { CountrySelect } from '@/components/login/CountrySelect';
-import { authClient } from '@/lib/auth/auth-client';
+import { sendOTPAction } from '@/app/actions/login-auth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '../ui/label';
 
-interface Login {
-  countryCode: string;
-  phoneNumber: string;
-}
-
-const defaultValues: Login = {
-  countryCode: '',
-  phoneNumber: '',
+// Function to map phone code (+91) back to ISO code (IN)
+const getISOFromPhoneCode = (phoneCode: string) => {
+  if (!phoneCode) return '';
+  const code = phoneCode.startsWith('+') ? phoneCode.slice(1) : phoneCode;
+  const country = countries.find((c) => String(c.phone) === code);
+  return country ? (country.code as string) : '';
 };
-
-export const formOpts = formOptions({
-  defaultValues,
-});
-
-
 
 function PhoneNumberStep() {
   const [isPending, startTransition] = useTransition();
+  const prevPhoneNumber = useLoginStore((state) => state.phoneNumber);
+  const prevCountryCode = useLoginStore((state) => state.countryCode);
   const setPhoneNumber = useLoginStore((state) => state.setPhoneNumber);
   const setCountryCode = useLoginStore((state) => state.setCountryCode);
   const setStep = useLoginStore((state) => state.setStep);
 
   const form = useForm({
-    ...formOpts,
+    defaultValues: {
+      countryCode: prevCountryCode ? getISOFromPhoneCode(prevCountryCode) : '',
+      phoneNumber: prevPhoneNumber || '',
+    },
     onSubmit: async ({ value }) => {
+      // 1. Immediate offline guard (Browser check)
+      if (!navigator.onLine) {
+        toast.error('Offline', {
+          description: 'Please check your internet connection and try again.',
+        });
+        return;
+      }
+
       try {
-        startTransition(async () => {
-          const country = countries.find((c) => c.code === value.countryCode);
-          if (!country) {
-            toast.error('Please select a valid country');
-            return;
-          }
+        const country = countries.find((c) => c.code === value.countryCode);
+        if (!country) {
+          toast.error('Please select a valid country');
+          return;
+        }
 
-          const phoneCode = country.phone;
-          const fullPhoneNumber = `+${phoneCode}${value.phoneNumber}`;
+        const phoneCode = country.phone;
+        const fd = new FormData();
+        fd.append('countryCode', phoneCode.toString());
+        fd.append('phoneNumber', value.phoneNumber);
 
-          const result = await authClient.phoneNumber.sendOtp({
-            phoneNumber: fullPhoneNumber,
+        // 2. Call our Server Action
+        const result = await sendOTPAction(fd);
+
+        if (!result.success) {
+          toast.error('Verification failed', {
+            description: result.message || 'Check your number and try again.',
           });
+          return;
+        }
 
-          if (!result.error) {
-            setPhoneNumber(value.phoneNumber);
-            setCountryCode(`+${phoneCode}`);
-            setStep(2);
-          } else {
-            toast.error('Verification failed', {
-              description:
-                result.error.message || 'Check your number and try again.',
-            });
-          }
+        // 3. Update store and transition step ONLY on success
+        startTransition(() => {
+          setPhoneNumber(value.phoneNumber);
+          setCountryCode(`+${phoneCode}`);
+          setStep(2);
         });
       } catch (err) {
         console.error('Submission error:', err);
-        toast.error('Something went wrong. Please try again.');
+        toast.error('Connection Error', {
+          description:
+            'Unable to reach server. Please check your internet connection.',
+        });
       }
-    },
+    }
   });
 
   return (
@@ -88,13 +98,12 @@ function PhoneNumberStep() {
         <form
           onSubmit={(e: React.FormEvent) => {
             e.preventDefault();
-            e.stopPropagation(); // Prevent event bubbling that can cause refreshes
+            e.stopPropagation();
             form.handleSubmit();
           }}
           className="space-y-5"
         >
           <FieldGroup className="gap-4">
-            {/* Country Selection Field */}
             <form.Field
               name="countryCode"
               validators={{
@@ -122,7 +131,6 @@ function PhoneNumberStep() {
               )}
             </form.Field>
 
-            {/* Phone Number Field */}
             <form.Field
               name="phoneNumber"
               validators={{

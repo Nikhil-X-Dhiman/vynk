@@ -2,7 +2,12 @@
 
 import { precacheAndRoute } from 'workbox-precaching';
 import { registerRoute } from 'workbox-routing';
-import { NetworkFirst, CacheFirst, StaleWhileRevalidate } from 'workbox-strategies';
+import {
+  NetworkFirst,
+  CacheFirst,
+  StaleWhileRevalidate,
+  NetworkOnly,
+} from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { db } from '../lib/db';
 
@@ -15,6 +20,21 @@ self.skipWaiting();
 self.clients.claim();
 
 // 3. CACHING STRATEGIES
+
+// 3.1 AUTH & API: Network Only (Never Cache)
+// This strictly handles authentication and server actions to prevent offline "ghost success"
+registerRoute(
+  ({ url, request }) => {
+    return url.pathname.startsWith('/api/auth') || request.method === 'POST';
+  },
+  new NetworkOnly({
+    plugins: [{
+      fetchDidFail: async () => {
+        // Optional: You can access the failure here if needed
+      }
+    }]
+  })
+);
 
 // Images
 registerRoute(
@@ -38,7 +58,7 @@ registerRoute(
   })
 );
 
-// Pages
+// Pages (Navigation)
 registerRoute(
   ({ request }) => request.mode === 'navigate',
   new NetworkFirst({

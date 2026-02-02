@@ -8601,6 +8601,73 @@ This is generally NOT safe. Learn more at https://bit.ly/wb-precache`;
 
   // ../../node_modules/.pnpm/workbox-strategies@7.4.0/node_modules/workbox-strategies/NetworkOnly.js
   init_define_self_WB_MANIFEST();
+  var NetworkOnly = class extends Strategy {
+    /**
+     * @param {Object} [options]
+     * @param {Array<Object>} [options.plugins] [Plugins]{@link https://developers.google.com/web/tools/workbox/guides/using-plugins}
+     * to use in conjunction with this caching strategy.
+     * @param {Object} [options.fetchOptions] Values passed along to the
+     * [`init`](https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/fetch#Parameters)
+     * of [non-navigation](https://github.com/GoogleChrome/workbox/issues/1796)
+     * `fetch()` requests made by this strategy.
+     * @param {number} [options.networkTimeoutSeconds] If set, any network requests
+     * that fail to respond within the timeout will result in a network error.
+     */
+    constructor(options = {}) {
+      super(options);
+      this._networkTimeoutSeconds = options.networkTimeoutSeconds || 0;
+    }
+    /**
+     * @private
+     * @param {Request|string} request A request to run this strategy for.
+     * @param {workbox-strategies.StrategyHandler} handler The event that
+     *     triggered the request.
+     * @return {Promise<Response>}
+     */
+    async _handle(request, handler) {
+      if (true) {
+        finalAssertExports.isInstance(request, Request, {
+          moduleName: "workbox-strategies",
+          className: this.constructor.name,
+          funcName: "_handle",
+          paramName: "request"
+        });
+      }
+      let error = void 0;
+      let response;
+      try {
+        const promises = [
+          handler.fetch(request)
+        ];
+        if (this._networkTimeoutSeconds) {
+          const timeoutPromise = timeout(this._networkTimeoutSeconds * 1e3);
+          promises.push(timeoutPromise);
+        }
+        response = await Promise.race(promises);
+        if (!response) {
+          throw new Error(`Timed out the network response after ${this._networkTimeoutSeconds} seconds.`);
+        }
+      } catch (err) {
+        if (err instanceof Error) {
+          error = err;
+        }
+      }
+      if (true) {
+        logger.groupCollapsed(messages2.strategyStart(this.constructor.name, request));
+        if (response) {
+          logger.log(`Got response from network.`);
+        } else {
+          logger.log(`Unable to get a response from the network.`);
+        }
+        messages2.printFinalResponse(response);
+        logger.groupEnd();
+      }
+      if (!response) {
+        throw new WorkboxError("no-response", { url: request.url, error });
+      }
+      return response;
+    }
+  };
 
   // ../../node_modules/.pnpm/workbox-strategies@7.4.0/node_modules/workbox-strategies/StaleWhileRevalidate.js
   init_define_self_WB_MANIFEST();
@@ -9527,6 +9594,17 @@ This is generally NOT safe. Learn more at https://bit.ly/wb-precache`;
   precacheAndRoute(define_self_WB_MANIFEST_default || []);
   self.skipWaiting();
   self.clients.claim();
+  registerRoute(
+    ({ url, request }) => {
+      return url.pathname.startsWith("/api/auth") || request.method === "POST";
+    },
+    new NetworkOnly({
+      plugins: [{
+        fetchDidFail: async () => {
+        }
+      }]
+    })
+  );
   registerRoute(
     ({ request }) => request.destination === "image",
     new CacheFirst({

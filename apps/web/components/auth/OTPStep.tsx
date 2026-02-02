@@ -11,8 +11,8 @@ import {
 } from '@/components/ui/input-otp';
 import { REGEXP_ONLY_DIGITS } from 'input-otp';
 import { Button } from '@/components/ui/button';
-
 import { useLoginStore } from '@/store';
+import { verifyOTPAction } from '@/app/actions/login-auth';
 import { authClient } from '@/lib/auth/auth-client';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
@@ -28,7 +28,6 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { ArrowLeft } from 'lucide-react';
-import { handleCheckUserAndSessionAction } from '@/app/actions/login-auth';
 
 interface Otp {
   otp: string;
@@ -61,30 +60,33 @@ function OTPStep() {
     },
     onSubmit: async ({ value }) => {
       startTransition(async () => {
-        const fullPhoneNumber = `${countryCode}${phoneNumber}`;
-        const { error } = await authClient.phoneNumber.verify({
-          phoneNumber: fullPhoneNumber,
-          code: value.otp,
-        });
+        const fd = new FormData();
+        fd.append('phoneNumber', phoneNumber);
+        fd.append('countryCode', countryCode);
+        fd.append('otp', value.otp);
 
-        if (!error) {
-          const fd = new FormData();
-          fd.append('phoneNumber', phoneNumber);
-          fd.append('countryCode', countryCode);
-          // Check if user exists in DB to decide navigation
-          const { success, session } =
-            await handleCheckUserAndSessionAction(fd);
-          setAuth(session.user, session.session);
-          if (success) {
+        const response = await verifyOTPAction(fd);
+
+        if (response.success) {
+          // Fetch the session on the client to update the Zustand store
+          const { data: sessionData } = await authClient.getSession();
+
+          if (sessionData) {
+            console.log(sessionData.session, sessionData.user);
+            setAuth(sessionData.user, sessionData.session);
+          } else {
+            // Fallback: use user from response if session fetch is delayed
+            setAuth(response.user, null);
+          }
+
+          if (!response.isNewUser) {
             toast.success('Welcome Back');
             router.push('/chats');
           } else {
             setStep(3);
           }
         } else {
-          toast.error('Verification Failed', {
-            description: `${error.message}`,
-          });
+          toast.error('Verification Failed');
         }
       });
     },

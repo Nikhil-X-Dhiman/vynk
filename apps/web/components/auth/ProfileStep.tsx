@@ -62,16 +62,17 @@ function ProfileStep() {
   const phoneNumber = useLoginStore((state) => state.phoneNumber);
   const countryCode = useLoginStore((state) => state.countryCode);
   const setAvatarURL = useLoginStore((state) => state.setAvatarURL);
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState('assets/avatar/3d_4.png');
   const setName = useLoginStore((state) => state.setName);
   const setAbout = useLoginStore((state) => state.setAbout);
-  const setStep = useLoginStore((state) => state.setStep);
+  const resetAuth = useAuthStore((state) => state.reset);
+  const resetLogin = useLoginStore((state) => state.reset);
+
   const router = useRouter();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [isLoading, startTransition] = useTransition();
-  const resetAuth = useAuthStore((state) => state.reset);
+  const [file, setFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [preview, setPreview] = useState('assets/avatar/3d_4.png');
 
   const [state, formAction, isPending] = useActionState(avatarActions, {
     success: false,
@@ -79,6 +80,7 @@ function ProfileStep() {
   });
 
   useEffect(() => {
+    // Initial Load Disable Toast
     if (state.message === '' && !state.success) return;
 
     if (state.success) {
@@ -105,10 +107,11 @@ function ProfileStep() {
     try {
       await authClient.signOut();
       resetAuth();
-      setStep(1);
+      resetLogin();
     } catch (error) {
-      console.error("Sign out failed", error);
-      setStep(1); // Force navigation even if signout fails
+      console.error('Sign out failed', error);
+      toast.error('Sign out failed');
+      resetLogin();
     }
   };
 
@@ -157,13 +160,14 @@ function ProfileStep() {
 
       return { success: true, data: data.secure_url };
     } catch (error) {
-      console.error('Upload failed:', error);
-      toast.error('Upload failed');
-      return { success: false, data: null, message: '', error: error };
+        console.error('Upload failed:', error);
+        toast.error('Upload failed');
+        return { success: false, data: null, message: '', error: error };
     } finally {
       setLoading(false);
     }
   };
+  // TODO: When avatar upload failed user should see retry button or icon to again attempt to upload
 
   const form = useForm({
     ...formOpts,
@@ -171,9 +175,9 @@ function ProfileStep() {
       onSubmit: ({ value }) => {
         if (!value.consent) return 'You have not given consent yet';
         const { success, error } = avatarPageSchema.safeParse(value);
-        const formattedError = error?.flatten();
-        if (!success)
-          return `Submission Failed. Please check your inputs.: ${formattedError}`;
+        if (!success) {
+          return error.issues.map((i) => i.message).join(', ');
+        }
       },
     },
     onSubmit: async ({ value }) => {
@@ -188,10 +192,17 @@ function ProfileStep() {
       setAbout(value.bio);
 
       if (file) {
-        const { success, data } = await handleAvatarUpload();
-        if (success) {
-          setAvatarURL(data);
-          formData.append('avatarUrl', data);
+        const uploadResult = await handleAvatarUpload();
+        if (uploadResult.success) {
+          setAvatarURL(uploadResult.data);
+          formData.append('avatarUrl', uploadResult.data);
+        } else {
+          // If the user explicitly tried to upload a file and it failed, stop here.
+          setLoading(false);
+          toast.error(
+            'Profile image upload failed. Please try again or select a default avatar.',
+          );
+          return;
         }
       } else {
         setAvatarURL(preview);

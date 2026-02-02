@@ -11,78 +11,104 @@ import {
 } from '@/lib/safe-action';
 import { checkServerAuth } from '@/lib/auth/check-server-auth';
 
-// const sendOTPAction = publicAction(
-//   async (
-//     prevState: {
-//       success: boolean;
-//       message: string;
-//     },
-//     formData: FormData,
-//   ) => {
-//     try {
-//       const countryCode = formData.get('countryCode')?.toString();
-//       const number = formData.get('phoneNumber')?.toString().trim();
-//       const phoneNumber = `+${countryCode}${number}`;
-//       // Validating Phone Number
-//       const { success, error } =
-//         loginSchema.shape.phoneNumber.safeParse(phoneNumber);
-//       if (!success) return { success: false, message: error.issues[0].message };
-//       // {assing Phone Number to Send OTP
-//       await auth.api.sendPhoneNumberOTP({
-//         body: {
-//           phoneNumber,
-//         },
-//       });
+export const sendOTPAction = publicDirectAction(async (formData: FormData) => {
+  try {
+    const countryCode = formData.get('countryCode')?.toString();
+    const number = formData.get('phoneNumber')?.toString().trim();
 
-//       return { success: true, message: 'Done' };
-//     } catch (error) {
-//       console.error('Verification Error:', error);
-//       return { success: false, message: `Error during verification: ${error}` };
-//     }
-//   },
-// );
+    if (!countryCode || !number) {
+      return { success: false, message: 'Phone number data is missing' };
+    }
 
-// const verifyOTPAction = publicDirectAction(async (formData: FormData) => {
-//   try {
-//     const phoneNumber = formData.get('phoneNumber')?.toString();
-//     const countryCode = formData.get('countryCode')?.toString();
-//     const code = formData.get('otp')?.toString();
+    const phoneNumber = `+${countryCode.replace('+', '')}${number}`;
 
-//     if (!phoneNumber || !countryCode || !code) {
-//       return { success: false, message: 'Missing phone or otp' };
-//     }
+    // 1. Network Pre-Check: Verify Twilio API is reachable
+    // This catches network issues BEFORE Better Auth's background task fires
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
 
-//     const fullPhoneNumber = `+${countryCode}${phoneNumber}`;
+      await fetch('https://api.twilio.com', {
+        method: 'HEAD',
+        signal: controller.signal,
+      });
 
-//     // 1. Verify OTP on the server
-//     const result = await auth.api.verifyPhoneNumber({
-//       body: {
-//         phoneNumber: fullPhoneNumber,
-//         code,
-//       },
-//       headers: await headers(), // Crucial for setting cookies
-//     });
+      clearTimeout(timeoutId);
+    } catch (networkError) {
+      console.error('Network Pre-Check Failed:', networkError);
+      return {
+        success: false,
+        message:
+          'Unable to reach SMS service. Please check your internet connection.',
+      };
+    }
 
-//     if (!result) return { success: false, message: 'Verification failed' };
+    // 2. Call Better-Auth API (network is confirmed available)
+    await auth.api.sendPhoneNumberOTP({
+      body: {
+        phoneNumber,
+      },
+    });
 
-//     // 2. Check if user has a profile (username set)
-//     // The user record is already in result.user
-//     const isNewUser = !result.user.name || result.user.name === fullPhoneNumber;
+    return { success: true, message: 'OTP Sent Successfully' };
+  } catch (error: unknown) {
+    console.error('OTP Send Error:', error);
+    const message =
+      error instanceof Error
+        ? error.message
+        : 'Failed to send OTP. Please check your connection.';
+    return { success: false, message };
+  }
+});
 
-//     return {
-//       success: true,
-//       isNewUser,
-//       user: result.user,
-//       session: result.session,
-//     };
-//   } catch (error: any) {
-//     console.error('Verification Error:', error);
-//     return {
-//       success: false,
-//       message: error.message || 'Error during verification',
-//     };
-//   }
-// });
+export const verifyOTPAction = publicDirectAction(async (formData: FormData) => {
+  try {
+    const phoneNumber = formData.get('phoneNumber')?.toString();
+    const countryCode = formData.get('countryCode')?.toString();
+    const code = formData.get('otp')?.toString();
+
+    if (!phoneNumber || !countryCode || !code) {
+      return { success: false, message: 'Missing phone or otp' };
+    }
+
+    // countryCode already has '+' prefix from the store, so we strip it here
+    const cleanCountryCode = countryCode.replace('+', '');
+    const fullPhoneNumber = `+${cleanCountryCode}${phoneNumber}`;
+
+    // 1. Verify OTP using the server-side internal API
+    // This allows us to get the session immediately without cookie delays
+    const result = await auth.api.verifyPhoneNumber({
+      body: {
+        phoneNumber: fullPhoneNumber,
+        code,
+      },
+      headers: await headers(), // This ensures the session cookie is set in the response
+    });
+
+    if (!result) return { success: false, message: 'Verification failed' };
+
+    // 2. Check if user exists in our app database (Profile check)
+    const { data: existingUser } = await findUserByPhone({
+      phoneNumber,
+      countryCode,
+    });
+
+    // If user exists in DB, they are not new. Otherwise, they need onboarding.
+    const isNewUser = !existingUser;
+
+    return {
+      success: true,
+      isNewUser,
+      user: result.user,
+    };
+  } catch (error) {
+    console.error('Verification Error:', error);
+    return {
+      success: false,
+      message: error || 'Error during verification',
+    };
+  }
+});
 
 export const handleCheckUserAndSessionAction = publicDirectAction(
   async (formData: FormData) => {
@@ -109,10 +135,6 @@ export const handleCheckUserAndSessionAction = publicDirectAction(
 const handleNewUserAction = protectedAction(
   async (ctx: AuthContext, formData: FormData) => {
     // phonenumber, countrycode, username, bio, avatarurl
-    const { isAuth } = await checkServerAuth();
-    if (!isAuth) {
-      return { success: false, message: 'User is not authenticated' };
-    }
     const phoneNumber = formData.get('phone')?.toString();
     const countryCode = formData.get('countryCode')?.toString();
     const username = formData.get('username')?.toString();

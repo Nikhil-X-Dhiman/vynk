@@ -52,50 +52,61 @@ export const ChatListSkeleton = () => (
   </div>
 );
 
-const ChatListItem = React.memo(({ chat, isSelected }: { chat: any; isSelected: boolean }) => (
-  <Link
-    href={isSelected ? '/chats' : `/chats/${chat.id}`}
-    className={cn(
-      'flex items-center gap-3 p-3 transition-colors hover:bg-accent cursor-pointer transform-gpu',
-      isSelected && 'bg-accent'
-    )}
-    style={{ contain: 'content' }} // Isolated rendering for performance
-  >
-    <div className="h-12 w-12 flex-shrink-0"> {/* Fixed container to prevent jump */}
-      <Avatar className="h-12 w-12">
-        <AvatarImage src={chat.avatar} alt={chat.name} className="object-cover" />
-        <AvatarFallback>{chat.name[0]}</AvatarFallback>
-      </Avatar>
-    </div>
-    <div className="flex-1 min-w-0">
-      <div className="flex justify-between items-baseline mb-1">
-        <h3 className="font-semibold text-foreground truncate">
-          {chat.name}
-        </h3>
-        <span
-          className={cn(
-            'text-xs',
-            chat.unreadCount > 0
-              ? 'text-primary font-bold'
-              : 'text-muted-foreground'
+const ChatListItem = React.memo(
+  ({ chat, isSelected }: { chat: any; isSelected: boolean }) => (
+    <Link
+      href={isSelected ? '/chats' : `/chats/${chat.id}`}
+      className={cn(
+        'flex items-center gap-3 p-3 transition-colors hover:bg-accent cursor-pointer transform-gpu',
+        isSelected && 'bg-accent',
+      )}
+      style={{ contain: 'content' }} // Isolated rendering for performance
+    >
+      <div className="h-12 w-12 shrink-0">
+        {' '}
+        {/* Fixed container to prevent jump */}
+        <Avatar className="h-12 w-12">
+          <AvatarImage
+            src={chat.avatar}
+            alt={chat.name}
+            className="object-cover"
+          />
+          <AvatarFallback>{chat.name[0]}</AvatarFallback>
+        </Avatar>
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex justify-between items-baseline mb-1">
+          <h3 className="font-semibold text-foreground truncate">
+            {chat.name}
+          </h3>
+          <span
+            className={cn(
+              'text-xs',
+              chat.unreadCount > 0
+                ? 'text-primary font-bold'
+                : 'text-muted-foreground',
+            )}
+          >
+            {chat.time}
+          </span>
+        </div>
+        <div className="flex justify-between items-center">
+          <p className="text-sm text-muted-foreground truncate pr-2">
+            {chat.lastMessage}
+          </p>
+          {chat.unreadCount > 0 && (
+            <Badge
+              variant="default"
+              className="flex h-5 w-5 items-center justify-center rounded-full text-[10px] p-0"
+            >
+              {chat.unreadCount}
+            </Badge>
           )}
-        >
-          {chat.time}
-        </span>
+        </div>
       </div>
-      <div className="flex justify-between items-center">
-        <p className="text-sm text-muted-foreground truncate pr-2">
-          {chat.lastMessage}
-        </p>
-        {chat.unreadCount > 0 && (
-          <Badge variant="default" className="flex h-5 w-5 items-center justify-center rounded-full text-[10px] p-0">
-            {chat.unreadCount}
-          </Badge>
-        )}
-      </div>
-    </div>
-  </Link>
-));
+    </Link>
+  ),
+);
 
 ChatListItem.displayName = 'ChatListItem';
 
