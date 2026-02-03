@@ -50,3 +50,5 @@ export default function SWRegister() {
 
   return null;
 }
+
+// TODO: Add socket event for delta sync

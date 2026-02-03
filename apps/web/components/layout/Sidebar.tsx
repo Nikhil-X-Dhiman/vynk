@@ -25,7 +25,7 @@ import {
 import { ModeToggle } from '@/components/ui/ModeToggle';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils/tailwind-helpers';
-import { useLoginStore } from '@/store';
+import { useLoginStore, useAuthStore } from '@/store';
 
 interface SidebarItemProps {
   icon: React.ElementType;
@@ -85,6 +85,7 @@ export function Sidebar() {
       fetchOptions: {
         onSuccess: () => {
           useLoginStore.getState().reset();
+          useAuthStore.getState().reset();
           router.push('/login');
         },
       },

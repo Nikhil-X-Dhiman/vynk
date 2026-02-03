@@ -86,7 +86,12 @@ function OTPStep() {
             setStep(3);
           }
         } else {
-          toast.error('Verification Failed');
+          toast.error('Verification Failed', {
+            description:
+              typeof response.message === 'string'
+                ? response.message
+                : 'Please check your code and try again.',
+          });
         }
       });
     },

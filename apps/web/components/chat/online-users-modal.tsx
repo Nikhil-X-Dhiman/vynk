@@ -15,12 +15,7 @@ export function OnlineUsersModal() {
   const [open, setOpen] = useState(false);
   const [activeUsers, setActiveUsers] = useState<any[]>([]);
 
-  // In a real app, we would fetch User Details for these IDs.
-  // For now, we unfortunately relies on MOCK_CHATS or similar source
-  // OR we need an endpoint to fetch user details by IDs.
-  // As per instructions: "remove the mock data from the app & now show all the online users on the app using redis presence key"
-  // We need a way to get their NAMES and AVATARS.
-  // The presence key only gives IDs.
+
   useEffect(() => {
       const fetchUsers = async () => {
           const ids = Object.keys(onlineUsers).filter(id => id !== user?.id);

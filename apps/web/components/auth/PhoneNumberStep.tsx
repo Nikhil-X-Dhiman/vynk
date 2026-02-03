@@ -62,7 +62,10 @@ function PhoneNumberStep() {
 
         if (!result.success) {
           toast.error('Verification failed', {
-            description: result.message || 'Check your number and try again.',
+            description:
+              typeof result.message === 'string'
+                ? result.message
+                : 'Check your number and try again.',
           });
           return;
         }
