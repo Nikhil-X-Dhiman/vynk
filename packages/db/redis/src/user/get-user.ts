@@ -1,5 +1,5 @@
 import { redis } from '../client';
-import { userKey } from '../keys/user';
+import { userKey } from '../keys';
 import { PresenceStatus, UserPresence } from '../types';
 
 async function getUserPresence(userId: string): Promise<UserPresence | null> {

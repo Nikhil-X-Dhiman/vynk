@@ -1,5 +1,5 @@
 function userKey(userId: string) {
-  return `presence:user:${userId}`;
+  return `vynk:presence:user:${userId}`;
 }
 
 export { userKey };

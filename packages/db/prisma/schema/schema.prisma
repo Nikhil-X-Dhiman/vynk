@@ -77,6 +77,7 @@ model Conversation {
   createdByRel    User             @relation(fields: [createdByUserId], references: [id])
   lastMessageRel  Message?         @relation("LastMessage", fields: [lastMessageId], references: [id])
 
+  @@index([createdByUserId]) // Index for fetching groups created by a user
   @@map("conversation")
 }
 
@@ -115,13 +116,15 @@ model Message {
   reactions       Reaction[]
   deliveries      Delivery[]
   isLastMessageOf Conversation? @relation("LastMessage")
-  conversationRel Conversation  @relation(fields: [conversationId], references: [id])
-  senderRel       User          @relation(fields: [senderId], references: [id])
+  conversationRel Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderRel       User          @relation(fields: [senderId], references: [id], onDelete: Cascade)
   replyToRel      Message?      @relation("MessageReply", fields: [replyTo], references: [id])
   replies         Message[]     @relation("MessageReply")
   lastReadByRel   Participant[] @relation("LastReadMessage")
 
   @@index([conversationId, createdAt])
+  @@index([senderId]) // Index for messages by a sender
+  @@index([replyTo]) // Index for fetching thread/reply chains
   @@map("message")
 }
 
@@ -139,7 +142,7 @@ model Story {
   // Relations
   storyViews    StoryView[]
   storyReaction Reaction[]
-  userIdRel     User        @relation(fields: [userId], references: [id])
+  userIdRel     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
   @@map("story")
@@ -187,11 +190,14 @@ model Reaction {
   emoji        String?
   createdAt    DateTime @default(now()) @map("created_at")
   // Relations
-  messageIdRel Message? @relation(fields: [messageId], references: [id])
-  storyIdRel   Story?   @relation(fields: [storyId], references: [id])
-  userIdRef    User     @relation(fields: [userId], references: [id])
+  messageIdRel Message? @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  storyIdRel   Story?   @relation(fields: [storyId], references: [id], onDelete: Cascade)
+  userIdRef    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([messageId, userId])
+  @@unique([storyId, userId]) // Prevent duplicate reactions on stories
+  @@index([storyId]) // Index for fetching reactions for a story
+  @@index([userId]) // Index for fetching user's reactions
   @@map("reaction")
 }
 

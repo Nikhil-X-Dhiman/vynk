@@ -1,5 +1,5 @@
 import { redis } from '../client';
-import { userKey } from '../keys/user';
+import { userKey } from '../keys';
 
 async function setUserOnline(userId: string) {
   try {

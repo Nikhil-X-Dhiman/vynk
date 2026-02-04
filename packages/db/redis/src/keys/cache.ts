@@ -1,5 +1,5 @@
 function cacheKey(key: string) {
-  return `cache:${key}`;
+  return `vynk:cache:${key}`;
 }
 
 export { cacheKey };

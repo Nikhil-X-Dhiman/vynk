@@ -1,5 +1,5 @@
 function typingKey(conversationId: string) {
-  return `typing:conversation:${conversationId}`;
+  return `vynk:typing:conversation:${conversationId}`;
 }
 
 export { typingKey };

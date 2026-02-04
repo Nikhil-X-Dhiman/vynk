@@ -18,6 +18,8 @@
     "@repo/db": "workspace:*",
     "@repo/services": "workspace:*",
     "better-auth": "^1.4.9",
-    "dotenv": "^17.2.3"
+    "dotenv": "^17.2.3",
+    "redis": "^5.10.0",
+    "@repo/validation": "workspace:*"
   }
 }
