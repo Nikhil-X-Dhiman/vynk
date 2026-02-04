@@ -1,7 +1,14 @@
-import { randomUUID } from 'crypto';
 import { db } from '../../kysely/db';
 import { findUserByPhone } from './get';
+
+/**
+ * Payload for creating a new user in the app database.
+ * The `id` MUST match the user ID from Better Auth session to maintain
+ * referential integrity across databases.
+ */
 type CreateUser = {
+  /** User ID from Better Auth session - ensures FK constraints work */
+  id: string;
   phoneNumber: string;
   countryCode: string;
   username: string;
@@ -9,8 +16,18 @@ type CreateUser = {
   avatarUrl?: string;
 };
 
+/**
+ * Creates a new user in the app database (vynk_data).
+ *
+ * @important The `id` parameter must be the same as the auth session user ID.
+ * This ensures that when operations like `startConversation` use `session.user.id`,
+ * the FK constraint on `conversation.created_by` will find a matching user.
+ *
+ * @param payload - User data including auth session ID
+ * @returns Success with user data or error
+ */
 async function createNewUser(payload: CreateUser) {
-  const { countryCode, phoneNumber, username, avatarUrl, bio } = payload;
+  const { id, countryCode, phoneNumber, username, avatarUrl, bio } = payload;
   try {
     const existingUser = await findUserByPhone({ phoneNumber, countryCode });
     if (existingUser.success && existingUser.data) {
@@ -20,7 +37,7 @@ async function createNewUser(payload: CreateUser) {
     const newUser = await db
       .insertInto('user')
       .values({
-        id: randomUUID(), // Generating ID manually
+        id: id, // Use auth session ID for FK consistency
         phone_number: phoneNumber,
         country_code: countryCode,
         user_name: username,

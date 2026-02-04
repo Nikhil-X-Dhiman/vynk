@@ -40,7 +40,10 @@ const avatarActions = authenticatedAction(
     }
     console.log('Form Action Passed Checks');
 
+    // Pass auth session ID to createNewUser to ensure FK constraints work
+    // The app DB user.id MUST match the Better Auth session user.id
     const payload = {
+      id: session.user.id, // Auth session ID for FK consistency
       phoneNumber: phoneNumber,
       countryCode: countryCode,
       username,
