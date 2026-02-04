@@ -15,5 +15,8 @@
   "dependencies": {
     "libphonenumber-js": "^1.12.33",
     "zod": "^4.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0"
   }
 }

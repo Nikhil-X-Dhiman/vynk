@@ -16,7 +16,11 @@
       "@repo/utils": ["packages/utils/src"],
       "@repo/auth": ["packages/auth/src"],
       "@repo/db": ["packages/db/src"],
-      "@repo/config": ["packages/config/src"]
-    }
+      "@repo/config": ["packages/config/src"],
+      "@repo/validation": ["packages/validation/src"],
+      "@repo/shared": ["packages/shared/src"],
+      "@repo/services": ["packages/services/src"]
+    },
+    "types": ["node"]
   }
 }
