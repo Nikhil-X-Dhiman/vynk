@@ -3,34 +3,37 @@
 import { useEffect } from 'react';
 import { Workbox } from 'workbox-window';
 import { db } from '@/lib/db';
-import { registerUserSyncListeners } from '@/lib/services/socket/listeners';
+import {
+  registerUserSyncListeners,
+  registerConversationListeners,
+} from '@/lib/services/socket/listeners';
 
 export default function SWRegister() {
-  useEffect(() => {
-    // 0. Register Socket Listeners
+  useEffect(function setupServiceWorker() {
+    // 1. Register Socket Listeners for real-time updates
     registerUserSyncListeners();
+    registerConversationListeners();
 
-    // 1. Cleanup old stories on boot
+    // 2. Cleanup old stories on boot
     db.cleanupOldStories().catch(console.error);
 
-    // 2. Register SW
+    // 3. Register Service Worker
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-
       const wb = new Workbox('/sw.js');
 
-      // OPTIONAL: Logging for debugging
-      wb.addEventListener('installed', (event) => {
+      // Handle SW updates
+      wb.addEventListener('installed', function handleInstalled(event) {
         if (event.isUpdate) {
-          console.log('New content is available! Please refresh.');
+          console.log('[SW] New content available! Please refresh.');
         } else {
-          console.log('Service Worker installed for the first time');
+          console.log('[SW] Service Worker installed for the first time');
         }
       });
 
       // Listen for messages from the SW
-      wb.addEventListener('message', (event) => {
+      wb.addEventListener('message', function handleMessage(event) {
         if (event.data.type === 'OpSynced') {
-          console.log('Synced operation:', event.data.action);
+          console.log('[SW] Synced operation:', event.data.action);
         }
       });
 
@@ -38,17 +41,24 @@ export default function SWRegister() {
       wb.register();
     }
 
-    // 3. Socket Event for Delta Sync
-    // Assuming you have a socket instance exported or accessible
-    // import { socket } from '@/lib/socket';
-    // socket.on('new-updates', () => db.pullDelta().catch(console.error));
+    // 4. Handle online/offline events
+    function handleOnline() {
+      console.log('[Network] Back online, triggering sync...');
+      db.sync().catch(console.error);
+    }
 
-    // For now, we stub it or use window event if socket is global
-    window.addEventListener('online', () => db.sync().catch(console.error));
+    function handleOffline() {
+      console.log('[Network] Went offline');
+    }
 
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return function cleanup() {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
   return null;
 }
-
-// TODO: Add socket event for delta sync

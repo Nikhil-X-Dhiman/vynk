@@ -72,7 +72,7 @@ function ProfileStep() {
   const [isLoading, startTransition] = useTransition();
   const [file, setFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [preview, setPreview] = useState('assets/avatar/3d_4.png');
+  const [preview, setPreview] = useState('/assets/avatar/3d_4.png');
 
   const [state, formAction, isPending] = useActionState(avatarActions, {
     success: false,

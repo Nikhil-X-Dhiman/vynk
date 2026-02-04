@@ -1,28 +1,28 @@
 [
-  { "id": "av1", "name": "selfie-kid", "url": "assets/avatar/3d_4.png" },
+  { "id": "av1", "name": "selfie-kid", "url": "/assets/avatar/3d_4.png" },
   {
     "id": "av2",
     "name": "blue-outline-male",
-    "url": "assets/avatar/bluey_3.png"
+    "url": "/assets/avatar/bluey_3.png"
   },
   {
     "id": "av3",
     "name": "blue-outline-female",
-    "url": "assets/avatar/bluey_6.png"
+    "url": "/assets/avatar/bluey_6.png"
   },
   {
     "id": "av4",
     "name": "vibrent-1-male",
-    "url": "assets/avatar/vibrent_7.png"
+    "url": "/assets/avatar/vibrent_7.png"
   },
   {
     "id": "av5",
     "name": "vibrent-1-female",
-    "url": "assets/avatar/vibrent_10.png"
+    "url": "/assets/avatar/vibrent_10.png"
   },
   {
     "id": "av6",
     "name": "vibrent-2-female",
-    "url": "assets/avatar/vibrent_21.png"
+    "url": "/assets/avatar/vibrent_21.png"
   }
 ]

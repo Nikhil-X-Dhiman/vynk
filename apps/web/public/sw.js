@@ -9488,34 +9488,36 @@ This is generally NOT safe. Learn more at https://bit.ly/wb-precache`;
   var VynkLocalDB = class extends import_wrapper_default {
     constructor() {
       super("VynkLocalDB");
-      this.version(2).stores({
-        messages: "++id, conversationId, timestamp",
-        stories: "++id, expiresAt",
-        conversations: "++id, conversationId, updatedAt",
+      this.version(3).stores({
+        messages: "++id, messageId, conversationId, timestamp",
+        stories: "++id, storyId, expiresAt",
+        conversations: "++id, conversationId, updatedAt, type",
         queue: "++id, action, timestamp",
         meta: "key",
         settings: "id",
         calls: "++id, status",
-        users: "id, name, updatedAt"
-        // Primary key is 'id' (UUID), index on 'updatedAt'
+        users: "id, name, updatedAt",
+        participants: "id, conversationId, userId"
       });
     }
+    // ============ Story Helpers ============
     async cleanupOldStories() {
       const now = Date.now();
       await this.stories.where("expiresAt").below(now).delete();
     }
+    // ============ Queue & Sync ============
     async enqueue(action, payload) {
       await this.queue.add({
         action,
         payload,
         timestamp: Date.now()
       });
-      if (navigator.onLine) {
+      if (typeof navigator !== "undefined" && navigator.onLine) {
         this.sync().catch(console.error);
       }
     }
     async sync() {
-      if (!navigator.onLine) return;
+      if (typeof navigator === "undefined" || !navigator.onLine) return;
       try {
         await this.flushQueue();
         await this.pullDelta();
@@ -9544,48 +9546,230 @@ This is generally NOT safe. Learn more at https://bit.ly/wb-precache`;
       const response = await fetch(`/api/sync?since=${lastSyncedAt}`);
       if (!response.ok) throw new Error("Pull failed");
       const data = await response.json();
-      await this.transaction("rw", this.messages, this.stories, this.conversations, this.meta, async () => {
+      if (data.conversations?.length) {
+        await this.syncConversations(data.conversations);
+      }
+      if (data.messages?.length) {
+        await this.syncMessages(data.messages);
+      }
+      if (data.stories?.length) {
+        await this.syncStories(data.stories);
+      }
+      if (data.users?.length) {
+        await this.syncUsers(data.users);
+      }
+      if (data.deletedMessageIds?.length) {
+        await this.messages.where("messageId").anyOf(data.deletedMessageIds).delete();
+      }
+      if (data.deletedStoryIds?.length) {
+        await this.stories.where("storyId").anyOf(data.deletedStoryIds).delete();
+      }
+      if (data.deletedConversationIds?.length) {
+        await this.conversations.where("conversationId").anyOf(data.deletedConversationIds).delete();
+      }
+      await this.meta.put({ key: "lastSyncedAt", value: data.timestamp });
+    }
+    // ============ Sync Helpers ============
+    async syncUsers(users) {
+      for (const user of users) {
+        await this.users.put(user);
+      }
+    }
+    async syncConversations(conversations) {
+      for (const conv of conversations) {
+        const existing = await this.conversations.where("conversationId").equals(conv.conversationId).first();
+        if (existing) {
+          await this.conversations.update(existing.id, {
+            ...conv,
+            isVirtual: false
+            // Mark as persisted
+          });
+        } else {
+          await this.conversations.add({
+            ...conv,
+            isVirtual: false
+          });
+        }
+      }
+    }
+    async syncMessages(messages3) {
+      for (const msg of messages3) {
+        if (!msg.messageId) continue;
+        const existing = await this.messages.where("messageId").equals(msg.messageId).first();
+        if (existing) {
+          await this.messages.update(existing.id, msg);
+        } else {
+          await this.messages.add(msg);
+        }
+      }
+    }
+    async syncStories(stories) {
+      for (const story of stories) {
+        if (!story.storyId) continue;
+        const existing = await this.stories.where("storyId").equals(story.storyId).first();
+        if (existing) {
+          await this.stories.update(existing.id, story);
+        } else {
+          await this.stories.add(story);
+        }
+      }
+    }
+    async syncParticipants(participants) {
+      for (const participant of participants) {
+        await this.participants.put(participant);
+      }
+    }
+    // ============ Initial Sync ============
+    async performInitialSync() {
+      try {
+        const response = await fetch("/api/initial-sync");
+        if (!response.ok) throw new Error("Initial sync failed");
+        const data = await response.json();
+        if (data.users?.length) {
+          await this.users.bulkPut(data.users);
+        }
         if (data.conversations?.length) {
           for (const conv of data.conversations) {
-            const existing = await this.conversations.where("conversationId").equals(conv.conversationId).first();
-            if (existing) {
-              await this.conversations.update(existing.id, conv);
-            } else {
-              await this.conversations.add(conv);
+            const convData = {
+              conversationId: conv.conversationId,
+              title: conv.title,
+              type: conv.type,
+              groupImg: conv.groupImg,
+              createdAt: conv.createdAt,
+              updatedAt: conv.updatedAt,
+              lastMessage: conv.lastMessage,
+              lastMessageAt: conv.lastMessageAt,
+              unreadCount: conv.unreadCount,
+              isVirtual: false,
+              displayName: conv.title,
+              displayAvatar: conv.groupImg
+            };
+            await this.conversations.put(convData);
+            if (conv.participants?.length) {
+              for (const p of conv.participants) {
+                await this.participants.put({
+                  id: p.odId,
+                  conversationId: p.odConversationId,
+                  userId: p.odUserId,
+                  role: p.role,
+                  unreadCount: p.unreadCount
+                });
+              }
             }
           }
-        }
-        if (data.messages?.length) {
-          for (const msg of data.messages) {
-            const existing = await this.messages.where("messageId").equals(msg.messageId).first();
-            if (existing) {
-              await this.messages.update(existing.id, msg);
-            } else {
-              await this.messages.add(msg);
-            }
-          }
-        }
-        if (data.stories?.length) {
-          for (const story of data.stories) {
-            const existing = await this.stories.where("storyId").equals(story.storyId).first();
-            if (existing) {
-              await this.stories.update(existing.id, story);
-            } else {
-              await this.stories.add(story);
-            }
-          }
-        }
-        if (data.deletedMessageIds?.length) {
-          await this.messages.where("messageId").anyOf(data.deletedMessageIds).delete();
-        }
-        if (data.deletedStoryIds?.length) {
-          await this.stories.where("storyId").anyOf(data.deletedStoryIds).delete();
-        }
-        if (data.deletedConversationIds?.length) {
-          await this.conversations.where("conversationId").anyOf(data.deletedConversationIds).delete();
         }
         await this.meta.put({ key: "lastSyncedAt", value: data.timestamp });
+        await this.meta.put({ key: "initialSyncCompleted", value: true });
+        return { success: true };
+      } catch (error) {
+        console.error("Initial sync error:", error);
+        return { success: false, error };
+      }
+    }
+    async isInitialSyncCompleted() {
+      const meta = await this.meta.get("initialSyncCompleted");
+      return meta?.value === true;
+    }
+    // ============ Conversation Helpers ============
+    /**
+     * Get display name for a conversation (handles 1:1 chats)
+     */
+    async getConversationDisplayInfo(conversationId, currentUserId) {
+      const conv = await this.conversations.where("conversationId").equals(conversationId).first();
+      if (!conv) {
+        return { name: "Unknown", avatar: null };
+      }
+      if (conv.type === "group") {
+        return { name: conv.title || "Group", avatar: conv.groupImg || null };
+      }
+      const participants = await this.participants.where("conversationId").equals(conversationId).toArray();
+      const otherParticipant = participants.find(
+        (p) => p.userId !== currentUserId
+      );
+      if (otherParticipant) {
+        const user = await this.users.get(otherParticipant.userId);
+        if (user) {
+          return { name: user.name, avatar: user.avatar };
+        }
+      }
+      return { name: conv.title || "Unknown", avatar: null };
+    }
+    /**
+     * Create a virtual conversation (not persisted until message is sent)
+     */
+    async createVirtualConversation(targetUserId, currentUserId) {
+      const targetUser = await this.users.get(targetUserId);
+      if (!targetUser) return null;
+      const existingParticipant = await this.participants.where("userId").equals(targetUserId).first();
+      if (existingParticipant) {
+        const currentUserParticipant = await this.participants.where("conversationId").equals(existingParticipant.conversationId).filter((p) => p.userId === currentUserId).first();
+        if (currentUserParticipant) {
+          return existingParticipant.conversationId;
+        }
+      }
+      const virtualId = `virtual-${currentUserId}-${targetUserId}`;
+      const existingVirtual = await this.conversations.where("conversationId").equals(virtualId).first();
+      if (existingVirtual) {
+        return virtualId;
+      }
+      await this.conversations.add({
+        conversationId: virtualId,
+        title: targetUser.name,
+        type: "private",
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        unreadCount: 0,
+        isVirtual: true,
+        displayName: targetUser.name,
+        displayAvatar: targetUser.avatar
       });
+      await this.participants.bulkAdd([
+        {
+          id: `${virtualId}_${currentUserId}`,
+          conversationId: virtualId,
+          userId: currentUserId,
+          role: "member",
+          unreadCount: 0
+        },
+        {
+          id: `${virtualId}_${targetUserId}`,
+          conversationId: virtualId,
+          userId: targetUserId,
+          role: "member",
+          unreadCount: 0
+        }
+      ]);
+      return virtualId;
+    }
+    /**
+     * Convert a virtual conversation to a real one
+     */
+    async persistVirtualConversation(virtualId, realConversationId) {
+      const virtual = await this.conversations.where("conversationId").equals(virtualId).first();
+      if (!virtual) return;
+      await this.conversations.update(virtual.id, {
+        conversationId: realConversationId,
+        isVirtual: false
+      });
+      const participants = await this.participants.where("conversationId").equals(virtualId).toArray();
+      for (const p of participants) {
+        await this.participants.delete(p.id);
+        await this.participants.add({
+          ...p,
+          id: `${realConversationId}_${p.userId}`,
+          conversationId: realConversationId
+        });
+      }
+    }
+    // ============ Clear Data ============
+    async clearAllData() {
+      await this.messages.clear();
+      await this.stories.clear();
+      await this.conversations.clear();
+      await this.users.clear();
+      await this.participants.clear();
+      await this.queue.clear();
+      await this.meta.clear();
     }
   };
   var db = new VynkLocalDB();

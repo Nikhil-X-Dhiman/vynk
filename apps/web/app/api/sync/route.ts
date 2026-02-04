@@ -1,140 +1,161 @@
 import { NextResponse } from 'next/server';
-import { db } from '@repo/db';
+import { db, getUsersDelta } from '@repo/db';
 import { auth } from '@/lib/auth/auth-server';
 import { headers } from 'next/headers';
 
 // GET: Pull Delta (World State Changes)
 export async function GET(req: Request) {
-    const session = await auth.api.getSession({
-        headers: await headers()
-    });
-    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+  if (!session)
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { searchParams } = new URL(req.url);
-    const since = searchParams.get('since') ? new Date(searchParams.get('since')!) : new Date(0);
+  const { searchParams } = new URL(req.url);
+  const since = searchParams.get('since')
+    ? new Date(searchParams.get('since')!)
+    : new Date(0);
 
-    // 1. Fetch changed messages
-    const messages = await db
-        .selectFrom('message')
-        .select([
-            'id as messageId',
-            'conversation_id as conversationId',
-            'sender_id as senderId',
-            'content',
-            'created_at',
-            'updated_at'
-        ])
-        .where('updated_at', '>', since)
-        .where('is_deleted', '=', false)
-        .where((eb) => eb.or([
-            eb('sender_id', '=', session.user.id),
-            eb('conversation_id', 'in', (sub: any) =>
-                sub.selectFrom('participant')
-                   .select('conversation_id')
-                   .where('user_id', '=', session.user.id)
-            )
-        ]))
-        .execute();
+  // 1. Fetch changed messages
+  const messages = await db
+    .selectFrom('message')
+    .select([
+      'id as messageId',
+      'conversation_id as conversationId',
+      'sender_id as senderId',
+      'content',
+      'created_at',
+      'updated_at',
+    ])
+    .where('updated_at', '>', since)
+    .where('is_deleted', '=', false)
+    .where((eb) =>
+      eb.or([
+        eb('sender_id', '=', session.user.id),
+        eb('conversation_id', 'in', (sub: any) =>
+          sub
+            .selectFrom('participant')
+            .select('conversation_id')
+            .where('user_id', '=', session.user.id),
+        ),
+      ]),
+    )
+    .execute();
 
-    // 2. Fetch changed stories (active)
-    const stories = await db
-        .selectFrom('story')
-        .select([
-            'id as storyId',
-            'content_url as contentUrl',
-            'expires_at as expiresAt',
-            'updated_at'
-        ])
-        .where('updated_at', '>', since)
-        .where('is_deleted', '=', false)
-        .execute();
+  // 2. Fetch changed stories (active)
+  const stories = await db
+    .selectFrom('story')
+    .select([
+      'id as storyId',
+      'content_url as contentUrl',
+      'expires_at as expiresAt',
+      'updated_at',
+    ])
+    .where('updated_at', '>', since)
+    .where('is_deleted', '=', false)
+    .execute();
 
-    // 3. Fetch deleted IDs (filtered by user access)
-    const deletedMessages = await db
-        .selectFrom('message')
-        .select('id')
-        .where('updated_at', '>', since)
-        .where('is_deleted', '=', true)
-        .where((eb) => eb.or([
-            eb('sender_id', '=', session.user.id),
-            eb('conversation_id', 'in', (sub: any) =>
-                sub.selectFrom('participant')
-                   .select('conversation_id')
-                   .where('user_id', '=', session.user.id)
-            )
-        ]))
-        .execute();
+  // 3. Fetch deleted IDs (filtered by user access)
+  const deletedMessages = await db
+    .selectFrom('message')
+    .select('id')
+    .where('updated_at', '>', since)
+    .where('is_deleted', '=', true)
+    .where((eb) =>
+      eb.or([
+        eb('sender_id', '=', session.user.id),
+        eb('conversation_id', 'in', (sub: any) =>
+          sub
+            .selectFrom('participant')
+            .select('conversation_id')
+            .where('user_id', '=', session.user.id),
+        ),
+      ]),
+    )
+    .execute();
 
-    const deletedStories = await db
-        .selectFrom('story')
-        .select('id')
-        .where('updated_at', '>', since)
-        .where('is_deleted', '=', true)
-        .where('user_id', '=', session.user.id) // Only yours? Or friends? For now yours.
-        .execute();
+  const deletedStories = await db
+    .selectFrom('story')
+    .select('id')
+    .where('updated_at', '>', since)
+    .where('is_deleted', '=', true)
+    .where('user_id', '=', session.user.id) // Only yours? Or friends? For now yours.
+    .execute();
 
-    // 4. Fetch changed conversations (where user is participant)
-    const conversations = await db
-        .selectFrom('conversation')
-        .innerJoin('participant', 'conversation.id', 'participant.conversation_id')
-        .select([
-            'conversation.id as conversationId',
-            'conversation.title',
-            'conversation.type',
-            'conversation.group_img as groupImg',
-            'conversation.group_bio as groupBio',
-            'conversation.created_at',
-            'conversation.updated_at',
-            'conversation.last_message_id as lastMessageId',
-            'participant.unread_count as unreadCount'
-        ])
-        .where('participant.user_id', '=', session.user.id)
-        .where('conversation.updated_at', '>', since)
-        .where('conversation.is_deleted', '=', false)
-        .execute();
+  // 4. Fetch changed conversations (where user is participant)
+  const conversations = await db
+    .selectFrom('conversation')
+    .innerJoin('participant', 'conversation.id', 'participant.conversation_id')
+    .select([
+      'conversation.id as conversationId',
+      'conversation.title',
+      'conversation.type',
+      'conversation.group_img as groupImg',
+      'conversation.group_bio as groupBio',
+      'conversation.created_at',
+      'conversation.updated_at',
+      'conversation.last_message_id as lastMessageId',
+      'participant.unread_count as unreadCount',
+    ])
+    .where('participant.user_id', '=', session.user.id)
+    .where('conversation.updated_at', '>', since)
+    .where('conversation.is_deleted', '=', false)
+    .execute();
 
-    // 5. Fetch Deleted Conversations
-    const deletedConvs = await db
-        .selectFrom('conversation')
-        .innerJoin('participant', 'conversation.id', 'participant.conversation_id')
-        .select('conversation.id')
-        .where('participant.user_id', '=', session.user.id)
-        .where('conversation.updated_at', '>', since)
-        .where('conversation.is_deleted', '=', true)
-        .execute();
+  // 5. Fetch Deleted Conversations
+  const deletedConvs = await db
+    .selectFrom('conversation')
+    .innerJoin('participant', 'conversation.id', 'participant.conversation_id')
+    .select('conversation.id')
+    .where('participant.user_id', '=', session.user.id)
+    .where('conversation.updated_at', '>', since)
+    .where('conversation.is_deleted', '=', true)
+    .execute();
 
-    const deletedConversationIds = deletedConvs.map(c => c.id);
+  const deletedConversationIds = deletedConvs.map((c) => c.id);
 
-    return NextResponse.json({
-        messages: messages.map(m => ({
-            messageId: m.messageId,
-            conversationId: m.conversationId,
-            content: m.content || '',
-            status: 'sent',
-            timestamp: new Date(m.created_at).getTime()
-        })),
-        stories: stories.map(s => ({
-            storyId: s.storyId,
-            contentUrl: s.contentUrl || '',
-            expiresAt: s.expiresAt ? new Date(s.expiresAt).getTime() : 0
-        })),
-        deletedMessageIds: deletedMessages.map(m => m.id),
-        deletedStoryIds: deletedStories.map(s => s.id),
-        deletedConversationIds,
-        conversations: conversations.map(c => ({
-            conversationId: c.conversationId,
-            title: c.title || '',
-            type: c.type,
-            groupImg: c.groupImg || '',
-            groupBio: c.groupBio || '',
-            createdAt: new Date(c.created_at).getTime(),
-            updatedAt: new Date(c.updated_at).getTime(),
-            lastMessageId: c.lastMessageId || undefined,
-            unreadCount: c.unreadCount || 0
-        })),
-        timestamp: new Date().toISOString()
-    });
+  // 6. Fetch changed users (for delta sync)
+  const users = await getUsersDelta(since, session.user.id);
+
+  return NextResponse.json({
+    messages: messages.map((m) => ({
+      messageId: m.messageId,
+      conversationId: m.conversationId,
+      content: m.content || '',
+      status: 'sent',
+      timestamp: new Date(m.created_at).getTime(),
+    })),
+    stories: stories.map((s) => ({
+      storyId: s.storyId,
+      contentUrl: s.contentUrl || '',
+      expiresAt: s.expiresAt ? new Date(s.expiresAt).getTime() : 0,
+    })),
+    users: users.map((u) => ({
+      id: u.id,
+      name: u.name || '',
+      avatar: u.avatar || null,
+      phoneNumber: u.phoneNumber || '',
+      bio: u.bio || '',
+      updatedAt: new Date(u.updatedAt).getTime(),
+    })),
+    deletedMessageIds: deletedMessages.map((m) => m.id),
+    deletedStoryIds: deletedStories.map((s) => s.id),
+    deletedConversationIds,
+    conversations: conversations.map((c) => ({
+      conversationId: c.conversationId,
+      title: c.title || '',
+      type: c.type,
+      groupImg: c.groupImg || '',
+      groupBio: c.groupBio || '',
+      createdAt: new Date(c.created_at).getTime(),
+      updatedAt: new Date(c.updated_at).getTime(),
+      lastMessageId: c.lastMessageId || undefined,
+      unreadCount: c.unreadCount || 0,
+    })),
+    timestamp: new Date().toISOString(),
+  });
 }
+
 
 // POST: Batch Flush (Push Queue)
 export async function POST(req: Request) {
