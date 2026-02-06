@@ -6,6 +6,10 @@
   "type": "module",
   "main": "src/index.ts",
   "types": "src/index.ts",
+  "exports": {
+    "./node.json": "./node.json",
+    "./next.json": "./next.json"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified for @repo/config\" && exit 1"
   },

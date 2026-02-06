@@ -1,51 +1,85 @@
+/**
+ * Read Receipt Event Handlers
+ *
+ * Handles message read receipts:
+ * - MESSAGE_READ: User marks message as read
+ */
+
 import { Socket } from 'socket.io';
 import { markAsRead } from '@repo/db';
 import { chatNamespace } from '../server';
-import { RoomService } from '../services/room-service'; // Need this for private room ID
+import { RoomService } from '../services/room-service';
+import { logger } from '../utils';
 import { SOCKET_EVENTS } from '@repo/shared';
+import type { MessageReadPayload, SocketCallback } from '@repo/shared';
 
-function registerReadEvents(socket: Socket) {
+export function registerReadEvents(socket: Socket): void {
   const userId = socket.data.user.id;
 
-  socket.on(SOCKET_EVENTS.MESSAGE_READ, async ({ conversationId, messageId, senderId, type }) => {
-    try {
-      // 1. Update DB (Fix: pass object)
-      const result = await markAsRead({
+  // ---------------------------------------------------------------------------
+  // MESSAGE_READ - Mark message as read
+  // ---------------------------------------------------------------------------
+  socket.on(
+    SOCKET_EVENTS.MESSAGE_READ,
+    async (
+      payload: MessageReadPayload,
+      callback?: (res: SocketCallback) => void,
+    ) => {
+      try {
+        const { conversationId, messageId, senderId, type } = payload;
+
+        if (!conversationId || !messageId) {
+          callback?.({
+            success: false,
+            error: 'conversationId and messageId are required',
+          });
+          return;
+        }
+
+        // Update database
+        const result = await markAsRead({
           conversationId,
           userId,
-          lastReadMessageId: messageId
-      });
+          lastReadMessageId: messageId,
+        });
 
-      if (result.success) {
-        // 2. Notify via Room (No DB lookup for participants)
-        // If Private (and we have senderId), emit to private room.
-        // If Group, emit to group room.
+        if (!result.success) {
+          callback?.({
+            success: false,
+            error: result.error || 'Failed to mark as read',
+          });
+          return;
+        }
 
+        // Determine target room and broadcast
         let targetRoom = '';
         if (type === 'group') {
-            targetRoom = `group:${conversationId}`;
+          targetRoom = `group:${conversationId}`;
         } else if (senderId) {
-             // Determine private room ID using RoomService
-             // This ensures we broadcast to the standard room where both participants should be joined
-             targetRoom = RoomService.getPrivateRoomId(userId, senderId);
+          targetRoom = RoomService.getPrivateRoomId(userId, senderId);
         }
 
         if (targetRoom) {
-            // Emit to the room so both Sender and Receiver (User) get the update
-            // This satisfies "receiver logic" as the user (receiver of msg) also gets the event
-            chatNamespace.to(targetRoom).emit(SOCKET_EVENTS.USER_SEEN, {
-                conversationId,
-                userId, // Who read it
-                messageId
-            });
-        } else {
-             console.warn('Read event missing type or senderId');
+          chatNamespace.to(targetRoom).emit(SOCKET_EVENTS.USER_SEEN, {
+            conversationId,
+            userId,
+            messageId,
+          });
         }
-      }
-    } catch (error) {
-      console.error('Error handling MESSAGE_READ:', error);
-    }
-  });
-}
 
-export { registerReadEvents };
+        callback?.({ success: true });
+        logger.debug('Message marked as read', {
+          userId,
+          conversationId,
+          messageId,
+        });
+      } catch (error) {
+        logger.error('Error in MESSAGE_READ', {
+          userId,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+        callback?.({ success: false, error: 'Internal server error' });
+      }
+    },
+  );
+}

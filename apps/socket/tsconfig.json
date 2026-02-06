@@ -1,6 +1,15 @@
 {
-  "extends": "@repo/config/node.json",
   "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "ESNext.AsyncIterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
     "outDir": "dist",
     "rootDir": "src",
     "baseUrl": ".",
