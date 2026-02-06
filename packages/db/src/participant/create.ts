@@ -1,0 +1,50 @@
+import { randomUUID } from 'crypto';
+import { db } from '../../kysely/db';
+
+type AddParticipantParams = {
+  conversationId: string;
+  userId: string;
+  role?: 'member' | 'admin';
+};
+
+type AddParticipantResult =
+  | { success: true }
+  | { success: false; error: string };
+
+/**
+ * Adds a participant to a conversation.
+ * Uses ON CONFLICT to prevent duplicate entries.
+ *
+ * @param params - Conversation ID, user ID, and optional role
+ * @returns Success or error
+ */
+async function addParticipant(
+  params: AddParticipantParams
+): Promise<AddParticipantResult> {
+  const { conversationId, userId, role = 'member' } = params;
+
+  try {
+    await db
+      .insertInto('participant')
+      .values({
+        id: randomUUID(),
+        conversation_id: conversationId,
+        user_id: userId,
+        role,
+        unread_count: 0,
+        updated_at: new Date(),
+      })
+      .onConflict((oc) =>
+        oc.columns(['conversation_id', 'user_id']).doNothing()
+      )
+      .execute();
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error adding participant:', error);
+    return { success: false, error: 'Failed to add participant' };
+  }
+}
+
+export { addParticipant };
+export type { AddParticipantParams, AddParticipantResult };

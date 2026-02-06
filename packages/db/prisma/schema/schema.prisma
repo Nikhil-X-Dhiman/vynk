@@ -43,6 +43,7 @@ model User {
   sentFriendships     Friendship[]   @relation("UserSentRequest")
   receivedFriendships Friendship[]   @relation("UserReceivedRequest")
 
+  @@unique([phoneNumber, countryCode])
   @@map("user")
 }
 

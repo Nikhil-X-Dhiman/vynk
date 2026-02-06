@@ -1,12 +1,11 @@
 import { db } from '../../kysely/db';
-import { findUserByPhone } from './get';
 
 /**
  * Payload for creating a new user in the app database.
  * The `id` MUST match the user ID from Better Auth session to maintain
  * referential integrity across databases.
  */
-type CreateUser = {
+type CreateUserParams = {
   /** User ID from Better Auth session - ensures FK constraints work */
   id: string;
   phoneNumber: string;
@@ -16,53 +15,83 @@ type CreateUser = {
   avatarUrl?: string;
 };
 
+type User = {
+  id: string;
+  phone_number: string;
+  country_code: string;
+  user_name: string;
+  bio: string | null;
+  avatar_url: string | null;
+  is_verified: boolean;
+  re_consent: boolean;
+  created_at: Date;
+  updated_at: Date;
+};
+
+type CreateUserResult =
+  | { success: true; data: User }
+  | { success: false; error: string };
+
 /**
  * Creates a new user in the app database (vynk_data).
+ *
+ * Uses `ON CONFLICT DO NOTHING` to atomically handle duplicate phone numbers,
+ * eliminating race conditions and extra SELECT queries.
  *
  * @important The `id` parameter must be the same as the auth session user ID.
  * This ensures that when operations like `startConversation` use `session.user.id`,
  * the FK constraint on `conversation.created_by` will find a matching user.
  *
- * @param payload - User data including auth session ID
- * @returns Success with user data or error
+ * @param params - User data including auth session ID
+ * @returns Success with user data or error if user already exists
  */
-async function createNewUser(payload: CreateUser) {
-  const { id, countryCode, phoneNumber, username, avatarUrl, bio } = payload;
-  try {
-    const existingUser = await findUserByPhone({ phoneNumber, countryCode });
-    if (existingUser.success && existingUser.data) {
-      return { success: false, error: 'User Already Exists' };
-    }
+async function createNewUser(
+  params: CreateUserParams,
+): Promise<CreateUserResult> {
+  const { id, countryCode, phoneNumber, username, avatarUrl, bio } = params;
 
-    const newUser = await db
+  try {
+    const result = await db
       .insertInto('user')
       .values({
-        id: id, // Use auth session ID for FK consistency
+        id,
         phone_number: phoneNumber,
         country_code: countryCode,
         user_name: username,
-        // Optional fields with defaults or nulls
-        bio: bio || 'Hi There, I am using Vynk',
-        avatar_url: avatarUrl || 'avatar/3d_4.png',
+        bio: bio ?? 'Hi There, I am using Vynk',
+        avatar_url: avatarUrl ?? 'avatar/3d_4.png',
         is_verified: true,
         re_consent: false,
         updated_at: new Date(),
       })
-      .returningAll()
-      .executeTakeFirstOrThrow();
+      .onConflict((oc) =>
+        oc.columns(['phone_number', 'country_code']).doNothing(),
+      )
+      .returning([
+        'id',
+        'phone_number',
+        'country_code',
+        'user_name',
+        'bio',
+        'avatar_url',
+        'is_verified',
+        're_consent',
+        'created_at',
+        'updated_at',
+      ])
+      .executeTakeFirst();
 
-    return { success: true, data: newUser };
+    // If result is undefined, the insert was skipped due to conflict
+    if (!result) {
+      return { success: false, error: 'User Already Exists' };
+    }
+
+    return { success: true, data: result as User };
   } catch (error) {
     console.error('Error creating user:', error);
-    // Check for unique constraint violation (e.g., phone number already exists)
-    if ((error as any).code === '23505') {
-      return {
-        success: false,
-        error: 'User with this phone number already exists',
-      };
-    }
     return { success: false, error: 'Failed to create user' };
   }
 }
 
 export { createNewUser };
+export type { CreateUserParams, CreateUserResult, User };

@@ -1,6 +1,26 @@
-import { db } from '../../kysely/db';
 import { randomUUID } from 'crypto';
+import { db } from '../../kysely/db';
 
+type CreateConversationParams = {
+  type: 'private' | 'group' | 'broadcast';
+  title: string;
+  createdByUserId: string;
+  groupImg?: string;
+  groupDesc?: string;
+  participantInfo: { userId: string; role: 'member' | 'admin' }[];
+};
+
+type CreateConversationResult =
+  | { success: true; data: string }
+  | { success: false; error: string };
+
+/**
+ * Creates a new conversation with participants in a single transaction.
+ * Uses UUIDs for both conversation and participant records.
+ *
+ * @param params - Conversation details and participant information
+ * @returns Success with conversation ID or error message
+ */
 async function createConversation({
   type,
   title,
@@ -8,29 +28,25 @@ async function createConversation({
   groupImg,
   groupDesc,
   participantInfo,
-}: {
-  type: 'private' | 'group' | 'broadcast';
-  title: string;
-  createdByUserId: string;
-  groupImg: string;
-  groupDesc: string;
-  participantInfo: { userId: string; role: 'member' | 'admin' }[];
-}) {
+}: CreateConversationParams): Promise<CreateConversationResult> {
+  // TODO: Consider using UUIDv7 for time-sortable IDs
   const conversationId = randomUUID();
+
   try {
     await db.transaction().execute(async (trx) => {
-      const result = await trx
+      await trx
         .insertInto('conversation')
         .values({
           id: conversationId,
           type,
           title,
           created_by: createdByUserId,
-          group_img: groupImg,
-          group_bio: groupDesc,
+          group_img: groupImg ?? null,
+          group_bio: groupDesc ?? null,
           updated_at: new Date(),
         })
         .execute();
+
       await trx
         .insertInto('participant')
         .values(
@@ -40,10 +56,11 @@ async function createConversation({
             user_id: participant.userId,
             role: participant.role,
             updated_at: new Date(),
-          }))
+          })),
         )
         .execute();
     });
+
     return { success: true, data: conversationId };
   } catch (error) {
     console.error('Error creating conversation:', error);
@@ -52,3 +69,4 @@ async function createConversation({
 }
 
 export { createConversation };
+export type { CreateConversationParams, CreateConversationResult };
