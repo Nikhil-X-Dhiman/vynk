@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently \"node build-sw.js --watch\" \"next dev --turbopack\"",
-    "build": "node build-sw.js && next build",
+    "dev": "concurrently \"node build-sw.mjs --watch\" \"next dev --turbopack\"",
+    "build": "node build-sw.mjs && next build",
     "start": "next start",
     "lint": "eslint"
   },
@@ -53,6 +53,7 @@
     "zustand": "^5.0.9"
   },
   "devDependencies": {
+    "@repo/config": "workspace:*",
     "@tailwindcss/postcss": "^4.1.18",
     "@types/node": "^25.0.3",
     "@types/react": "^19.2.7",
