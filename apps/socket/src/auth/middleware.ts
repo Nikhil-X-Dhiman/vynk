@@ -34,7 +34,7 @@ export async function authMiddleware(
       logger.warn('Auth failed: No cookies', { socketId: socket.id });
       return next(new Error(AUTH_ERRORS.NO_COOKIES));
     }
-
+    // Better-Auth checking user session
     const session = await getSession(cookie);
 
     // Validate session structure

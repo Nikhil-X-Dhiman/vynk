@@ -84,7 +84,7 @@ export function registerMessageEvents(socket: Socket): void {
           type,
         } = payload;
 
-        // Validation
+        // Validation & for Idempotency
         if (!conversationId) {
           callback?.({ success: false, error: 'conversationId is required' });
           return;

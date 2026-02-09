@@ -89,7 +89,7 @@ function initializeChatNamespace(): void {
     logger.info('User connected', { userId, socketId: socket.id });
 
     try {
-      // Auto-join user to their rooms
+      // Auto-join user to their rooms like groups and personal room
       await RoomService.joinUserRooms(socket, userId);
 
       // Register all event handlers
@@ -120,7 +120,8 @@ function initializeChatNamespace(): void {
     }
   });
 }
-
+// Just a Placeholder for now
+// TODO: We will use Redis PubSub to broadcast events to all instances using Better-Auth config in hook property
 function initializeRedisPubSub(): void {
   // Listen for new user registrations (from auth service)
   subClient.subscribe('user:registered', (message) => {
