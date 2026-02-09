@@ -1,31 +1,110 @@
+/**
+ * @fileoverview Type definitions for Zustand stores.
+ *
+ * Defines the shape of state and actions for all application stores
+ * including authentication, login flow, and call management.
+ *
+ * @module store/types
+ */
+
 import { Session, User } from 'better-auth';
 
-type loginStoreTypes = {
-  step: number;
-  setStep: (step: number) => void;
+// ==========================================
+// Login Store Types
+// ==========================================
+
+/**
+ * Login flow step indicator.
+ * - 1: Phone number entry
+ * - 2: OTP verification
+ * - 3: Profile setup
+ */
+export type LoginStep = 1 | 2 | 3;
+
+/**
+ * State managed by the login store.
+ */
+export interface LoginStoreState {
+  /** Current step in the login flow */
+  step: LoginStep;
+  /** User's phone number (digits only) */
   phoneNumber: string;
-  setPhoneNumber: (phoneNumber: string) => void;
+  /** Country dialing code (e.g., "+1", "+91") */
   countryCode: string;
-  setCountryCode: (countryCode: string) => void;
-  // otpCode: string;
-  // setOtpCode: (otpCode: string) => void;
+  /** Selected avatar URL */
   avatarURL: string;
-  setAvatarURL: (avatarURL: string) => void;
-  name: string;
-  setName: (name: string) => void;
+  /** User's bio/about text */
   about: string;
-  setAbout: (description: string) => void;
-  reset: () => void;
-};
+  /** User's display name */
+  name: string;
+}
 
-type authStoreTypes = {
-  session?: Session | null;
-  user?: User | null;
+/**
+ * Actions available in the login store.
+ */
+export interface LoginStoreActions {
+  /** Updates the current login step */
+  setStep: (step: LoginStep) => void;
+  /** Updates the phone number */
+  setPhoneNumber: (phoneNumber: string) => void;
+  /** Updates the country code */
+  setCountryCode: (countryCode: string) => void;
+  /** Updates the avatar URL */
+  setAvatarURL: (avatarURL: string) => void;
+  /** Updates the user's bio */
+  setAbout: (about: string) => void;
+  /** Updates the user's name */
+  setName: (name: string) => void;
+  /** Resets all login state to initial values */
+  reset: () => void;
+}
+
+/**
+ * Complete login store type combining state and actions.
+ */
+export interface LoginStore extends LoginStoreState, LoginStoreActions {}
+
+// ==========================================
+// Auth Store Types
+// ==========================================
+
+/**
+ * State managed by the authentication store.
+ */
+export interface AuthStoreState {
+  /** Current user session from better-auth */
+  session: Session | null;
+  /** Current authenticated user data */
+  user: User | null;
+  /** Whether the user is currently authenticated */
   isAuthenticated: boolean;
-  setUser: (user: User | null) => void;
-  setSession: (session: Session | null) => void;
-  setAuth: (user: User | null, session: Session | null) => void;
-  reset: () => void;
-};
+}
 
-export type { loginStoreTypes, authStoreTypes };
+/**
+ * Actions available in the authentication store.
+ */
+export interface AuthStoreActions {
+  /** Updates the session and authentication status */
+  setSession: (session: Session | null) => void;
+  /** Updates the user data */
+  setUser: (user: User | null) => void;
+  /** Updates both user and session atomically */
+  setAuth: (user: User | null, session: Session | null) => void;
+  /** Resets all auth state (logout) */
+  reset: () => void;
+}
+
+/**
+ * Complete auth store type combining state and actions.
+ */
+export interface AuthStore extends AuthStoreState, AuthStoreActions {}
+
+// ==========================================
+// Legacy Type Aliases (for backwards compatibility)
+// ==========================================
+
+/** @deprecated Use `LoginStore` instead */
+export type loginStoreTypes = LoginStore;
+
+/** @deprecated Use `AuthStore` instead */
+export type authStoreTypes = AuthStore;

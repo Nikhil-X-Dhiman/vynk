@@ -1,47 +1,128 @@
+/**
+ * @fileoverview Safe Action Utilities
+ *
+ * Provides Higher-Order Functions (HOFs) for Next.js Server Actions with
+ * authentication validation, error handling, and standardized responses.
+ *
+ * @module lib/safe-action
+ *
+ * @example
+ * ```ts
+ * // Authenticated form action
+ * export const updateProfile = authenticatedAction<ProfileState>(
+ *   async (ctx, prevState, formData) => {
+ *     const name = formData.get('name') as string;
+ *     // Use ctx.session for user info
+ *     return { success: true, message: 'Profile updated' };
+ *   }
+ * );
+ *
+ * // Protected direct action
+ * export const getSecureData = protectedAction(
+ *   async (ctx, id: string) => {
+ *     return db.getData({ userId: ctx.session.user.id, id });
+ *   }
+ * );
+ * ```
+ */
 
 import { auth } from '@/lib/auth/auth-server';
 import { headers } from 'next/headers';
-import { redirect } from 'next/navigation';
+
+// ==========================================
+// Types
+// ==========================================
 
 /**
- * Standard response format for server actions
+ * Standard response format for server actions.
+ *
+ * @template T - Type of the data payload
  */
-export type ActionResponse<T = unknown> = {
+export interface ActionResponse<T = unknown> {
+  /** Whether the action succeeded */
   success: boolean;
+  /** Human-readable message or structured error object */
   message: string | Record<string, unknown>;
+  /** Optional data payload on success */
   data?: T;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [key: string]: any;
-};
+  /** Optional error details */
+  error?: string;
+}
 
 /**
- * Base type for useActionState actions
+ * Base state type for useActionState hooks.
+ * Must include success and message fields.
  */
-export type ActionState = {
+export interface ActionState {
+  /** Whether the action succeeded */
   success: boolean;
+  /** Human-readable message or structured error object */
   message: string | Record<string, unknown>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [key: string]: any;
-};
+  /** Allow additional fields for flexibility */
+  [key: string]: unknown;
+}
 
 /**
- * Validated Context for Authenticated Actions
+ * Context provided to authenticated actions.
  */
-export type AuthContext = {
-  session: typeof auth.$Infer.Session;
-};
+export interface AuthContext {
+  /** The authenticated user session */
+  session: NonNullable<typeof auth.$Infer.Session>;
+}
 
 /**
- * HOF for actions used with useActionState (FormData)
- * Validates session before execution.
+ * Function signature for form-based authenticated actions.
  */
-export const authenticatedAction = <State extends ActionState>(
-  action: (
-    ctx: AuthContext,
-    prevState: State,
-    formData: FormData
-  ) => Promise<State>
-) => {
+export type AuthenticatedFormAction<State extends ActionState> = (
+  ctx: AuthContext,
+  prevState: State,
+  formData: FormData,
+) => Promise<State>;
+
+/**
+ * Function signature for direct authenticated actions.
+ */
+export type AuthenticatedDirectAction<Args extends unknown[], Return> = (
+  ctx: AuthContext,
+  ...args: Args
+) => Promise<Return>;
+
+// ==========================================
+// Error Messages
+// ==========================================
+
+const ERROR_MESSAGES = {
+  UNAUTHORIZED: 'Unauthorized: Please login to continue',
+  UNEXPECTED: 'An unexpected error occurred',
+  INTERNAL: 'Internal Server Error',
+} as const;
+
+// ==========================================
+// Authenticated Actions
+// ==========================================
+
+/**
+ * HOF for form actions used with useActionState.
+ * Validates session before execution and handles errors.
+ *
+ * @template State - The action state type extending ActionState
+ * @param action - The action function to wrap
+ * @returns A wrapped action that validates authentication
+ *
+ * @example
+ * ```ts
+ * export const submitForm = authenticatedAction<FormState>(
+ *   async (ctx, prevState, formData) => {
+ *     const userId = ctx.session.user.id;
+ *     // Process form...
+ *     return { ...prevState, success: true, message: 'Done!' };
+ *   }
+ * );
+ * ```
+ */
+export function authenticatedAction<State extends ActionState>(
+  action: AuthenticatedFormAction<State>,
+) {
   return async (prevState: State, formData: FormData): Promise<State> => {
     try {
       const session = await auth.api.getSession({
@@ -52,98 +133,171 @@ export const authenticatedAction = <State extends ActionState>(
         return {
           ...prevState,
           success: false,
-          message: 'Unauthorized: Please login to continue',
+          message: ERROR_MESSAGES.UNAUTHORIZED,
         } as State;
       }
 
-      return await action(
-        { session: session },
-        prevState,
-        formData
-      );
+      return await action({ session }, prevState, formData);
     } catch (error) {
-      console.error('Action Error:', error);
+      console.error('[AuthenticatedAction] Error:', error);
       return {
         ...prevState,
         success: false,
-        message: 'An unexpected error occurred',
+        message: ERROR_MESSAGES.UNEXPECTED,
       } as State;
     }
   };
-};
+}
 
 /**
- * HOF for standard async server actions (not useActionState)
- * Useful for direct calls like fetching signatures or data.
+ * HOF for direct server actions (not useActionState).
+ * Validates session before execution and throws on unauthorized.
+ *
+ * @template Args - Tuple type for action arguments
+ * @template Return - Return type of the action
+ * @param action - The action function to wrap
+ * @returns A wrapped action that validates authentication
+ *
+ * @example
+ * ```ts
+ * export const getUser = protectedAction(
+ *   async (ctx, userId: string) => {
+ *     return db.getUser(userId);
+ *   }
+ * );
+ *
+ * // Usage
+ * const user = await getUser('user-123');
+ * ```
  */
-export const protectedAction = <Args extends unknown[], Return>(
-  action: (ctx: AuthContext, ...args: Args) => Promise<Return>
-) => {
-  return async (...args: Args): Promise<ActionResponse<Return> | Return> => {
+export function protectedAction<Args extends unknown[], Return>(
+  action: AuthenticatedDirectAction<Args, Return>,
+) {
+  return async (...args: Args): Promise<Return> => {
     try {
       const session = await auth.api.getSession({
         headers: await headers(),
       });
 
       if (!session) {
-        // If it's a direct call, we can throw or return a standardized error object.
-        // For consistency with client expectations, returning an object is usually safer than throwing.
-        // However, if the return type doesn't match ActionResponse, we might have issues.
-        // For now, let's assume standard response structure or simple null check.
-
-        // Throwing allows the client to handle it via try/catch,
-        // but returning { success: false } is often preferred in Next.js Server Actions.
-        // We will try to return a standard error shape if possible,
-        // but since Return generic is arbitrary, we'll throw if we can't match it.
-        throw new Error('Unauthorized');
+        throw new Error(ERROR_MESSAGES.UNAUTHORIZED);
       }
 
-      return await action({ session: session }, ...args);
+      return await action({ session }, ...args);
     } catch (error) {
-      console.error('Protected Action Error:', error);
-      if (error instanceof Error && error.message === 'Unauthorized') {
-         // Re-throw standardized errors or handle them
-         throw error;
+      console.error('[ProtectedAction] Error:', error);
+
+      if (
+        error instanceof Error &&
+        error.message === ERROR_MESSAGES.UNAUTHORIZED
+      ) {
+        throw error;
       }
-      throw new Error('Internal Server Error');
+
+      throw new Error(ERROR_MESSAGES.INTERNAL);
     }
   };
-};
+}
 
-export const publicAction = <State extends ActionState>(
-    action: (
-      prevState: State,
-      formData: FormData
-    ) => Promise<State>
-  ) => {
-    return async (prevState: State, formData: FormData): Promise<State> => {
-      try {
-        return await action(prevState, formData);
-      } catch (error) {
-        console.error('Public Action Error:', error);
-        return {
-            ...prevState,
-            success: false,
-            message: 'An unexpected error occurred',
-        } as State;
-      }
-    };
-  };
+// ==========================================
+// Public Actions
+// ==========================================
 
 /**
- * HOF for public direct actions (no session check, no prevState)
+ * HOF for public form actions (no authentication required).
+ * Provides error handling for useActionState patterns.
+ *
+ * @template State - The action state type extending ActionState
+ * @param action - The action function to wrap
+ * @returns A wrapped action with error handling
+ *
+ * @example
+ * ```ts
+ * export const submitContact = publicAction<ContactFormState>(
+ *   async (prevState, formData) => {
+ *     const email = formData.get('email') as string;
+ *     return { ...prevState, success: true, message: 'Sent!' };
+ *   }
+ * );
+ * ```
  */
-export const publicDirectAction = <Args extends unknown[], Return>(
-  action: (...args: Args) => Promise<Return>
-) => {
-  return async (...args: Args): Promise<ActionResponse<Return> | Return> => {
+export function publicAction<State extends ActionState>(
+  action: (prevState: State, formData: FormData) => Promise<State>,
+) {
+  return async (prevState: State, formData: FormData): Promise<State> => {
+    try {
+      return await action(prevState, formData);
+    } catch (error) {
+      console.error('[PublicAction] Error:', error);
+      return {
+        ...prevState,
+        success: false,
+        message: ERROR_MESSAGES.UNEXPECTED,
+      } as State;
+    }
+  };
+}
+
+/**
+ * HOF for public direct actions (no authentication, no prevState).
+ * Provides error handling for direct function calls.
+ *
+ * @template Args - Tuple type for action arguments
+ * @template Return - Return type of the action
+ * @param action - The action function to wrap
+ * @returns A wrapped action with error handling
+ *
+ * @example
+ * ```ts
+ * export const getPublicData = publicDirectAction(
+ *   async (id: string) => {
+ *     return db.getPublicData(id);
+ *   }
+ * );
+ * ```
+ */
+export function publicDirectAction<Args extends unknown[], Return>(
+  action: (...args: Args) => Promise<Return>,
+) {
+  return async (...args: Args): Promise<Return> => {
     try {
       return await action(...args);
     } catch (error) {
-       console.error('Public Direct Action Error:', error);
-       // Return a generic error object or rethrow depending on needs.
-       // For simplified usage matching protectedAction structure:
-       throw error;
+      console.error('[PublicDirectAction] Error:', error);
+      throw error;
     }
   };
-};
+}
+
+// ==========================================
+// Utility Functions
+// ==========================================
+
+/**
+ * Creates a success response object.
+ *
+ * @template T - Type of the data payload
+ * @param data - The data to include
+ * @param message - Optional success message
+ * @returns A standardized success response
+ */
+export function successResponse<T>(
+  data: T,
+  message = 'Success',
+): ActionResponse<T> {
+  return { success: true, message, data };
+}
+
+/**
+ * Creates an error response object.
+ *
+ * @param message - The error message
+ * @param error - Optional error details
+ * @returns A standardized error response
+ */
+export function errorResponse(
+  message: string,
+  error?: string,
+): ActionResponse<never> {
+  return { success: false, message, error };
+}
