@@ -1,68 +1,125 @@
 'use server';
-import { auth } from '@/lib/auth/auth-server';
+
+/**
+ * @fileoverview Avatar & Profile Setup Action
+ *
+ * Handles new user profile creation during onboarding.
+ * Called after phone verification when user sets up their profile
+ * (avatar, username, bio).
+ *
+ * @module app/actions/avatar-actions
+ *
+ * @example
+ * ```tsx
+ * // In profile setup form component
+ * const [state, formAction] = useActionState(avatarActions, initialState);
+ *
+ * <form action={formAction}>
+ *   <input name="avatarUrl" type="hidden" value={selectedAvatar} />
+ *   <input name="username" required />
+ *   <input name="bio" />
+ *   <input name="phoneNumber" type="hidden" value={phone} />
+ *   <input name="countryCode" type="hidden" value={code} />
+ *   <input name="consent" type="hidden" value="true" />
+ *   <button type="submit">Complete Setup</button>
+ * </form>
+ * ```
+ */
+
 import { createNewUser } from '@repo/db';
 import { authenticatedAction, type ActionState } from '@/lib/safe-action';
 
+// ==========================================
+// Constants
+// ==========================================
+
+/**
+ * Required form fields for profile setup.
+ */
+const REQUIRED_FIELDS = [
+  'avatarUrl',
+  'username',
+  'phoneNumber',
+  'countryCode',
+  'bio',
+] as const;
+
+// ==========================================
+// Action
+// ==========================================
+
+/**
+ * Server action for completing user profile setup.
+ *
+ * Flow:
+ * 1. Validates phone number verification status
+ * 2. Extracts and validates form data
+ * 3. Checks consent agreement
+ * 4. Creates user record in the app database
+ *
+ * @requires Authenticated session with verified phone number
+ */
 const avatarActions = authenticatedAction(
   async (ctx, prevState: ActionState, formData: FormData) => {
-    console.log('Form Action Begins');
-    const session = ctx.session;
+    const { session } = ctx;
 
-    if (!session?.user.phoneNumberVerified)
+    // Verify phone number is confirmed
+    if (!session.user.phoneNumberVerified) {
       return {
         ...prevState,
         success: false,
-        message: 'Phone Number Not Verified!!!',
-      };
-    const profileUrl = formData.get('avatarUrl')?.toString();
-    const username = formData.get('username')?.toString();
-    const phoneNumber = formData.get('phoneNumber')?.toString();
-    const countryCode = formData.get('countryCode')?.toString();
-    const bio = formData.get('bio')?.toString();
-    const consent =
-      formData.get('consent')?.toString() === 'true' ? true : false;
-    console.log(
-      `Server Action for Avatar Username: ${profileUrl} ${username} ${consent}`,
-    );
-    if (!username || !profileUrl || !phoneNumber || !countryCode || !bio) {
-      return {
-        ...prevState,
-        success: false,
-        message: 'Server Action: Arguments are empty',
+        message: 'Phone number must be verified before profile setup',
       };
     }
-    if (consent === false) {
+
+    // Extract and validate required fields
+    const fields = Object.fromEntries(
+      REQUIRED_FIELDS.map((key) => [key, formData.get(key)?.toString()]),
+    ) as Record<(typeof REQUIRED_FIELDS)[number], string | undefined>;
+
+    const missingFields = REQUIRED_FIELDS.filter((key) => !fields[key]);
+    if (missingFields.length > 0) {
       return {
         ...prevState,
         success: false,
-        message: 'Server Action: Consent is Negative(False)',
+        message: `Missing required fields: ${missingFields.join(', ')}`,
       };
     }
-    console.log('Form Action Passed Checks');
 
-    // Pass auth session ID to createNewUser to ensure FK constraints work
-    // The app DB user.id MUST match the Better Auth session user.id
-    const payload = {
-      id: session.user.id, // Auth session ID for FK consistency
-      phoneNumber: phoneNumber,
-      countryCode: countryCode,
-      username,
-      bio,
-      avatarUrl: profileUrl,
-    };
+    // Validate consent
+    if (formData.get('consent')?.toString() !== 'true') {
+      return {
+        ...prevState,
+        success: false,
+        message: 'You must agree to the terms to continue',
+      };
+    }
 
-    const result = await createNewUser(payload);
+    // Create user in app database
+    // ID must match auth session user ID for FK constraint consistency
+    const result = await createNewUser({
+      id: session.user.id,
+      phoneNumber: fields.phoneNumber!,
+      countryCode: fields.countryCode!,
+      username: fields.username!,
+      bio: fields.bio!,
+      avatarUrl: fields.avatarUrl!,
+    });
 
     if (!result.success) {
-      console.error('User creation failed:', result.error);
-      return { ...prevState, success: false, message: String(result.error) };
+      return {
+        ...prevState,
+        success: false,
+        message: result.error,
+      };
     }
 
-    console.log(`New User Created: ${result.data}`);
-
-    return { ...prevState, success: true, message: 'Form Submitted' };
+    return {
+      ...prevState,
+      success: true,
+      message: 'Profile created successfully',
+    };
   },
 );
-
 
 export { avatarActions };
