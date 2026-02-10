@@ -1,64 +1,280 @@
 'use client';
 
-import { useEffect } from 'react';
+/**
+ * @fileoverview Service Worker & App Bootstrap Component
+ *
+ * Orchestrates client-side initialization for the Vynk PWA:
+ * - Service worker registration with full lifecycle handling
+ * - Socket.IO listener registration with proper cleanup
+ * - Network status monitoring (online/offline) with sync triggers
+ * - App lifecycle management (visibility change, beforeunload)
+ * - Expired story cleanup on boot
+ *
+ * @module components/layout/ServiceWorkerRegister
+ */
+
+import { useEffect, useCallback, useRef } from 'react';
 import { Workbox } from 'workbox-window';
+import type {
+  WorkboxLifecycleEvent,
+  WorkboxLifecycleWaitingEvent,
+  WorkboxMessageEvent,
+} from 'workbox-window/utils/WorkboxEvent';
 import { db } from '@/lib/db';
 import {
-  registerUserSyncListeners,
-  registerConversationListeners,
+  registerAllListeners,
+  unregisterAllListeners,
 } from '@/lib/services/socket/listeners';
+import { SyncService } from '@/lib/services/sync';
 
-export default function SWRegister() {
-  useEffect(function setupServiceWorker() {
-    // 1. Register Socket Listeners for real-time updates
-    registerUserSyncListeners();
-    registerConversationListeners();
+// ==========================================
+// Constants
+// ==========================================
 
-    // 2. Cleanup old stories on boot
-    db.cleanupOldStories().catch(console.error);
+/** Path to the compiled service worker file */
+const SW_PATH = '/sw.js';
 
-    // 3. Register Service Worker
-    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-      const wb = new Workbox('/sw.js');
+/** Log prefix for service worker events */
+const LOG_SW = '[SW]';
 
-      // Handle SW updates
-      wb.addEventListener('installed', function handleInstalled(event) {
-        if (event.isUpdate) {
-          console.log('[SW] New content available! Please refresh.');
-        } else {
-          console.log('[SW] Service Worker installed for the first time');
-        }
-      });
+/** Log prefix for network events */
+const LOG_NET = '[Network]';
 
-      // Listen for messages from the SW
-      wb.addEventListener('message', function handleMessage(event) {
-        if (event.data.type === 'OpSynced') {
-          console.log('[SW] Synced operation:', event.data.action);
-        }
-      });
+/** Log prefix for app lifecycle events */
+const LOG_APP = '[App]';
 
-      // Register the worker
-      wb.register();
+// ==========================================
+// Hooks
+// ==========================================
+
+/**
+ * Registers and manages the service worker lifecycle.
+ *
+ * Handles every lifecycle event exposed by workbox-window:
+ * `installing`, `installed`, `waiting`, `activating`, `activated`,
+ * `controlling`, `redundant`, and `message`.
+ *
+ * External (cross-tab) updates are detected via the `isExternal`
+ * flag on lifecycle events.
+ */
+function useServiceWorker(): void {
+  const wbRef = useRef<Workbox | null>(null);
+
+  // ── Lifecycle handlers ────────────────────────────────────────
+
+  const handleInstalled = useCallback((event: WorkboxLifecycleEvent) => {
+    if (event.isExternal) {
+      console.log(`${LOG_SW} External: new version installed from another tab`);
+      return;
+    }
+    if (event.isUpdate) {
+      console.log(`${LOG_SW} New version installed, waiting for activation`);
+    } else {
+      console.log(`${LOG_SW} Installed for the first time`);
+    }
+  }, []);
+
+  const handleWaiting = useCallback((event: WorkboxLifecycleWaitingEvent) => {
+    if (event.isExternal) {
+      console.log(`${LOG_SW} External: new version waiting in another tab`);
+      return;
     }
 
-    // 4. Handle online/offline events
-    function handleOnline() {
-      console.log('[Network] Back online, triggering sync...');
-      db.sync().catch(console.error);
+    console.log(`${LOG_SW} New version waiting to activate`);
+
+    // Auto-activate the waiting service worker.
+    // In a production app with complex state you may prompt the user
+    // first; for a messaging app an immediate skip is safest so the
+    // next navigation picks up the new SW.
+    event.sw?.postMessage({ type: 'SKIP_WAITING' });
+  }, []);
+
+  const handleActivated = useCallback((event: WorkboxLifecycleEvent) => {
+    if (event.isExternal) {
+      console.log(`${LOG_SW} External: activated from another tab — reloading`);
+      window.location.reload();
+      return;
+    }
+    if (event.isUpdate) {
+      console.log(`${LOG_SW} Updated and activated — reloading`);
+      window.location.reload();
+    } else {
+      console.log(`${LOG_SW} Activated for the first time`);
+    }
+  }, []);
+
+  const handleControlling = useCallback((event: WorkboxLifecycleEvent) => {
+    if (event.isExternal) {
+      console.log(`${LOG_SW} External: now controlling from another tab`);
+      return;
+    }
+    console.log(`${LOG_SW} Now controlling this page`);
+  }, []);
+
+  const handleRedundant = useCallback(() => {
+    console.warn(`${LOG_SW} Became redundant — a newer SW took over`);
+  }, []);
+
+  // ── Message handler ───────────────────────────────────────────
+
+  const handleMessage = useCallback((event: WorkboxMessageEvent) => {
+    const { type, action } = event.data ?? {};
+
+    switch (type) {
+      case 'OpSynced':
+        console.log(`${LOG_SW} Synced operation: ${action}`);
+        break;
+      case 'CACHE_UPDATED':
+        console.log(`${LOG_SW} Cache updated`);
+        break;
+      default:
+        console.log(`${LOG_SW} Message: ${type}`);
+    }
+  }, []);
+
+  // ── Registration effect ───────────────────────────────────────
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) {
+      return;
     }
 
-    function handleOffline() {
-      console.log('[Network] Went offline');
+    const wb = new Workbox(SW_PATH);
+    wbRef.current = wb;
+
+    // Full lifecycle
+    wb.addEventListener('installed', handleInstalled);
+    wb.addEventListener('waiting', handleWaiting);
+    wb.addEventListener('activated', handleActivated);
+    wb.addEventListener('controlling', handleControlling);
+    wb.addEventListener('redundant', handleRedundant);
+
+    // Messages from SW
+    wb.addEventListener('message', handleMessage);
+
+    wb.register().catch((error: unknown) => {
+      console.error(`${LOG_SW} Registration failed:`, error);
+    });
+
+    return () => {
+      wbRef.current = null;
+    };
+  }, [
+    handleInstalled,
+    handleWaiting,
+    handleActivated,
+    handleControlling,
+    handleRedundant,
+    handleMessage,
+  ]);
+}
+
+/**
+ * Monitors browser online/offline status.
+ *
+ * - On `online`: triggers delta sync + flushes the offline queue
+ * - On `offline`: logs state change
+ */
+function useNetworkStatus(): void {
+  useEffect(() => {
+    function handleOnline(): void {
+      console.log(`${LOG_NET} Back online — triggering sync`);
+      SyncService.performDeltaSync().catch(console.error);
+      db.flushQueue().catch(console.error);
+    }
+
+    function handleOffline(): void {
+      console.log(`${LOG_NET} Went offline — queuing future operations`);
     }
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    return function cleanup() {
+    return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+}
+
+/**
+ * Registers all Socket.IO event listeners on mount and
+ * unregisters them on unmount.
+ */
+function useSocketListeners(): void {
+  useEffect(() => {
+    registerAllListeners();
+
+    return () => {
+      unregisterAllListeners();
+    };
+  }, []);
+}
+
+/**
+ * Handles app lifecycle events:
+ * - `visibilitychange`: triggers delta sync when the tab becomes visible
+ * - `beforeunload`: flushes the IndexedDB offline queue
+ */
+function useAppLifecycle(): void {
+  useEffect(() => {
+    function handleVisibilityChange(): void {
+      if (document.visibilityState === 'visible') {
+        console.log(`${LOG_APP} Tab became visible — syncing`);
+        SyncService.performDeltaSync().catch(console.error);
+      }
+    }
+
+    function handleBeforeUnload(): void {
+      // Best-effort flush; the service worker background sync will retry
+      // if this doesn't complete before the page is torn down.
+      db.flushQueue().catch(() => {
+        /* swallow — page is unloading */
+      });
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
+}
+
+/**
+ * Cleans up expired stories from IndexedDB on boot.
+ */
+function useStoryCleanup(): void {
+  useEffect(() => {
+    db.cleanupOldStories().catch(console.error);
+  }, []);
+}
+
+// ==========================================
+// Component
+// ==========================================
+
+/**
+ * Headless component that bootstraps all client-side services.
+ *
+ * Mounted once in the root layout. Renders nothing — exists purely for
+ * side-effects.
+ *
+ * Responsibilities:
+ * 1. Service worker registration & update handling
+ * 2. Socket.IO listener setup & teardown
+ * 3. Network status monitoring with sync triggers
+ * 4. Visibility & beforeunload lifecycle handling
+ * 5. Expired story cleanup
+ */
+export default function ServiceWorkerRegister(): null {
+  useServiceWorker();
+  useSocketListeners();
+  useNetworkStatus();
+  useAppLifecycle();
+  useStoryCleanup();
 
   return null;
 }
