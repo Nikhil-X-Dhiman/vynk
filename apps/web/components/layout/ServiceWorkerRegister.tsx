@@ -25,6 +25,8 @@ import {
   registerAllListeners,
   unregisterAllListeners,
 } from '@/lib/services/socket/listeners';
+import { disconnectSocket } from '@/lib/services/socket/client';
+import { useAuthStore } from '@/store/auth';
 import { SyncService } from '@/lib/services/sync';
 
 // ==========================================
@@ -202,13 +204,18 @@ function useNetworkStatus(): void {
  * unregisters them on unmount.
  */
 function useSocketListeners(): void {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
   useEffect(() => {
-    registerAllListeners();
+    if (isAuthenticated) {
+      registerAllListeners();
+    }
 
     return () => {
       unregisterAllListeners();
+      disconnectSocket();
     };
-  }, []);
+  }, [isAuthenticated]);
 }
 
 /**

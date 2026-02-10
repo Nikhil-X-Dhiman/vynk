@@ -68,10 +68,12 @@ export interface DeleteMessagePayload {
  * Payload for creating a conversation.
  */
 export interface CreateConversationPayload {
-  type: 'private' | 'group' | 'broadcast';
-  participantIds: string[];
-  title?: string;
-  groupImg?: string;
+  /** Client-generated conversation ID (UUIDv7) */
+  conversationId: string
+  type?: 'private' | 'group' | 'broadcast'
+  participantIds: string[]
+  title?: string
+  groupImg?: string
 }
 
 /**

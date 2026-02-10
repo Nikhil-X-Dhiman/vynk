@@ -2,13 +2,15 @@ import { randomUUID } from 'crypto';
 import { db } from '../../kysely/db';
 
 type CreateConversationParams = {
-  type: 'private' | 'group' | 'broadcast';
-  title: string;
-  createdByUserId: string;
-  groupImg?: string;
-  groupDesc?: string;
-  participantInfo: { userId: string; role: 'member' | 'admin' }[];
-};
+  /** Optional pre-generated ID (e.g. UUIDv7 from client). Falls back to randomUUID(). */
+  id?: string
+  type: 'private' | 'group' | 'broadcast'
+  title: string
+  createdByUserId: string
+  groupImg?: string
+  groupDesc?: string
+  participantInfo: { userId: string; role: 'member' | 'admin' }[]
+}
 
 type CreateConversationResult =
   | { success: true; data: string }
@@ -16,12 +18,12 @@ type CreateConversationResult =
 
 /**
  * Creates a new conversation with participants in a single transaction.
- * Uses UUIDs for both conversation and participant records.
  *
  * @param params - Conversation details and participant information
  * @returns Success with conversation ID or error message
  */
 async function createConversation({
+  id,
   type,
   title,
   createdByUserId,
@@ -29,8 +31,7 @@ async function createConversation({
   groupDesc,
   participantInfo,
 }: CreateConversationParams): Promise<CreateConversationResult> {
-  // TODO: Consider using UUIDv7 for time-sortable IDs
-  const conversationId = randomUUID();
+  const conversationId = id || randomUUID()
 
   try {
     await db.transaction().execute(async (trx) => {
@@ -45,7 +46,7 @@ async function createConversation({
           group_bio: groupDesc ?? null,
           updated_at: new Date(),
         })
-        .execute();
+        .execute()
 
       await trx
         .insertInto('participant')
@@ -58,13 +59,13 @@ async function createConversation({
             updated_at: new Date(),
           })),
         )
-        .execute();
-    });
+        .execute()
+    })
 
-    return { success: true, data: conversationId };
+    return { success: true, data: conversationId }
   } catch (error) {
-    console.error('Error creating conversation:', error);
-    return { success: false, error: 'Failed to create conversation' };
+    console.error('Error creating conversation:', error)
+    return { success: false, error: 'Failed to create conversation' }
   }
 }
 

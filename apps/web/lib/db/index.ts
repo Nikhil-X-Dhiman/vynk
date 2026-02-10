@@ -84,16 +84,16 @@ export interface Meta {
 // ============ Database Class ============
 
 export class VynkLocalDB extends Dexie {
-  messages!: Table<LocalMessage>;
-  stories!: Table<LocalStory>;
-  conversations!: Table<LocalConversation>;
-  queue!: Table<QueueItem>;
-  meta!: Table<Meta>;
-  users!: Table<LocalUser>;
-  participants!: Table<LocalParticipant>;
+  messages!: Table<LocalMessage>
+  stories!: Table<LocalStory>
+  conversations!: Table<LocalConversation>
+  queue!: Table<QueueItem>
+  meta!: Table<Meta>
+  users!: Table<LocalUser>
+  participants!: Table<LocalParticipant>
 
   constructor() {
-    super('VynkLocalDB');
+    super('VynkLocalDB')
 
     // Version 3: Add participants table and enhance conversations
     this.version(3).stores({
@@ -106,14 +106,14 @@ export class VynkLocalDB extends Dexie {
       calls: '++id, status',
       users: 'id, name, updatedAt',
       participants: 'id, conversationId, userId',
-    });
+    })
   }
 
   // ============ Story Helpers ============
 
   async cleanupOldStories() {
-    const now = Date.now();
-    await this.stories.where('expiresAt').below(now).delete();
+    const now = Date.now()
+    await this.stories.where('expiresAt').below(now).delete()
   }
 
   // ============ Queue & Sync ============
@@ -123,72 +123,72 @@ export class VynkLocalDB extends Dexie {
       action,
       payload,
       timestamp: Date.now(),
-    });
+    })
     // Trigger sync immediately if online
     if (typeof navigator !== 'undefined' && navigator.onLine) {
-      this.sync().catch(console.error);
+      this.sync().catch(console.error)
     }
   }
 
   async sync() {
-    if (typeof navigator === 'undefined' || !navigator.onLine) return;
+    if (typeof navigator === 'undefined' || !navigator.onLine) return
 
     try {
-      await this.flushQueue();
-      await this.pullDelta();
+      await this.flushQueue()
+      await this.pullDelta()
     } catch (err) {
-      console.error('Sync failed', err);
+      console.error('Sync failed', err)
     }
   }
 
   async flushQueue() {
-    const items = await this.queue.orderBy('timestamp').toArray();
-    if (items.length === 0) return;
+    const items = await this.queue.orderBy('timestamp').toArray()
+    if (items.length === 0) return
 
     const response = await fetch('/api/sync', {
       method: 'POST',
       body: JSON.stringify(items),
       headers: { 'Content-Type': 'application/json' },
-    });
+    })
 
-    if (!response.ok) throw new Error('Flush failed');
+    if (!response.ok) throw new Error('Flush failed')
 
-    const result = await response.json();
+    const result = await response.json()
     if (result.success) {
       // Clear processed items
-      const ids = items.map((i) => i.id!);
-      await this.queue.bulkDelete(ids);
+      const ids = items.map((i) => i.id!)
+      await this.queue.bulkDelete(ids)
     }
   }
 
   async pullDelta() {
-    const meta = await this.meta.get('lastSyncedAt');
-    const lastSyncedAt = meta?.value || new Date(0).toISOString();
+    const meta = await this.meta.get('lastSyncedAt')
+    const lastSyncedAt = meta?.value || new Date(0).toISOString()
 
-    const response = await fetch(`/api/sync?since=${lastSyncedAt}`);
-    if (!response.ok) throw new Error('Pull failed');
+    const response = await fetch(`/api/sync?since=${lastSyncedAt}`)
+    if (!response.ok) throw new Error('Pull failed')
 
-    const data = await response.json();
+    const data = await response.json()
 
     // Apply changes - using individual updates instead of large transaction
     // 1. Apply Conversation Changes
     if (data.conversations?.length) {
-      await this.syncConversations(data.conversations);
+      await this.syncConversations(data.conversations)
     }
 
     // 2. Apply Message Changes
     if (data.messages?.length) {
-      await this.syncMessages(data.messages);
+      await this.syncMessages(data.messages)
     }
 
     // 3. Apply Story Changes
     if (data.stories?.length) {
-      await this.syncStories(data.stories);
+      await this.syncStories(data.stories)
     }
 
     // 4. Apply User Changes
     if (data.users?.length) {
-      await this.syncUsers(data.users);
+      await this.syncUsers(data.users)
     }
 
     // 5. Handle Deletions
@@ -196,27 +196,27 @@ export class VynkLocalDB extends Dexie {
       await this.messages
         .where('messageId')
         .anyOf(data.deletedMessageIds)
-        .delete();
+        .delete()
     }
     if (data.deletedStoryIds?.length) {
-      await this.stories.where('storyId').anyOf(data.deletedStoryIds).delete();
+      await this.stories.where('storyId').anyOf(data.deletedStoryIds).delete()
     }
     if (data.deletedConversationIds?.length) {
       await this.conversations
         .where('conversationId')
         .anyOf(data.deletedConversationIds)
-        .delete();
+        .delete()
     }
 
     // 6. Update Timestamp
-    await this.meta.put({ key: 'lastSyncedAt', value: data.timestamp });
+    await this.meta.put({ key: 'lastSyncedAt', value: data.timestamp })
   }
 
   // ============ Sync Helpers ============
 
   async syncUsers(users: LocalUser[]) {
     for (const user of users) {
-      await this.users.put(user);
+      await this.users.put(user)
     }
   }
 
@@ -225,59 +225,59 @@ export class VynkLocalDB extends Dexie {
       const existing = await this.conversations
         .where('conversationId')
         .equals(conv.conversationId!)
-        .first();
+        .first()
 
       if (existing) {
         await this.conversations.update(existing.id!, {
           ...conv,
           isVirtual: false, // Mark as persisted
-        });
+        })
       } else {
         await this.conversations.add({
           ...conv,
           isVirtual: false,
-        } as LocalConversation);
+        } as LocalConversation)
       }
     }
   }
 
   async syncMessages(messages: Partial<LocalMessage>[]) {
     for (const msg of messages) {
-      if (!msg.messageId) continue;
+      if (!msg.messageId) continue
 
       const existing = await this.messages
         .where('messageId')
         .equals(msg.messageId)
-        .first();
+        .first()
 
       if (existing) {
-        await this.messages.update(existing.id!, msg);
+        await this.messages.update(existing.id!, msg)
       } else {
-        await this.messages.add(msg as LocalMessage);
+        await this.messages.add(msg as LocalMessage)
       }
     }
   }
 
   async syncStories(stories: Partial<LocalStory>[]) {
     for (const story of stories) {
-      if (!story.storyId) continue;
+      if (!story.storyId) continue
 
       const existing = await this.stories
         .where('storyId')
         .equals(story.storyId)
-        .first();
+        .first()
 
       if (existing) {
-        await this.stories.update(existing.id!, story);
+        await this.stories.update(existing.id!, story)
       } else {
-        await this.stories.add(story as LocalStory);
+        await this.stories.add(story as LocalStory)
       }
     }
   }
 
   async syncParticipants(participants: LocalParticipant[]) {
     for (const participant of participants) {
-      await this.participants.put(participant);
+      await this.participants.put(participant)
     }
   }
 
@@ -285,14 +285,14 @@ export class VynkLocalDB extends Dexie {
 
   async performInitialSync() {
     try {
-      const response = await fetch('/api/initial-sync');
-      if (!response.ok) throw new Error('Initial sync failed');
+      const response = await fetch('/api/initial-sync')
+      if (!response.ok) throw new Error('Initial sync failed')
 
-      const data = await response.json();
+      const data = await response.json()
 
       // 1. Store users
       if (data.users?.length) {
-        await this.users.bulkPut(data.users);
+        await this.users.bulkPut(data.users)
       }
 
       // 2. Store conversations and participants
@@ -312,8 +312,8 @@ export class VynkLocalDB extends Dexie {
             isVirtual: false,
             displayName: conv.title,
             displayAvatar: conv.groupImg,
-          };
-          await this.conversations.put(convData);
+          }
+          await this.conversations.put(convData)
 
           // Store participants
           if (conv.participants?.length) {
@@ -324,26 +324,26 @@ export class VynkLocalDB extends Dexie {
                 userId: p.odUserId,
                 role: p.role,
                 unreadCount: p.unreadCount,
-              });
+              })
             }
           }
         }
       }
 
       // 3. Update sync timestamp
-      await this.meta.put({ key: 'lastSyncedAt', value: data.timestamp });
-      await this.meta.put({ key: 'initialSyncCompleted', value: true });
+      await this.meta.put({ key: 'lastSyncedAt', value: data.timestamp })
+      await this.meta.put({ key: 'initialSyncCompleted', value: true })
 
-      return { success: true };
+      return { success: true }
     } catch (error) {
-      console.error('Initial sync error:', error);
-      return { success: false, error };
+      console.error('Initial sync error:', error)
+      return { success: false, error }
     }
   }
 
   async isInitialSyncCompleted(): Promise<boolean> {
-    const meta = await this.meta.get('initialSyncCompleted');
-    return meta?.value === true;
+    const meta = await this.meta.get('initialSyncCompleted')
+    return meta?.value === true
   }
 
   // ============ Conversation Helpers ============
@@ -358,79 +358,130 @@ export class VynkLocalDB extends Dexie {
     const conv = await this.conversations
       .where('conversationId')
       .equals(conversationId)
-      .first();
+      .first()
 
     if (!conv) {
-      return { name: 'Unknown', avatar: null };
+      return { name: 'Unknown', avatar: null }
     }
 
     if (conv.type === 'group') {
-      return { name: conv.title || 'Group', avatar: conv.groupImg || null };
+      return { name: conv.title || 'Group', avatar: conv.groupImg || null }
     }
 
     // For private chats, get the other participant's info
     const participants = await this.participants
       .where('conversationId')
       .equals(conversationId)
-      .toArray();
+      .toArray()
 
     const otherParticipant = participants.find(
       (p) => p.userId !== currentUserId,
-    );
+    )
 
     if (otherParticipant) {
-      const user = await this.users.get(otherParticipant.userId);
+      const user = await this.users.get(otherParticipant.userId)
       if (user) {
-        return { name: user.name, avatar: user.avatar };
+        return { name: user.name, avatar: user.avatar }
       }
     }
 
-    return { name: conv.title || 'Unknown', avatar: null };
+    // Self-chat: only participant is the current user
+    if (participants.length === 1 && participants[0].userId === currentUserId) {
+      const self = await this.users.get(currentUserId)
+      return { name: 'You', avatar: self?.avatar ?? null }
+    }
+
+    return { name: conv.title || 'Unknown', avatar: null }
   }
 
   /**
-   * Create a virtual conversation (not persisted until message is sent)
+   * Creates or finds a conversation with a target user.
+   * Supports self-chat (targetUserId === currentUserId).
+   * Uses UUIDv7 for new conversations so the same ID works locally and on the server.
+   *
+   * @returns conversationId and whether it was newly created, or null if target user not found.
    */
-  async createVirtualConversation(
+  async createLocalConversation(
     targetUserId: string,
     currentUserId: string,
-  ): Promise<string | null> {
-    const targetUser = await this.users.get(targetUserId);
-    if (!targetUser) return null;
+  ): Promise<{ conversationId: string; isNew: boolean } | null> {
+    const targetUser = await this.users.get(targetUserId)
+    if (!targetUser) return null
 
-    // Check if conversation already exists
-    const existingParticipant = await this.participants
+    const isSelfChat = targetUserId === currentUserId
+
+    if (isSelfChat) {
+      // Check for an existing self-conversation (single participant = self)
+      const myParticipants = await this.participants
+        .where('userId')
+        .equals(currentUserId)
+        .toArray()
+
+      for (const p of myParticipants) {
+        const allInConv = await this.participants
+          .where('conversationId')
+          .equals(p.conversationId)
+          .toArray()
+
+        if (allInConv.length === 1 && allInConv[0].userId === currentUserId) {
+          return { conversationId: p.conversationId, isNew: false }
+        }
+      }
+
+      // No existing self-conversation — create one
+      const { v7: uuidv7 } = await import('uuid')
+      const conversationId = uuidv7()
+
+      await this.conversations.add({
+        conversationId,
+        title: 'You',
+        type: 'private',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        unreadCount: 0,
+        isVirtual: true,
+        displayName: 'You',
+        displayAvatar: targetUser.avatar,
+      })
+
+      await this.participants.add({
+        id: `${conversationId}_${currentUserId}`,
+        conversationId,
+        userId: currentUserId,
+        role: 'member',
+        unreadCount: 0,
+      })
+
+      return { conversationId, isNew: true }
+    }
+
+    // --- Normal two-user conversation ---
+
+    // Check if a private conversation already exists between these two users
+    const targetParticipants = await this.participants
       .where('userId')
       .equals(targetUserId)
-      .first();
+      .toArray()
 
-    if (existingParticipant) {
-      // Get the conversation and check if current user is also a participant
+    for (const tp of targetParticipants) {
       const currentUserParticipant = await this.participants
         .where('conversationId')
-        .equals(existingParticipant.conversationId)
+        .equals(tp.conversationId)
         .filter((p) => p.userId === currentUserId)
-        .first();
+        .first()
 
       if (currentUserParticipant) {
-        return existingParticipant.conversationId;
+        // Conversation already exists — return it
+        return { conversationId: tp.conversationId, isNew: false }
       }
     }
 
-    // Create virtual conversation
-    const virtualId = `virtual-${currentUserId}-${targetUserId}`;
-
-    const existingVirtual = await this.conversations
-      .where('conversationId')
-      .equals(virtualId)
-      .first();
-
-    if (existingVirtual) {
-      return virtualId;
-    }
+    // No existing conversation — create with UUIDv7
+    const { v7: uuidv7 } = await import('uuid')
+    const conversationId = uuidv7()
 
     await this.conversations.add({
-      conversationId: virtualId,
+      conversationId,
       title: targetUser.name,
       type: 'private',
       createdAt: Date.now(),
@@ -439,75 +490,54 @@ export class VynkLocalDB extends Dexie {
       isVirtual: true,
       displayName: targetUser.name,
       displayAvatar: targetUser.avatar,
-    });
+    })
 
-    // Add virtual participants
+    // Add participants locally
     await this.participants.bulkAdd([
       {
-        id: `${virtualId}_${currentUserId}`,
-        conversationId: virtualId,
+        id: `${conversationId}_${currentUserId}`,
+        conversationId,
         userId: currentUserId,
         role: 'member',
         unreadCount: 0,
       },
       {
-        id: `${virtualId}_${targetUserId}`,
-        conversationId: virtualId,
+        id: `${conversationId}_${targetUserId}`,
+        conversationId,
         userId: targetUserId,
         role: 'member',
         unreadCount: 0,
       },
-    ]);
+    ])
 
-    return virtualId;
+    return { conversationId, isNew: true }
   }
 
   /**
-   * Convert a virtual conversation to a real one
+   * Marks a local conversation as persisted on the server.
+   * Since we use UUIDv7 from the start, the ID never changes.
    */
-  async persistVirtualConversation(
-    virtualId: string,
-    realConversationId: string,
-  ): Promise<void> {
-    const virtual = await this.conversations
+  async persistConversation(conversationId: string): Promise<void> {
+    const conv = await this.conversations
       .where('conversationId')
-      .equals(virtualId)
-      .first();
+      .equals(conversationId)
+      .first()
 
-    if (!virtual) return;
+    if (!conv) return
 
-    // Update conversation ID
-    await this.conversations.update(virtual.id!, {
-      conversationId: realConversationId,
-      isVirtual: false,
-    });
-
-    // Update participant IDs
-    const participants = await this.participants
-      .where('conversationId')
-      .equals(virtualId)
-      .toArray();
-
-    for (const p of participants) {
-      await this.participants.delete(p.id);
-      await this.participants.add({
-        ...p,
-        id: `${realConversationId}_${p.userId}`,
-        conversationId: realConversationId,
-      });
-    }
+    await this.conversations.update(conv.id!, { isVirtual: false })
   }
 
   // ============ Clear Data ============
 
   async clearAllData() {
-    await this.messages.clear();
-    await this.stories.clear();
-    await this.conversations.clear();
-    await this.users.clear();
-    await this.participants.clear();
-    await this.queue.clear();
-    await this.meta.clear();
+    await this.messages.clear()
+    await this.stories.clear()
+    await this.conversations.clear()
+    await this.users.clear()
+    await this.participants.clear()
+    await this.queue.clear()
+    await this.meta.clear()
   }
 }
 

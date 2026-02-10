@@ -3,7 +3,7 @@ import { phoneNumber } from 'better-auth/plugins';
 import { nextCookies } from 'better-auth/next-js';
 import { env } from '@repo/validation';
 import { Pool } from '@repo/db';
-import { twilioClient } from '@repo/services';
+import { sendOtp } from '@repo/services';
 import { createClient } from 'redis';
 
 
@@ -55,11 +55,11 @@ const auth = betterAuth({
   plugins: [
     phoneNumber({
       async sendOTP({ phoneNumber, code }) {
-        await twilioClient.messages.create({
-          body: `Hey ND, Your OTP is ${code}`,
-          from: env.TWILIO_PHONE_NUMBER,
-          to: phoneNumber,
-        });
+        const result = await sendOtp(phoneNumber, code);
+
+        if (!result.success) {
+          throw new Error(`Failed to send OTP: ${result.error}`);
+        }
       },
       signUpOnVerification: {
         getTempEmail: (phoneNumber) => {

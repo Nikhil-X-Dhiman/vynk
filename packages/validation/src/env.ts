@@ -65,6 +65,11 @@ export type Env = z.infer<typeof envSchema>;
  * Throws an error if validation fails.
  */
 function parseEnv(): Env {
+  // Skip validation on the client side
+  if (typeof window !== 'undefined') {
+    return process.env as unknown as Env;
+  }
+
   const result = envSchema.safeParse(process.env);
 
   if (!result.success) {

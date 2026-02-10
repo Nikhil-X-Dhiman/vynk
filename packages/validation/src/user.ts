@@ -27,7 +27,11 @@ export type BioInput = z.infer<typeof bioSchema>;
 // Avatar URL
 // =============================================================================
 
-export const avatarUrlSchema = z.string().url().or(z.literal(''));
+export const avatarUrlSchema = z
+  .string()
+  .url()
+  .or(z.string().startsWith('/'))
+  .or(z.literal(''))
 
 export type AvatarUrlInput = z.infer<typeof avatarUrlSchema>;
 

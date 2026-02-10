@@ -243,10 +243,12 @@ export type FriendshipCallback = SocketCallback<{
 // =============================================================================
 
 export interface ConversationCreatePayload {
-  participantIds: string[];
-  isGroup?: boolean;
-  groupName?: string;
-  groupAvatar?: string;
+  /** Client-generated conversation ID (UUIDv7). Server uses this if provided. */
+  conversationId?: string
+  participantIds: string[]
+  isGroup?: boolean
+  groupName?: string
+  groupAvatar?: string
 }
 
 export interface ConversationCreatedPayload {

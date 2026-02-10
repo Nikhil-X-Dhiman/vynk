@@ -20,7 +20,7 @@
 
 import { getSocket } from './client';
 import { SOCKET_EVENTS } from '@repo/shared';
-import { db, LocalUser, LocalConversation } from '@/lib/db';
+import { db, LocalUser } from '@/lib/db'
 import { SyncService } from '@/lib/services/sync';
 
 // ==========================================
@@ -316,44 +316,62 @@ export function onUserStatusChange(
  * Registers listeners for conversation events.
  */
 export function registerConversationListeners(): void {
-  const socket = getSocket();
+  const socket = getSocket()
 
   // Conversation updated
   socket.on(
     SOCKET_EVENTS.CONVERSATION_UPDATED,
     async (data: ConversationUpdatePayload) => {
       try {
-        await SyncService.performDeltaSync();
-        console.log(`[Sync] Conversation ${data.conversationId} updated`);
+        await SyncService.performDeltaSync()
+        console.log(`[Sync] Conversation ${data.conversationId} updated`)
       } catch (error) {
-        console.error('[Sync] Failed to sync conversation update:', error);
+        console.error('[Sync] Failed to sync conversation update:', error)
       }
     },
-  );
+  )
 
-  // New conversation created
+  // New conversation created (by us or by another participant)
   socket.on(
     SOCKET_EVENTS.CONVERSATION_CREATED,
-    async (conversation: Partial<LocalConversation> & { id: string }) => {
+    async (data: {
+      conversationId: string
+      isGroup: boolean
+      groupName?: string
+      participants: string[]
+      createdAt: string
+    }) => {
       try {
-        await db.conversations.add({
-          conversationId: conversation.id,
-          title: conversation.title || '',
-          type: conversation.type || 'private',
-          groupImg: conversation.groupImg || '',
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          unreadCount: 0,
-          isVirtual: false,
-          displayName: conversation.displayName || '',
-          displayAvatar: conversation.displayAvatar || '',
-        });
-        console.log('[Sync] New conversation added');
+        const { conversationId } = data
+
+        // Check if we already have this conversation locally (we created it)
+        const existing = await db.conversations
+          .where('conversationId')
+          .equals(conversationId)
+          .first()
+
+        if (existing) {
+          // We created this — just mark as persisted
+          await db.conversations.update(existing.id!, { isVirtual: false })
+          console.log('[Sync] Conversation persisted:', conversationId)
+        } else {
+          // Someone else created it — add locally
+          await db.conversations.add({
+            conversationId,
+            title: data.groupName || '',
+            type: data.isGroup ? 'group' : 'private',
+            createdAt: new Date(data.createdAt).getTime(),
+            updatedAt: Date.now(),
+            unreadCount: 0,
+            isVirtual: false,
+          })
+          console.log('[Sync] New conversation added:', conversationId)
+        }
       } catch (error) {
-        console.error('[Sync] Failed to add new conversation:', error);
+        console.error('[Sync] Failed to handle CONVERSATION_CREATED:', error)
       }
     },
-  );
+  )
 
   // User left conversation
   socket.on(
@@ -363,13 +381,13 @@ export function registerConversationListeners(): void {
         await db.participants
           .where('[conversationId+participantId]')
           .equals([data.conversationId, data.userId])
-          .delete();
-        console.log('[Sync] Participant removed from conversation');
+          .delete()
+        console.log('[Sync] Participant removed from conversation')
       } catch (error) {
-        console.error('[Sync] Failed to remove participant:', error);
+        console.error('[Sync] Failed to remove participant:', error)
       }
     },
-  );
+  )
 }
 
 // ==========================================

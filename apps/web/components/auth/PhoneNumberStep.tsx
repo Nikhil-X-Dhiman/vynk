@@ -154,9 +154,9 @@ function PhoneNumberStep() {
         {/* Form */}
         <form
           onSubmit={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            form.handleSubmit();
+            e.preventDefault()
+            e.stopPropagation()
+            form.handleSubmit()
           }}
           className="space-y-5"
         >
@@ -194,19 +194,19 @@ function PhoneNumberStep() {
                 onChange: ({ value }) =>
                   !value ? 'Phone number is required' : undefined,
                 onSubmit: ({ value, fieldApi }) => {
-                  const isoCode = fieldApi.form.getFieldValue('countryCode');
-                  if (!isoCode) return undefined;
+                  const isoCode = fieldApi.form.getFieldValue('countryCode')
+                  if (!isoCode) return undefined
 
-                  const country = lookupCountryByISO(isoCode);
-                  if (!country) return 'Invalid country selected';
+                  const country = lookupCountryByISO(isoCode)
+                  if (!country) return 'Invalid country selected'
 
-                  const fullNumber = `+${country.phone}${value}`;
+                  const fullNumber = `+${country.phone}${value}`
                   const result =
-                    loginSchema.shape.phoneNumber.safeParse(fullNumber);
+                    loginSchema.shape.phoneNumber.safeParse(fullNumber)
 
                   return result.success
                     ? undefined
-                    : result.error.issues[0]?.message;
+                    : result.error.issues[0]?.message
                 },
               }}
             >
@@ -233,7 +233,7 @@ function PhoneNumberStep() {
 
           {/* Submit */}
           <form.Subscribe
-            selector={(state) => [state.canSubmit, state.isSubmitting]}
+            selector={(state) => [state.canSubmit, state.isSubmitting] as const}
           >
             {([canSubmit, isSubmitting]) => (
               <Button
@@ -249,7 +249,7 @@ function PhoneNumberStep() {
         </form>
       </CardContent>
     </Card>
-  );
+  )
 }
 
 export default PhoneNumberStep;

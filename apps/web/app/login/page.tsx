@@ -20,8 +20,7 @@ import { redirect } from 'next/navigation';
 
 import { checkServerAuth } from '@/lib/auth/check-server-auth';
 import { ModeToggle } from '@/components/ui/ModeToggle';
-import { LoginBackground } from '@/components/auth/LoginBackground';
-import { LoginBranding } from '@/components/auth/LoginBranding';
+import { LoginBackground } from '@/components/auth/LoginBackground'
 import AuthFlow from '@/components/auth/AuthFlow';
 
 // ==========================================
@@ -67,8 +66,6 @@ export default async function LoginPage() {
 
       {/* Centred content column */}
       <div className="relative z-10 flex w-full max-w-md flex-col items-center space-y-8 px-4">
-        <LoginBranding />
-
         {/* Auth flow card — glassmorphism */}
         <section
           id="login-form"
@@ -78,5 +75,5 @@ export default async function LoginPage() {
         </section>
       </div>
     </main>
-  );
+  )
 }

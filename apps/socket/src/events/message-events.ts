@@ -82,20 +82,20 @@ export function registerMessageEvents(socket: Socket): void {
           replyTo,
           receiverId,
           type,
-        } = payload;
+        } = payload
 
         // Validation & for Idempotency
         if (!conversationId) {
-          callback?.({ success: false, error: 'conversationId is required' });
-          return;
+          callback?.({ success: false, error: 'conversationId is required' })
+          return
         }
 
         if (!content && !mediaUrl) {
           callback?.({
             success: false,
             error: 'Message must have content or media',
-          });
-          return;
+          })
+          return
         }
 
         // Persist to database
@@ -106,22 +106,22 @@ export function registerMessageEvents(socket: Socket): void {
           mediaUrl,
           mediaType,
           replyTo,
-        });
+        })
 
         if (!result.success) {
           logger.warn('Message send failed', {
             userId,
             conversationId,
             error: result.error,
-          });
+          })
           callback?.({
             success: false,
             error: result.error,
-          });
-          return;
+          })
+          return
         }
 
-        const messageId = result.data.messageId;
+        const messageId = result.data.messageId
         const messageData = {
           messageId,
           conversationId,
@@ -130,28 +130,38 @@ export function registerMessageEvents(socket: Socket): void {
           mediaUrl,
           mediaType,
           createdAt: new Date().toISOString(),
-        };
+        }
+
+        // Self-message: sender is the only recipient — skip room emission
+        const isSelfMessage = receiverId === userId || (!receiverId && !type)
 
         // Determine target room and emit
-        if (type === 'group') {
+        if (isSelfMessage) {
+          // No emission needed; the sender already has the message client-side
+          logger.debug('Self-message saved (no broadcast)', {
+            userId,
+            conversationId,
+            messageId,
+          })
+        } else if (type === 'group') {
           chatNamespace
             .to(`group:${conversationId}`)
-            .emit(SOCKET_EVENTS.MESSAGE_NEW, messageData);
+            .emit(SOCKET_EVENTS.MESSAGE_NEW, messageData)
         } else if (receiverId) {
-          const privateRoom = RoomService.getPrivateRoomId(userId, receiverId);
-          await ensurePrivateRoomJoined(userId, receiverId, privateRoom);
+          const privateRoom = RoomService.getPrivateRoomId(userId, receiverId)
+          await ensurePrivateRoomJoined(userId, receiverId, privateRoom)
           chatNamespace
             .to(privateRoom)
-            .emit(SOCKET_EVENTS.MESSAGE_NEW, messageData);
+            .emit(SOCKET_EVENTS.MESSAGE_NEW, messageData)
         } else {
           logger.warn('Message sent without type or receiverId', {
             userId,
             conversationId,
-          });
+          })
         }
 
-        callback?.({ success: true, data: { messageId } });
-        logger.debug('Message sent', { userId, conversationId, messageId });
+        callback?.({ success: true, data: { messageId } })
+        logger.debug('Message sent', { userId, conversationId, messageId })
       } catch (error) {
         logger.error('Error in MESSAGE_SEND', {
           userId,

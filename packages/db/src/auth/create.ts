@@ -35,7 +35,7 @@ type CreateUserResult =
 /**
  * Creates a new user in the app database (vynk_data).
  *
- * Uses `ON CONFLICT DO NOTHING` to atomically handle duplicate phone numbers,
+ * Uses `ON CONFLICT (phone_number) DO NOTHING` to atomically handle duplicate phone numbers,
  * eliminating race conditions and extra SELECT queries.
  *
  * @important The `id` parameter must be the same as the auth session user ID.
@@ -64,9 +64,7 @@ async function createNewUser(
         re_consent: false,
         updated_at: new Date(),
       })
-      .onConflict((oc) =>
-        oc.columns(['phone_number', 'country_code']).doNothing(),
-      )
+      .onConflict((oc) => oc.column('phone_number').doNothing())
       .returning([
         'id',
         'phone_number',
@@ -79,7 +77,7 @@ async function createNewUser(
         'created_at',
         'updated_at',
       ])
-      .executeTakeFirst();
+      .executeTakeFirst()
 
     // If result is undefined, the insert was skipped due to conflict
     if (!result) {

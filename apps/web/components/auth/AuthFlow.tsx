@@ -27,6 +27,7 @@ import { useAuthStore } from '@/store/auth';
 import PhoneNumberStep from './PhoneNumberStep';
 import OTPStep from './OTPStep';
 import ProfileStep from './ProfileStep';
+import { LoginBranding } from './LoginBranding'
 import type { LoginStep } from '@/store/types';
 
 // ==========================================
@@ -90,8 +91,17 @@ export default function AuthFlow() {
   const current = steps[step];
   const isGuardSatisfied = current.guard();
 
+  const isProfileStep = step === 3
+
   return (
     <div className="mx-auto flex w-full max-w-md flex-col justify-center">
+      {/* Hide branding on ProfileStep — the form fills the screen */}
+      {!isProfileStep && (
+        <div className="mb-6">
+          <LoginBranding />
+        </div>
+      )}
+
       <div
         key={step}
         className="animate-in fade-in zoom-in-95 slide-in-from-bottom-2 duration-500"
@@ -106,7 +116,7 @@ export default function AuthFlow() {
         )}
       </div>
     </div>
-  );
+  )
 }
 
 // ==========================================

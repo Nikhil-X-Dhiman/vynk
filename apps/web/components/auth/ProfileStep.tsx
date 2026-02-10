@@ -286,8 +286,8 @@ function ProfileStep() {
       <CardContent>
         <form
           onSubmit={(e) => {
-            e.preventDefault();
-            form.handleSubmit();
+            e.preventDefault()
+            form.handleSubmit()
           }}
           className="space-y-6"
         >
@@ -328,16 +328,16 @@ function ProfileStep() {
                   <div className="scrollbar-hide flex max-w-full gap-2 overflow-x-auto px-2 pb-2">
                     {avatarList.map((avatar) => {
                       const isSelected =
-                        field.state.value === avatar.id && !file;
+                        field.state.value === avatar.id && !file
 
                       return (
                         <button
                           key={avatar.id}
                           type="button"
                           onClick={() => {
-                            setPreview(avatar.url);
-                            setFile(null);
-                            field.handleChange(avatar.id);
+                            setPreview(avatar.url)
+                            setFile(null)
+                            field.handleChange(avatar.id)
                           }}
                           className={cn(
                             'relative size-10 shrink-0 overflow-hidden rounded-full transition-all',
@@ -353,7 +353,7 @@ function ProfileStep() {
                             />
                           </Avatar>
                         </button>
-                      );
+                      )
                     })}
                   </div>
 
@@ -371,10 +371,10 @@ function ProfileStep() {
                 onChange: ({ value }) => {
                   const result = usernameOnlySchema.safeParse({
                     username: value,
-                  });
+                  })
                   return result.success
                     ? undefined
-                    : result.error.issues[0]?.message;
+                    : result.error.issues[0]?.message
                 },
               }}
             >
@@ -401,10 +401,10 @@ function ProfileStep() {
               name="bio"
               validators={{
                 onChange: ({ value }) => {
-                  const result = bioOnlySchema.safeParse({ bio: value });
+                  const result = bioOnlySchema.safeParse({ bio: value })
                   return result.success
                     ? undefined
-                    : result.error.issues[0]?.message;
+                    : result.error.issues[0]?.message
                 },
               }}
             >
@@ -468,17 +468,26 @@ function ProfileStep() {
 
           {/* Submit */}
           <form.Subscribe
-            selector={(state) => [state.canSubmit, state.isSubmitting]}
+            selector={(state) =>
+              [state.canSubmit, state.isSubmitting, state.errors] as const
+            }
           >
-            {([canSubmit, isSubmitting]) => (
-              <Button
-                type="submit"
-                size="lg"
-                disabled={!canSubmit || isBusy || isSubmitting}
-                className={GRADIENT_BUTTON}
-              >
-                {isSubmitting || isBusy ? <Spinner /> : 'Complete Setup'}
-              </Button>
+            {([canSubmit, isSubmitting, errors]) => (
+              <>
+                {Array.isArray(errors) && errors.length > 0 && (
+                  <p className="text-center text-xs text-destructive">
+                    {errors.join(', ')}
+                  </p>
+                )}
+                <Button
+                  type="submit"
+                  size="lg"
+                  disabled={!canSubmit || isBusy || isSubmitting}
+                  className={GRADIENT_BUTTON}
+                >
+                  {isSubmitting || isBusy ? <Spinner /> : 'Complete Setup'}
+                </Button>
+              </>
             )}
           </form.Subscribe>
         </form>
@@ -496,7 +505,7 @@ function ProfileStep() {
         </Button>
       </CardFooter>
     </Card>
-  );
+  )
 }
 
 export default ProfileStep;

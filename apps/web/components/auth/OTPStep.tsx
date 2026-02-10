@@ -155,8 +155,8 @@ function OTPStep() {
       <CardContent>
         <form
           onSubmit={(e) => {
-            e.preventDefault();
-            form.handleSubmit();
+            e.preventDefault()
+            form.handleSubmit()
           }}
           className="flex flex-col items-center space-y-4"
         >
@@ -198,7 +198,7 @@ function OTPStep() {
 
           {/* Submit */}
           <form.Subscribe
-            selector={(state) => [state.canSubmit, state.isSubmitting]}
+            selector={(state) => [state.canSubmit, state.isSubmitting] as const}
           >
             {([canSubmit, isSubmitting]) => (
               <Button
@@ -226,7 +226,7 @@ function OTPStep() {
         </Button>
       </CardFooter>
     </Card>
-  );
+  )
 }
 
 export default OTPStep;

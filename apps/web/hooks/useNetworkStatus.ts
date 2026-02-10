@@ -2,13 +2,33 @@
  * @fileoverview Network status hook.
  *
  * Tracks browser online/offline state via `navigator.onLine` and
- * window events. Used by ChatWindow (socket vs queue) and ChatList
- * (network banner).
+ * window events. Uses `useSyncExternalStore` for tear-free reads
+ * and correct SSR hydration.
  *
  * @module hooks/useNetworkStatus
  */
 
-import { useState, useEffect } from 'react';
+import { useSyncExternalStore } from 'react'
+
+/** Subscribe to browser online/offline events. */
+function subscribe(callback: () => void): () => void {
+  window.addEventListener('online', callback)
+  window.addEventListener('offline', callback)
+  return () => {
+    window.removeEventListener('online', callback)
+    window.removeEventListener('offline', callback)
+  }
+}
+
+/** Read the current browser connectivity state. */
+function getSnapshot(): boolean {
+  return navigator.onLine
+}
+
+/** Server snapshot — always `true` so SSR output is hydration-safe. */
+function getServerSnapshot(): boolean {
+  return true
+}
 
 /**
  * Returns `true` when the browser has network connectivity.
@@ -20,22 +40,5 @@ import { useState, useEffect } from 'react';
  * ```
  */
 export function useNetworkStatus(): boolean {
-  const [isOnline, setIsOnline] = useState(() =>
-    typeof navigator !== 'undefined' ? navigator.onLine : true,
-  );
-
-  useEffect(() => {
-    const goOnline = () => setIsOnline(true);
-    const goOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', goOnline);
-    window.addEventListener('offline', goOffline);
-
-    return () => {
-      window.removeEventListener('online', goOnline);
-      window.removeEventListener('offline', goOffline);
-    };
-  }, []);
-
-  return isOnline;
+  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
 }

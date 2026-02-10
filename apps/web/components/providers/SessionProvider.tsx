@@ -180,9 +180,27 @@ export default function SessionProvider({
   children,
   initialSession,
 }: SessionProviderProps): React.JSX.Element {
-  useHydrateAuth(initialSession);
-  useInitialSync(initialSession !== null);
-  useCrossTabSync();
+  // Re-validate session on mount to catch DB changes (e.g. session deleted)
+  // that might be hidden by a cached page shell from the Service Worker.
+  useEffect(() => {
+    async function validateOnMount() {
+      try {
+        const { data } = await authClient.getSession()
+        if (!data) {
+          console.log(`${LOG} Session invalid on mount, resetting...`)
+          useAuthStore.getState().reset()
+          await SyncService.clearLocalData()
+        }
+      } catch (err) {
+        console.error(`${LOG} Initial re-validation failed:`, err)
+      }
+    }
+    validateOnMount()
+  }, [])
 
-  return <>{children}</>;
+  useHydrateAuth(initialSession)
+  useInitialSync(initialSession !== null)
+  useCrossTabSync()
+
+  return <>{children}</>
 }
