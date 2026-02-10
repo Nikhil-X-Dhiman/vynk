@@ -1,106 +1,275 @@
+/**
+ * @fileoverview Initial Sync API Route
+ *
+ * **GET /api/initial-sync**
+ *
+ * Performs a full data load on first login or app refresh. Returns:
+ * - All registered users (excluding the current user)
+ * - All conversations the user participates in, enriched with:
+ *   - Participant metadata
+ *   - Display name / avatar (derived from the other user in private chats)
+ *   - Last message preview
+ *
+ * The response is shaped for direct insertion into the client's
+ * local (Dexie/IndexedDB) database.
+ *
+ * @module app/api/initial-sync/route
+ */
+
 import { NextResponse } from 'next/server';
 import {
   getAllUsers,
   getUserConversations,
   getParticipants,
   findUsersByIds,
+  type ConversationListItem,
+  type UserListItem,
+  type UserBasic,
 } from '@repo/db';
-import { auth } from '@/lib/auth/auth-server';
-import { headers } from 'next/headers';
+import { checkServerAuth } from '@/lib/auth/check-server-auth';
+
+// ==========================================
+// Types
+// ==========================================
+
+/** Formatted user for the client's local database. */
+interface SyncUser {
+  id: string;
+  name: string;
+  avatar: string | null;
+  phoneNumber: string;
+  bio: string;
+  updatedAt: number;
+}
+
+/** Participant entry for the client's local database. */
+interface SyncParticipant {
+  odId: string;
+  odConversationId: string;
+  odUserId: string;
+  role: 'member';
+  unreadCount: number;
+}
+
+/** Formatted conversation for the client's local database. */
+interface SyncConversation {
+  conversationId: string;
+  title: string;
+  type: 'group' | 'private';
+  groupImg: string;
+  createdAt: number;
+  updatedAt: number;
+  lastMessageId: undefined;
+  lastMessage: string;
+  lastMessageAt: number | null;
+  unreadCount: number;
+  participants: SyncParticipant[];
+}
+
+/** Successful initial sync response. */
+interface InitialSyncResponse {
+  success: true;
+  users: SyncUser[];
+  conversations: SyncConversation[];
+  timestamp: string;
+}
+
+/** Error response. */
+interface ErrorResponse {
+  success: false;
+  error: string;
+}
+
+// ==========================================
+// Helpers
+// ==========================================
 
 /**
- * GET: Performs initial sync on login
- * Returns all users, conversations with participant data for offline storage
+ * Creates a consistent JSON error response.
  */
-export async function GET() {
-  try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
+function errorResponse(
+  error: string,
+  status: number,
+): NextResponse<ErrorResponse> {
+  return NextResponse.json({ success: false, error }, { status });
+}
 
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+/**
+ * Formats a list of database users into the client-side shape.
+ */
+function formatUsers(users: UserListItem[]): SyncUser[] {
+  return users.map((u) => ({
+    id: u.id,
+    name: u.name || '',
+    avatar: u.avatar || null,
+    phoneNumber: u.phoneNumber || '',
+    bio: u.bio || '',
+    updatedAt: new Date(u.updatedAt).getTime(),
+  }));
+}
+
+/**
+ * Resolves the display name and avatar for a conversation.
+ *
+ * - **Group chats**: uses the conversation's own name and group_img.
+ * - **Private chats**: looks up the *other* participant's profile.
+ */
+function resolveConversationDisplay(
+  conversation: ConversationListItem,
+  participants: { user_id: string; role: string | null }[],
+  participantUsers: UserBasic[],
+  currentUserId: string,
+): { displayName: string; avatar: string | null } {
+  // Groups use their own metadata
+  if (conversation.is_group) {
+    return {
+      displayName: conversation.name || '',
+      avatar: conversation.group_img || null,
+    };
+  }
+
+  // Private chats: find the other participant's profile
+  const otherParticipant = participants.find(
+    (p) => p.user_id !== currentUserId,
+  );
+
+  if (!otherParticipant) {
+    return { displayName: conversation.name || 'Unknown', avatar: null };
+  }
+
+  const otherUser = participantUsers.find(
+    (u) => u.id === otherParticipant.user_id,
+  );
+
+  return {
+    displayName: otherUser?.name || 'Unknown',
+    avatar: otherUser?.avatar || null,
+  };
+}
+
+/**
+ * Enriches a single conversation with participant data and resolved display info.
+ */
+async function enrichConversation(
+  conversation: ConversationListItem,
+  currentUserId: string,
+): Promise<SyncConversation | null> {
+  // Fetch participants
+  const participantsResult = await getParticipants(conversation.id);
+
+  if (!participantsResult.success) {
+    console.error(
+      `[InitialSync] Failed to fetch participants for conversation ${conversation.id}:`,
+      participantsResult.error,
+    );
+    return null;
+  }
+
+  const participants = participantsResult.data;
+  const participantUserIds = participants.map((p) => p.user_id);
+
+  // Fetch participant user profiles
+  const usersResult = await findUsersByIds(participantUserIds);
+
+  if (!usersResult.success) {
+    console.error(
+      `[InitialSync] Failed to fetch participant users for conversation ${conversation.id}:`,
+      usersResult.error,
+    );
+    return null;
+  }
+
+  const { displayName, avatar } = resolveConversationDisplay(
+    conversation,
+    participants,
+    usersResult.data,
+    currentUserId,
+  );
+
+  return {
+    conversationId: conversation.id,
+    title: displayName,
+    type: conversation.is_group ? 'group' : 'private',
+    groupImg: avatar || '',
+    createdAt: new Date(conversation.updated_at).getTime(),
+    updatedAt: new Date(conversation.updated_at).getTime(),
+    lastMessageId: undefined,
+    lastMessage: conversation.last_message || '',
+    lastMessageAt: conversation.last_message_at
+      ? new Date(conversation.last_message_at).getTime()
+      : null,
+    unreadCount: conversation.unread_count || 0,
+    participants: participants.map((p) => ({
+      odId: `${conversation.id}_${p.user_id}`,
+      odConversationId: conversation.id,
+      odUserId: p.user_id,
+      role: 'member' as const,
+      unreadCount: 0,
+    })),
+  };
+}
+
+// ==========================================
+// GET /api/initial-sync
+// ==========================================
+
+/**
+ * Performs the initial full sync on login.
+ *
+ * Returns all users and enriched conversations for the client to
+ * populate its local offline database.
+ *
+ * @returns `InitialSyncResponse` on success, `ErrorResponse` on failure
+ */
+export async function GET(): Promise<
+  NextResponse<InitialSyncResponse | ErrorResponse>
+> {
+  try {
+    const { isAuth, session } = await checkServerAuth();
+
+    if (!isAuth) {
+      return errorResponse('Unauthorized', 401);
     }
 
     const userId = session.user.id;
 
-    // 1. Fetch all users (excluding current user)
-    const users = await getAllUsers(userId);
+    // Fetch all users and conversations in parallel
+    const [usersResult, conversationsResult] = await Promise.all([
+      getAllUsers(userId),
+      getUserConversations(userId),
+    ]);
 
-    // 2. Fetch user's conversations
-    const rawConversations = await getUserConversations(userId);
+    if (!usersResult.success) {
+      console.error('[InitialSync] Failed to fetch users:', usersResult.error);
+      return errorResponse('Failed to fetch users', 500);
+    }
 
-    // 3. Enrich conversations with participant data
-    const conversations = await Promise.all(
-      rawConversations.map(async (c) => {
-        const participants = await getParticipants(c.id);
-        const participantUserIds = participants.map((p) => p.user_id);
-        const participantUsers = await findUsersByIds(participantUserIds);
+    if (!conversationsResult.success) {
+      console.error(
+        '[InitialSync] Failed to fetch conversations:',
+        conversationsResult.error,
+      );
+      return errorResponse('Failed to fetch conversations', 500);
+    }
 
-        // For private chats, get the other user's info
-        let displayName = c.name;
-        let avatar = c.group_img;
-
-        if (!c.is_group) {
-          const otherParticipant = participants.find(
-            (p) => p.user_id !== userId,
-          );
-          if (otherParticipant) {
-            const otherUser = participantUsers.find(
-              (u) => u.id === otherParticipant.user_id,
-            );
-            if (otherUser) {
-              displayName = otherUser.name || 'Unknown';
-              avatar = otherUser.avatar || null;
-            }
-          }
-        }
-
-        return {
-          conversationId: c.id,
-          title: displayName || '',
-          type: c.is_group ? 'group' : 'private',
-          groupImg: avatar || '',
-          createdAt: new Date(c.updated_at).getTime(),
-          updatedAt: new Date(c.updated_at).getTime(),
-          lastMessageId: undefined,
-          lastMessage: c.last_message || '',
-          lastMessageAt: c.last_message_at
-            ? new Date(c.last_message_at).getTime()
-            : null,
-          unreadCount: c.unread_count || 0,
-          participants: participants.map((p) => ({
-            odId: `${c.id}_${p.user_id}`,
-            odConversationId: c.id,
-            odUserId: p.user_id,
-            role: 'member' as const,
-            unreadCount: 0,
-          })),
-        };
-      }),
+    // Enrich conversations with participant data (parallel per conversation)
+    const enrichedResults = await Promise.all(
+      conversationsResult.data.map((c) => enrichConversation(c, userId)),
     );
 
-    // 4. Format users for local storage
-    const formattedUsers = users.map((u) => ({
-      id: u.id,
-      name: u.name || '',
-      avatar: u.avatar || null,
-      phoneNumber: u.phoneNumber || '',
-      bio: u.bio || '',
-      updatedAt: new Date(u.updatedAt).getTime(),
-    }));
+    // Filter out any conversations that failed to enrich
+    const conversations = enrichedResults.filter(
+      (c): c is SyncConversation => c !== null,
+    );
 
     return NextResponse.json({
       success: true,
-      users: formattedUsers,
+      users: formatUsers(usersResult.data),
       conversations,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    console.error('Initial sync error:', error);
-    return NextResponse.json(
-      { success: false, error: 'Internal Error' },
-      { status: 500 },
-    );
+    console.error('[InitialSync] Unexpected error:', error);
+    return errorResponse('Internal Server Error', 500);
   }
 }
