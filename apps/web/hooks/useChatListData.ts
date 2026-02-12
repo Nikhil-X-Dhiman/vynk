@@ -13,6 +13,7 @@ import { db } from '@/lib/db';
 import { normalizeAvatarUrl } from '@/lib/utils/avatar';
 import type { FilterType, EnrichedConversation } from '@/components/chat/types';
 import type { LocalUser } from '@/lib/db';
+import { formatMessageTime } from '@/lib/utils/date'
 
 interface UseChatListDataResult {
   /** Current filter tab. */
@@ -47,12 +48,15 @@ export function useChatListData(): UseChatListDataResult {
 
   // ── Live queries ──────────────────────────────────────────────
 
-  const allUsers = useLiveQuery(() => db.users.orderBy('name').toArray()) ?? [];
+  const emptyArray = useMemo(() => [], [])
+
+  const allUsers =
+    useLiveQuery(() => db.users.orderBy('name').toArray()) ?? emptyArray
 
   const rawConversations =
     useLiveQuery(() =>
       db.conversations.orderBy('updatedAt').reverse().toArray(),
-    ) ?? [];
+    ) ?? emptyArray
 
   const isSyncCompleted =
     useLiveQuery(() => db.isInitialSyncCompleted()) ?? false;
@@ -65,15 +69,10 @@ export function useChatListData(): UseChatListDataResult {
         ...conv,
         name: conv.displayName || conv.title || 'Unknown',
         avatar: normalizeAvatarUrl(conv.displayAvatar || conv.groupImg),
-        time: conv.lastMessageAt
-          ? new Date(conv.lastMessageAt).toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit',
-            })
-          : '',
+        time: formatMessageTime(conv.lastMessageAt || 0),
       })),
     [rawConversations],
-  );
+  )
 
   // ── Filtering ─────────────────────────────────────────────────
 

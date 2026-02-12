@@ -22,6 +22,7 @@ import { getSocket } from './client';
 import { SOCKET_EVENTS } from '@repo/shared';
 import { db, LocalUser } from '@/lib/db'
 import { SyncService } from '@/lib/services/sync';
+import { useAuthStore } from '@/store/auth'
 
 // ==========================================
 // Types
@@ -174,20 +175,93 @@ export type MessageCallback = (message: IncomingMessage) => void;
  * @param callback - Handler for incoming messages
  * @returns Cleanup function to remove listener
  */
+/**
+ * Registers a callback for new messages.
+ * @param callback - Handler for incoming messages
+ * @returns Cleanup function to remove listener
+ */
 export function onMessageReceived(callback: MessageCallback): () => void {
   const socket = getSocket();
 
   const handler = async (message: IncomingMessage) => {
     // Store message locally
     try {
-      await db.messages.add({
-        messageId: message.id,
-        conversationId: message.conversationId,
-        senderId: message.senderId,
-        content: message.content,
-        timestamp: new Date(message.createdAt).getTime(),
-        status: 'delivered',
-      });
+      const currentUserId = useAuthStore.getState().user?.id
+
+      // 1. Check if we already have this message (deduplication)
+      const existing = await db.messages
+        .where('messageId')
+        .equals(message.id)
+        .first()
+
+      if (existing) {
+        // Message exists - update status to delivered
+        await db.messages.update(existing.id!, {
+          status: 'delivered',
+          content: message.content, // Ensure content is synced
+          mediaUrl: message.mediaUrl,
+          timestamp: new Date(message.createdAt).getTime(),
+        })
+      } else {
+        // 2. Check if we have a pending message matching this (reconciliation)
+        let pendingMatch
+
+        if (currentUserId && message.senderId === currentUserId) {
+          pendingMatch = await db.messages
+            .where('conversationId')
+            .equals(message.conversationId)
+            .filter(
+              (m) =>
+                m.status === 'pending' &&
+                m.content === message.content &&
+                // Optional: check if timestamp is within reasonable range (e.g. 1 min)
+                Math.abs(m.timestamp - new Date(message.createdAt).getTime()) <
+                  60000,
+            )
+            .first()
+        }
+
+        if (pendingMatch) {
+          // Found matching pending message - update it to be the "real" message
+          await db.messages.update(pendingMatch.id!, {
+            messageId: message.id, // Update to server ID
+            status: 'delivered',
+            timestamp: new Date(message.createdAt).getTime(),
+          })
+        } else {
+          // 3. New message - add it
+          await db.messages.add({
+            messageId: message.id,
+            conversationId: message.conversationId,
+            senderId: message.senderId,
+            content: message.content,
+            mediaUrl: message.mediaUrl,
+            mediaType: message.mediaType,
+            replyTo: message.replyTo,
+            timestamp: new Date(message.createdAt).getTime(),
+            status: 'delivered',
+          })
+        }
+      }
+
+      // Update conversation last message
+      const conv = await db.conversations
+        .where('conversationId')
+        .equals(message.conversationId)
+        .first()
+
+      if (conv) {
+        await db.conversations.update(conv.id!, {
+          lastMessage: message.content,
+          lastMessageId: message.id,
+          lastMessageAt: new Date(message.createdAt).getTime(),
+          updatedAt: new Date(message.createdAt).getTime(),
+          unreadCount:
+            message.senderId !== currentUserId
+              ? (conv.unreadCount || 0) + 1
+              : conv.unreadCount,
+        })
+      }
     } catch (error) {
       console.error('[Socket] Failed to store message:', error);
     }
@@ -366,6 +440,28 @@ export function registerConversationListeners(): void {
             isVirtual: false,
           })
           console.log('[Sync] New conversation added:', conversationId)
+
+          // IMPORTANT: Add participants correctly
+          if (data.participants && data.participants.length > 0) {
+            for (const userId of data.participants) {
+              // Avoid duplicates
+              const pExists = await db.participants
+                .where('conversationId') // Query by conversationId first (indexed)
+                .equals(conversationId)
+                .filter((p) => p.userId === userId)
+                .first()
+
+              if (!pExists) {
+                await db.participants.add({
+                  id: `${conversationId}_${userId}`,
+                  conversationId,
+                  userId,
+                  role: 'member',
+                  unreadCount: 0,
+                })
+              }
+            }
+          }
         }
       } catch (error) {
         console.error('[Sync] Failed to handle CONVERSATION_CREATED:', error)
@@ -378,10 +474,7 @@ export function registerConversationListeners(): void {
     SOCKET_EVENTS.CONVERSATION_LEFT,
     async (data: { conversationId: string; userId: string }) => {
       try {
-        await db.participants
-          .where('[conversationId+participantId]')
-          .equals([data.conversationId, data.userId])
-          .delete()
+        await db.participants.delete(`${data.conversationId}_${data.userId}`)
         console.log('[Sync] Participant removed from conversation')
       } catch (error) {
         console.error('[Sync] Failed to remove participant:', error)

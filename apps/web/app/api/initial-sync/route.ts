@@ -21,11 +21,12 @@ import {
   getAllUsers,
   getUserConversations,
   getParticipants,
+  getMessages,
   findUsersByIds,
   type ConversationListItem,
   type UserListItem,
   type UserBasic,
-} from '@repo/db';
+} from '@repo/db'
 import { checkServerAuth } from '@/lib/auth/check-server-auth';
 
 // ==========================================
@@ -66,12 +67,27 @@ interface SyncConversation {
   participants: SyncParticipant[];
 }
 
+/** Formatted message for the client's local database. */
+interface SyncMessage {
+  messageId: string;
+  conversationId: string;
+  senderId: string;
+  content: string;
+  mediaType: string | null;
+  mediaUrl: string | null;
+  replyTo: string | null;
+  status: 'sent' | 'delivered' | 'seen';
+  timestamp: number;
+  updatedAt: number;
+}
+
 /** Successful initial sync response. */
 interface InitialSyncResponse {
-  success: true;
-  users: SyncUser[];
-  conversations: SyncConversation[];
-  timestamp: string;
+  success: true
+  users: SyncUser[]
+  conversations: SyncConversation[]
+  messages: SyncMessage[]
+  timestamp: string
 }
 
 /** Error response. */
@@ -134,7 +150,12 @@ function resolveConversationDisplay(
   );
 
   if (!otherParticipant) {
-    return { displayName: conversation.name || 'Unknown', avatar: null };
+    // If no other participant, check if current user is a participant (self-chat)
+    const selfUser = participantUsers.find((u) => u.id === currentUserId)
+    return {
+      displayName: selfUser ? 'You (Saved Messages)' : 'Unknown',
+      avatar: selfUser?.avatar || null,
+    }
   }
 
   const otherUser = participantUsers.find(
@@ -225,49 +246,72 @@ export async function GET(): Promise<
   NextResponse<InitialSyncResponse | ErrorResponse>
 > {
   try {
-    const { isAuth, session } = await checkServerAuth();
+    const { isAuth, session } = await checkServerAuth()
 
     if (!isAuth) {
-      return errorResponse('Unauthorized', 401);
+      return errorResponse('Unauthorized', 401)
     }
 
-    const userId = session.user.id;
+    const userId = session.user.id
 
-    // Fetch all users and conversations in parallel
+    // Fetch all users (including self) and conversations in parallel
     const [usersResult, conversationsResult] = await Promise.all([
-      getAllUsers(userId),
+      getAllUsers(), // Don't exclude self
       getUserConversations(userId),
-    ]);
+    ])
 
     if (!usersResult.success) {
-      console.error('[InitialSync] Failed to fetch users:', usersResult.error);
-      return errorResponse('Failed to fetch users', 500);
+      console.error('[InitialSync] Failed to fetch users:', usersResult.error)
+      return errorResponse('Failed to fetch users', 500)
     }
 
     if (!conversationsResult.success) {
       console.error(
         '[InitialSync] Failed to fetch conversations:',
         conversationsResult.error,
-      );
-      return errorResponse('Failed to fetch conversations', 500);
+      )
+      return errorResponse('Failed to fetch conversations', 500)
     }
 
     // Enrich conversations with participant data (parallel per conversation)
     const enrichedResults = await Promise.all(
       conversationsResult.data.map((c) => enrichConversation(c, userId)),
-    );
+    )
 
     // Filter out any conversations that failed to enrich
     const conversations = enrichedResults.filter(
       (c): c is SyncConversation => c !== null,
-    );
+    )
+
+    // Fetch recent messages for each conversation
+    const messagesResults = await Promise.all(
+      conversations.map((c) =>
+        getMessages({ conversationId: c.conversationId, limit: 50 }),
+      ),
+    )
+
+    const messages: SyncMessage[] = messagesResults
+      .flatMap((result) => (result.success ? result.data : []))
+      .map((m) => ({
+        messageId: m.id,
+        conversationId: m.conversation_id,
+        senderId: m.sender_id,
+        content: m.content || '',
+        mediaType: m.media_type || null,
+        mediaUrl: m.media_url || null,
+        replyTo: m.reply_to || null,
+        status: 'seen', // Default to seen for history
+        timestamp: new Date(m.created_at).getTime(),
+        updatedAt: new Date(m.updated_at).getTime(),
+      }))
 
     return NextResponse.json({
       success: true,
       users: formatUsers(usersResult.data),
       conversations,
+      messages,
       timestamp: new Date().toISOString(),
-    });
+    })
   } catch (error) {
     console.error('[InitialSync] Unexpected error:', error);
     return errorResponse('Internal Server Error', 500);

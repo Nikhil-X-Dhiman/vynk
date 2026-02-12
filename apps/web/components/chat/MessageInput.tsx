@@ -9,6 +9,13 @@ import React, { useState, useRef } from 'react';
 import { Smile, Paperclip, Mic, SendHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import EmojiPicker, { EmojiClickData, Theme } from 'emoji-picker-react'
+import { useTheme } from 'next-themes'
 import type { MessageInputHandle } from './types';
 
 interface MessageInputProps {
@@ -26,7 +33,9 @@ export const MessageInput = React.forwardRef<
   MessageInputProps
 >(function MessageInput({ onSend, disabled }, ref) {
   const [message, setMessage] = useState('');
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null);
+  const { theme } = useTheme()
 
   React.useImperativeHandle(ref, () => ({
     focus: () => inputRef.current?.focus(),
@@ -40,12 +49,46 @@ export const MessageInput = React.forwardRef<
     inputRef.current?.focus();
   };
 
+  const onEmojiClick = (emojiData: EmojiClickData) => {
+    setMessage((prev) => prev + emojiData.emoji)
+    // Keep focus on input after picking emoji if desired, or let user click back
+    // inputRef.current?.focus();
+  }
+
   return (
     <div className="flex items-center gap-2 px-4 py-2 bg-muted/40 border-t">
-      <Button variant="ghost" size="icon" className="text-muted-foreground">
-        <Smile className="h-6 w-6" />
-      </Button>
-      <Button variant="ghost" size="icon" className="text-muted-foreground">
+      <Popover
+        open={showEmojiPicker}
+        onOpenChange={setShowEmojiPicker}
+      >
+        <PopoverTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-muted-foreground"
+            onClick={() => setShowEmojiPicker((prev) => !prev)}
+          >
+            <Smile className="h-6 w-6" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent
+          side="top"
+          align="start"
+          className="w-full p-0 border-none bg-transparent shadow-none"
+        >
+          <EmojiPicker
+            theme={theme === 'dark' ? Theme.DARK : Theme.LIGHT}
+            onEmojiClick={onEmojiClick}
+            lazyLoadEmojis={true}
+          />
+        </PopoverContent>
+      </Popover>
+
+      <Button
+        variant="ghost"
+        size="icon"
+        className="text-muted-foreground"
+      >
         <Paperclip className="h-6 w-6" />
       </Button>
 
@@ -73,10 +116,14 @@ export const MessageInput = React.forwardRef<
           <SendHorizontal className="h-5 w-5" />
         </Button>
       ) : (
-        <Button variant="ghost" size="icon" className="text-muted-foreground">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-muted-foreground"
+        >
           <Mic className="h-6 w-6" />
         </Button>
       )}
     </div>
-  );
+  )
 });

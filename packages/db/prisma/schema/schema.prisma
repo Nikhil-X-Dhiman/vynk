@@ -28,9 +28,7 @@ model User {
   reConsent           Boolean?       @default(true) @map("re_consent")
   createdAt           DateTime       @default(now()) @map("created_at")
   updatedAt           DateTime       @updatedAt @map("updated_at")
-  // apply in redis db
-  // isOnline  Boolean @map("is_boolean")
-  // lastSeen  DateTime @map("last_seen")
+
   // Relations
   participants        Participant[]
   conversations       Conversation[]

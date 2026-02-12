@@ -6,8 +6,9 @@
  */
 
 import React from 'react';
-import { CheckCheck } from 'lucide-react';
+import { Check, CheckCheck, Clock } from 'lucide-react'
 import { cn } from '@/lib/utils/tailwind-helpers';
+import { formatMessageTime } from '@/lib/utils/date'
 import type { LocalMessage } from '@/lib/db';
 
 interface MessageBubbleProps {
@@ -39,23 +40,20 @@ export const MessageBubble = React.memo(function MessageBubble({
             : 'bg-background border rounded-tl-none',
         )}
       >
-        <p className="mb-1 leading-relaxed break-words">
-          {msg.content || ''}
-        </p>
+        <p className="mb-1 leading-relaxed break-words">{msg.content || ''}</p>
 
-        <div className="flex items-center justify-end gap-1 text-[10px] text-muted-foreground">
-          <span>
-            {new Date(msg.timestamp || 0).toLocaleTimeString([], {
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </span>
+        <div className="flex items-center justify-end gap-1 text-[10px] text-muted-foreground mt-1">
+          <span>{formatMessageTime(msg.timestamp || 0)}</span>
 
           {isMe && (
-            <span>
-              {msg.status === 'pending' ? (
-                <span className="text-muted-foreground animate-pulse">...</span>
-              ) : (
+            <span
+              className="ml-1"
+              title={msg.status}
+            >
+              {msg.status === 'pending' && <Clock className="h-3 w-3" />}
+              {msg.status === 'sent' && <Check className="h-3 w-3" />}
+              {msg.status === 'delivered' && <CheckCheck className="h-3 w-3" />}
+              {msg.status === 'seen' && (
                 <CheckCheck className="h-3 w-3 text-blue-500" />
               )}
             </span>
@@ -63,5 +61,5 @@ export const MessageBubble = React.memo(function MessageBubble({
         </div>
       </div>
     </div>
-  );
+  )
 });

@@ -9,7 +9,8 @@
  * @module components/chat/ChatWindow
  */
 
-import { useRef } from 'react';
+import { useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/lib/db';
 import { useAuthStore } from '@/store/auth';
@@ -36,31 +37,43 @@ interface ChatWindowProps {
  * for a single conversation.
  */
 export function ChatWindow({ chatId }: ChatWindowProps) {
-  const { user } = useAuthStore();
-  const isOnline = useNetworkStatus();
-  const messageListRef = useRef<MessageListHandle>(null);
+  const router = useRouter()
+  const { user } = useAuthStore()
+  const isOnline = useNetworkStatus()
+  const messageListRef = useRef<MessageListHandle>(null)
 
   // Data
-  const { conversationInfo, isLoading } = useConversationInfo(chatId);
+  const { conversationInfo, isLoading, exists } = useConversationInfo(chatId)
+
+  useEffect(() => {
+    if (!isLoading && !exists) {
+      router.push('/chats')
+    }
+  }, [isLoading, exists, router])
 
   const messages =
     useLiveQuery(
       () =>
         db.messages.where('conversationId').equals(chatId).sortBy('timestamp'),
       [chatId],
-    ) ?? [];
+    ) ?? []
 
   // Real-time subscription
-  useSocketMessages(chatId, isOnline);
+  useSocketMessages(chatId, isOnline)
 
   // Message sending
-  const sendMessage = useSendMessage(chatId, isOnline);
+  const sendMessage = useSendMessage(chatId, isOnline)
 
   const handleSend = async (text: string) => {
-    await sendMessage(text);
+    await sendMessage(text)
     // Scroll to bottom after sending (delay for UI update)
-    setTimeout(() => messageListRef.current?.scrollToBottom(), 100);
-  };
+    setTimeout(() => messageListRef.current?.scrollToBottom(), 100)
+  }
+
+  // Prevent flash of empty content while redirecting
+  if (!isLoading && !exists) {
+    return <ChatWindowSkeleton />
+  }
 
   return (
     <div className="flex flex-col h-full w-full bg-background overflow-hidden preserve-3d">
@@ -80,5 +93,5 @@ export function ChatWindow({ chatId }: ChatWindowProps) {
 
       {!isLoading && <MessageInput onSend={handleSend} />}
     </div>
-  );
+  )
 }

@@ -191,6 +191,15 @@ export function emitCreateConversation(
   socket.emit(SOCKET_EVENTS.CONVERSATION_CREATE, payload);
 }
 
+/**
+ * Marks all messages in a conversation as read.
+ * @param conversationId - ID of the conversation to mark as read
+ */
+export function emitConversationRead(conversationId: string): void {
+  const socket = getSocket();
+  socket.emit(SOCKET_EVENTS.CONVERSATION_READ, { conversationId });
+}
+
 // ==========================================
 // Stories
 // ==========================================

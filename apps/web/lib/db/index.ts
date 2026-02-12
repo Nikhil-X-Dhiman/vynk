@@ -3,13 +3,16 @@ import Dexie, { Table } from 'dexie';
 // ============ Interfaces ============
 
 export interface LocalMessage {
-  id?: number;
-  messageId?: string; // Server ID
-  conversationId: string;
-  senderId?: string;
-  content: string;
-  status: 'pending' | 'sent' | 'delivered' | 'seen';
-  timestamp: number;
+  id?: number
+  messageId?: string // Server ID
+  conversationId: string
+  senderId?: string
+  content: string
+  mediaType?: string | null
+  mediaUrl?: string | null
+  replyTo?: string | null
+  status: 'pending' | 'sent' | 'delivered' | 'seen'
+  timestamp: number
 }
 
 export interface LocalStory {
@@ -289,7 +292,7 @@ export class VynkLocalDB extends Dexie {
       if (!response.ok) throw new Error('Initial sync failed')
 
       const data = await response.json()
-
+      console.log('Initial sync data', data)
       // 1. Store users
       if (data.users?.length) {
         await this.users.bulkPut(data.users)
@@ -330,7 +333,23 @@ export class VynkLocalDB extends Dexie {
         }
       }
 
-      // 3. Update sync timestamp
+      // 3. Store messages
+      if (data.messages?.length) {
+        const messagesToStore = data.messages.map((m: any) => ({
+          messageId: m.messageId,
+          conversationId: m.conversationId,
+          senderId: m.senderId,
+          content: m.content,
+          mediaType: m.mediaType,
+          mediaUrl: m.mediaUrl,
+          replyTo: m.replyTo,
+          status: m.status,
+          timestamp: m.timestamp,
+        }))
+        await this.messages.bulkPut(messagesToStore)
+      }
+
+      // 4. Update sync timestamp
       await this.meta.put({ key: 'lastSyncedAt', value: data.timestamp })
       await this.meta.put({ key: 'initialSyncCompleted', value: true })
 

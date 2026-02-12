@@ -12,6 +12,8 @@ import { useEffect } from 'react';
 import { getSocket } from '@/lib/services/socket/client';
 import { SOCKET_EVENTS } from '@repo/shared';
 import { db } from '@/lib/db';
+import { useAuthStore } from '@/store/auth'
+import { emitConversationRead } from '@/lib/services/socket/emitters'
 
 /** Shape of an incoming message from the server. */
 interface IncomingSocketMessage {
@@ -36,43 +38,80 @@ interface IncomingSocketMessage {
  */
 export function useSocketMessages(chatId: string, isOnline: boolean): void {
   useEffect(() => {
-    if (!isOnline) return;
+    if (!isOnline) return
 
-    const socket = getSocket();
+    const socket = getSocket()
 
-    socket.emit(SOCKET_EVENTS.CONVERSATION_JOIN, { conversationId: chatId });
+    socket.emit(SOCKET_EVENTS.CONVERSATION_JOIN, { conversationId: chatId })
+
+    // Mark conversation as read on join
+    const markAsRead = async () => {
+      // 1. Tell server we read it (bulk)
+      emitConversationRead(chatId)
+
+      // 2. Update local DB (mark all unread from others as seen)
+      const { user } = useAuthStore.getState()
+      if (!user) return
+
+      const unreadMessages = await db.messages
+        .where('conversationId')
+        .equals(chatId)
+        .filter((m) => m.status !== 'seen' && m.senderId !== user.id)
+        .toArray()
+
+      if (unreadMessages.length > 0) {
+        await db.messages.bulkUpdate(
+          unreadMessages.map((m) => ({
+            key: m.id!,
+            changes: { status: 'seen' },
+          })),
+        )
+      }
+    }
+
+    markAsRead().catch(console.error)
 
     const handleNewMessage = async (msg: IncomingSocketMessage) => {
-      if (msg.conversationId !== chatId) return;
+      if (msg.conversationId !== chatId) return
 
-      const resolvedId = msg.id || msg.messageId;
+      const resolvedId = msg.id || msg.messageId
 
       // Deduplicate: skip if message already exists in local DB
       if (resolvedId) {
         const existing = await db.messages
           .where('messageId')
           .equals(resolvedId)
-          .first();
-        if (existing) return;
+          .first()
+        if (existing) return
       }
 
-      await db.messages.add({
+      const localId = await db.messages.add({
         messageId: resolvedId,
         conversationId: msg.conversationId,
         senderId: msg.senderId,
         content: msg.content || msg.text || '',
         status: 'delivered',
         timestamp: msg.timestamp || Date.now(),
-      });
-    };
+      })
 
-    socket.on(SOCKET_EVENTS.MESSAGE_NEW, handleNewMessage);
+      // If message is from someone else, we are online and looking at it -> Mark as seen
+      const { user } = useAuthStore.getState()
+      if (user && msg.senderId !== user.id) {
+        // Emit read event
+        emitConversationRead(chatId)
+
+        // Update local status immediately
+        await db.messages.update(localId, { status: 'seen' })
+      }
+    }
+
+    socket.on(SOCKET_EVENTS.MESSAGE_NEW, handleNewMessage)
 
     return () => {
-      socket.off(SOCKET_EVENTS.MESSAGE_NEW, handleNewMessage);
+      socket.off(SOCKET_EVENTS.MESSAGE_NEW, handleNewMessage)
       socket.emit(SOCKET_EVENTS.CONVERSATION_LEAVE, {
         conversationId: chatId,
-      });
-    };
+      })
+    }
   }, [chatId, isOnline]);
 }

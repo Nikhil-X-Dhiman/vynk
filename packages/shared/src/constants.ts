@@ -74,6 +74,10 @@ export const SOCKET_EVENTS = {
   CONVERSATION_LEFT: 'conversation:left',
   /** Server broadcasts conversation update */
   CONVERSATION_UPDATED: 'conversation:updated',
+  /** Client marks entire conversation as read */
+  CONVERSATION_READ: 'conversation:read',
+  /** Server confirms conversation was seen */
+  CONVERSATION_SEEN: 'conversation:seen',
 
   // ===========================================================================
   // Stories
@@ -128,6 +132,6 @@ export const SOCKET_EVENTS = {
   FRIEND_REMOVE: 'friend:remove',
   /** Server notifies removed friend */
   FRIEND_REMOVED: 'friend:removed',
-} as const;
+} as const
 
 export type SocketEvent = (typeof SOCKET_EVENTS)[keyof typeof SOCKET_EVENTS];

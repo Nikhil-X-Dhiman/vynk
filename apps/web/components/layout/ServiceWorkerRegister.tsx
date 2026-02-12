@@ -178,25 +178,29 @@ function useServiceWorker(): void {
  * - On `offline`: logs state change
  */
 function useNetworkStatus(): void {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+
   useEffect(() => {
     function handleOnline(): void {
-      console.log(`${LOG_NET} Back online — triggering sync`);
-      SyncService.performDeltaSync().catch(console.error);
-      db.flushQueue().catch(console.error);
+      if (!isAuthenticated) return
+
+      console.log(`${LOG_NET} Back online — triggering sync`)
+      SyncService.performDeltaSync().catch(console.error)
+      db.flushQueue().catch(console.error)
     }
 
     function handleOffline(): void {
-      console.log(`${LOG_NET} Went offline — queuing future operations`);
+      console.log(`${LOG_NET} Went offline — queuing future operations`)
     }
 
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
 
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [isAuthenticated])
 }
 
 /**
@@ -224,11 +228,15 @@ function useSocketListeners(): void {
  * - `beforeunload`: flushes the IndexedDB offline queue
  */
 function useAppLifecycle(): void {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+
   useEffect(() => {
     function handleVisibilityChange(): void {
       if (document.visibilityState === 'visible') {
-        console.log(`${LOG_APP} Tab became visible — syncing`);
-        SyncService.performDeltaSync().catch(console.error);
+        if (!isAuthenticated) return
+
+        console.log(`${LOG_APP} Tab became visible — syncing`)
+        SyncService.performDeltaSync().catch(console.error)
       }
     }
 
@@ -237,26 +245,29 @@ function useAppLifecycle(): void {
       // if this doesn't complete before the page is torn down.
       db.flushQueue().catch(() => {
         /* swallow — page is unloading */
-      });
+      })
     }
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('beforeunload', handleBeforeUnload)
 
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, []);
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [isAuthenticated])
 }
 
 /**
  * Cleans up expired stories from IndexedDB on boot.
  */
 function useStoryCleanup(): void {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+
   useEffect(() => {
-    db.cleanupOldStories().catch(console.error);
-  }, []);
+    if (!isAuthenticated) return
+    db.cleanupOldStories().catch(console.error)
+  }, [isAuthenticated])
 }
 
 // ==========================================
