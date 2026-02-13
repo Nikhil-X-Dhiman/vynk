@@ -1,16 +1,16 @@
-import { randomUUID } from 'crypto';
-import { db } from '../../kysely/db';
+import { v7 as uuidv7 } from 'uuid'
+import { db } from '../../kysely/db'
 
 type UpdateSettingsParams = {
-  userId: string;
-  theme?: string;
-  notifications?: boolean;
-  soundEnabled?: boolean;
-};
+  userId: string
+  theme?: string
+  notifications?: boolean
+  soundEnabled?: boolean
+}
 
 type UpdateSettingsResult =
   | { success: true }
-  | { success: false; error: string };
+  | { success: false; error: string }
 
 /**
  * Creates or updates user settings using upsert pattern.
@@ -22,13 +22,13 @@ type UpdateSettingsResult =
 async function updateSettings(
   params: UpdateSettingsParams,
 ): Promise<UpdateSettingsResult> {
-  const { userId, theme, notifications, soundEnabled } = params;
+  const { userId, theme, notifications, soundEnabled } = params
 
   try {
     await db
       .insertInto('settings')
       .values({
-        id: randomUUID(),
+        id: uuidv7(),
         user_id: userId,
         theme: theme ?? 'system',
         notifications: notifications ?? true,
@@ -50,12 +50,12 @@ async function updateSettings(
           updated_at: new Date(),
         })),
       )
-      .execute();
+      .execute()
 
-    return { success: true };
+    return { success: true }
   } catch (error) {
-    console.error('Error updating settings:', error);
-    return { success: false, error: 'Failed to update settings' };
+    console.error('Error updating settings:', error)
+    return { success: false, error: 'Failed to update settings' }
   }
 }
 
@@ -67,14 +67,14 @@ async function updateSettings(
  */
 async function deleteSettings(userId: string): Promise<UpdateSettingsResult> {
   try {
-    await db.deleteFrom('settings').where('user_id', '=', userId).execute();
+    await db.deleteFrom('settings').where('user_id', '=', userId).execute()
 
-    return { success: true };
+    return { success: true }
   } catch (error) {
-    console.error('Error deleting settings:', error);
-    return { success: false, error: 'Failed to delete settings' };
+    console.error('Error deleting settings:', error)
+    return { success: false, error: 'Failed to delete settings' }
   }
 }
 
-export { updateSettings, deleteSettings };
-export type { UpdateSettingsParams, UpdateSettingsResult };
+export { updateSettings, deleteSettings }
+export type { UpdateSettingsParams, UpdateSettingsResult }

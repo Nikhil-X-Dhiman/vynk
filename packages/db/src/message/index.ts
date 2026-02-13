@@ -1,13 +1,8 @@
 export { sendMessage } from './send';
 export type { SendMessageParams, SendMessageResult } from './send';
 
-export { getMessages, getMessageById } from './get';
-export type {
-  Message,
-  GetMessagesParams,
-  GetMessagesResult,
-  GetMessageByIdResult,
-} from './get';
+export { getUserMessages } from './get'
+export type { Message, GetMessagesResult } from './get'
 
 export { deleteMessage, hardDeleteMessage } from './delete';
 export type { DeleteMessageResult } from './delete';

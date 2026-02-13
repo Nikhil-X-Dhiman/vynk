@@ -1,13 +1,13 @@
 import { db } from '../../kysely/db';
 
 type UserListItem = {
-  id: string;
-  name: string;
-  avatar: string | null;
-  bio: string | null;
-  phoneNumber: string;
-  updatedAt: Date;
-};
+  id: string
+  name: string
+  avatarUrl: string | null
+  bio: string | null
+  phoneNumber: string
+  updatedAt: Date
+}
 
 type GetAllUsersResult =
   | { success: true; data: UserListItem[] }
@@ -26,11 +26,11 @@ async function getAllUsers(excludeUserId?: string): Promise<GetAllUsersResult> {
       .select([
         'id',
         'user_name as name',
-        'avatar_url as avatar',
+        'avatar_url as avatarUrl',
         'bio',
         'phone_number as phoneNumber',
         'updated_at as updatedAt',
-      ]);
+      ])
 
     if (excludeUserId) {
       query = query.where('id', '!=', excludeUserId);
@@ -70,12 +70,12 @@ async function getUsersDelta(
       .select([
         'id',
         'user_name as name',
-        'avatar_url as avatar',
+        'avatar_url as avatarUrl',
         'bio',
         'phone_number as phoneNumber',
         'updated_at as updatedAt',
       ])
-      .where('updated_at', '>', since);
+      .where('updated_at', '>', since)
 
     if (excludeUserId) {
       query = query.where('id', '!=', excludeUserId);

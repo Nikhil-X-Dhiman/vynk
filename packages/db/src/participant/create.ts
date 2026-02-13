@@ -1,15 +1,15 @@
-import { randomUUID } from 'crypto';
-import { db } from '../../kysely/db';
+import { v7 as uuidv7 } from 'uuid'
+import { db } from '../../kysely/db'
 
 type AddParticipantParams = {
-  conversationId: string;
-  userId: string;
-  role?: 'member' | 'admin';
-};
+  conversationId: string
+  userId: string
+  role?: 'member' | 'admin'
+}
 
 type AddParticipantResult =
   | { success: true }
-  | { success: false; error: string };
+  | { success: false; error: string }
 
 /**
  * Adds a participant to a conversation.
@@ -19,15 +19,15 @@ type AddParticipantResult =
  * @returns Success or error
  */
 async function addParticipant(
-  params: AddParticipantParams
+  params: AddParticipantParams,
 ): Promise<AddParticipantResult> {
-  const { conversationId, userId, role = 'member' } = params;
+  const { conversationId, userId, role = 'member' } = params
 
   try {
     await db
       .insertInto('participant')
       .values({
-        id: randomUUID(),
+        id: uuidv7(),
         conversation_id: conversationId,
         user_id: userId,
         role,
@@ -35,16 +35,16 @@ async function addParticipant(
         updated_at: new Date(),
       })
       .onConflict((oc) =>
-        oc.columns(['conversation_id', 'user_id']).doNothing()
+        oc.columns(['conversation_id', 'user_id']).doNothing(),
       )
-      .execute();
+      .execute()
 
-    return { success: true };
+    return { success: true }
   } catch (error) {
-    console.error('Error adding participant:', error);
-    return { success: false, error: 'Failed to add participant' };
+    console.error('Error adding participant:', error)
+    return { success: false, error: 'Failed to add participant' }
   }
 }
 
-export { addParticipant };
-export type { AddParticipantParams, AddParticipantResult };
+export { addParticipant }
+export type { AddParticipantParams, AddParticipantResult }

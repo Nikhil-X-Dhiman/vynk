@@ -2,16 +2,13 @@ import { sql } from 'kysely';
 import { db } from '../../kysely/db';
 
 type ConversationListItem = {
-  id: string;
-  updated_at: Date;
-  name: string | null;
-  group_img: string | null;
-  unread_count: number;
-  last_message: string | null;
-  last_message_at: Date | null;
-  media_type: string | null;
-  is_group: boolean;
-};
+  id: string
+  updatedAt: Date
+  name: string | null
+  groupImg: string | null
+  lastMessageId: string | null
+  conversationType: 'private' | 'group' | 'broadcast'
+}
 
 type GetUserConversationsResult =
   | { success: true; data: ConversationListItem[] }
@@ -29,25 +26,20 @@ async function getUserConversations(
 ): Promise<GetUserConversationsResult> {
   try {
     const conversations = await db
-      .selectFrom('participant as p')
-      .innerJoin('conversation as c', 'p.conversation_id', 'c.id')
-      .leftJoin('message as m', 'c.last_message_id', 'm.id')
+      .selectFrom('conversation as c')
+      .innerJoin('participant as p', 'p.conversation_id', 'c.id')
       .select([
         'c.id',
-        'c.updated_at',
         'c.title as name',
-        'c.group_img',
-        'p.unread_count',
-        'm.content as last_message',
-        'm.created_at as last_message_at',
-        'm.media_type',
+        'c.group_img as groupImg',
+        'c.type as conversationType',
+        'c.updated_at as updatedAt',
+        'c.last_message_id as lastMessageId',
       ])
-      .select(sql<boolean>`c.type = 'group'`.as('is_group'))
       .where('p.user_id', '=', userId)
       .where('c.is_deleted', '=', false)
       .orderBy('c.updated_at', 'desc')
-      .execute();
-
+      .execute()
     return { success: true, data: conversations as ConversationListItem[] };
   } catch (error) {
     console.error('Error fetching user conversations:', error);

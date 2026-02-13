@@ -1,10 +1,10 @@
 import { db } from '../../kysely/db';
 
 type DeliveryStatus = {
-  user_id: string;
-  status: string | null;
-  updated_at: Date;
-};
+  userId: string
+  status: string | null
+  updatedAt: Date
+}
 
 type GetMessageDeliveryStatusResult =
   | { success: true; data: DeliveryStatus[] }
@@ -22,11 +22,11 @@ async function getMessageDeliveryStatus(
   try {
     const statuses = await db
       .selectFrom('delivery')
-      .select(['user_id', 'status', 'updated_at'])
+      .select(['user_id as userId', 'status', 'updated_at as updatedAt'])
       .where('message_id', '=', messageId)
-      .execute();
+      .execute()
 
-    return { success: true, data: statuses };
+    return { success: true, data: statuses as DeliveryStatus[] }
   } catch (error) {
     console.error('Error fetching delivery status:', error);
     return { success: false, error: 'Failed to fetch delivery status' };

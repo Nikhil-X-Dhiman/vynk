@@ -1,14 +1,14 @@
-import { randomUUID } from 'crypto';
-import { db } from '../../kysely/db';
+import { v7 as uuidv7 } from 'uuid'
+import { db } from '../../kysely/db'
 
 type CreateDeliveryParams = {
-  messageId: string;
-  userIds: string[];
-};
+  messageId: string
+  userIds: string[]
+}
 
 type CreateDeliveryResult =
   | { success: true }
-  | { success: false; error: string };
+  | { success: false; error: string }
 
 /**
  * Creates delivery records for a message to multiple recipients.
@@ -20,10 +20,10 @@ type CreateDeliveryResult =
 async function createDelivery(
   params: CreateDeliveryParams,
 ): Promise<CreateDeliveryResult> {
-  const { messageId, userIds } = params;
+  const { messageId, userIds } = params
 
   if (userIds.length === 0) {
-    return { success: true };
+    return { success: true }
   }
 
   try {
@@ -31,21 +31,21 @@ async function createDelivery(
       .insertInto('delivery')
       .values(
         userIds.map((userId) => ({
-          id: randomUUID(),
+          id: uuidv7(),
           message_id: messageId,
           user_id: userId,
           status: 'sent' as const,
           updated_at: new Date(),
         })),
       )
-      .execute();
+      .execute()
 
-    return { success: true };
+    return { success: true }
   } catch (error) {
-    console.error('Error creating delivery:', error);
-    return { success: false, error: 'Failed to create delivery' };
+    console.error('Error creating delivery:', error)
+    return { success: false, error: 'Failed to create delivery' }
   }
 }
 
-export { createDelivery };
-export type { CreateDeliveryParams, CreateDeliveryResult };
+export { createDelivery }
+export type { CreateDeliveryParams, CreateDeliveryResult }

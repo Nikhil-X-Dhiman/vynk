@@ -1,14 +1,14 @@
-import { randomUUID } from 'crypto';
-import { db } from '../../kysely/db';
+import { v7 as uuidv7 } from 'uuid'
+import { db } from '../../kysely/db'
 
 type SendFriendRequestParams = {
-  userId: string;
-  friendId: string;
-};
+  userId: string
+  friendId: string
+}
 
 type SendFriendRequestResult =
   | { success: true; data: { requestId: string } }
-  | { success: false; error: string };
+  | { success: false; error: string }
 
 /**
  * Sends a friend request from one user to another.
@@ -18,15 +18,15 @@ type SendFriendRequestResult =
  * @returns Success with request ID or error
  */
 async function sendFriendRequest(
-  params: SendFriendRequestParams
+  params: SendFriendRequestParams,
 ): Promise<SendFriendRequestResult> {
-  const { userId, friendId } = params;
+  const { userId, friendId } = params
 
   if (userId === friendId) {
-    return { success: false, error: 'Cannot send friend request to yourself' };
+    return { success: false, error: 'Cannot send friend request to yourself' }
   }
 
-  const requestId = randomUUID();
+  const requestId = uuidv7()
 
   try {
     const result = await db
@@ -38,22 +38,20 @@ async function sendFriendRequest(
         status: 'PENDING',
         updated_at: new Date(),
       })
-      .onConflict((oc) =>
-        oc.columns(['user_id', 'friend_id']).doNothing()
-      )
+      .onConflict((oc) => oc.columns(['user_id', 'friend_id']).doNothing())
       .returning('id')
-      .executeTakeFirst();
+      .executeTakeFirst()
 
     if (!result) {
-      return { success: false, error: 'Friend request already exists' };
+      return { success: false, error: 'Friend request already exists' }
     }
 
-    return { success: true, data: { requestId } };
+    return { success: true, data: { requestId } }
   } catch (error) {
-    console.error('Error sending friend request:', error);
-    return { success: false, error: 'Failed to send friend request' };
+    console.error('Error sending friend request:', error)
+    return { success: false, error: 'Failed to send friend request' }
   }
 }
 
-export { sendFriendRequest };
-export type { SendFriendRequestParams, SendFriendRequestResult };
+export { sendFriendRequest }
+export type { SendFriendRequestParams, SendFriendRequestResult }

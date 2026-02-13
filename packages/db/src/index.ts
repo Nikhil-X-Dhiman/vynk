@@ -53,13 +53,8 @@ export type {
 export { sendMessage } from './message';
 export type { SendMessageParams, SendMessageResult } from './message';
 
-export { getMessages, getMessageById } from './message';
-export type {
-  Message,
-  GetMessagesParams,
-  GetMessagesResult,
-  GetMessageByIdResult,
-} from './message';
+export { getUserMessages } from './message'
+export type { Message, GetMessagesResult } from './message'
 
 export { deleteMessage, hardDeleteMessage } from './message';
 export type { DeleteMessageResult } from './message';
@@ -73,7 +68,11 @@ export type {
 } from './message';
 
 // Participant module
-export { getParticipants, getParticipant } from './participant';
+export {
+  getParticipants,
+  getParticipant,
+  getUserParticipants,
+} from './participant'
 export type {
   Participant,
   GetParticipantsResult,

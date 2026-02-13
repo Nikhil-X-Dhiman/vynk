@@ -1,21 +1,21 @@
-export { getParticipants, getParticipant } from './get';
+export { getParticipants, getParticipant, getUserParticipants } from './get'
 export type {
   Participant,
   GetParticipantsResult,
   GetParticipantResult,
-} from './get';
+} from './get'
 
-export { addParticipant } from './create';
-export type { AddParticipantParams, AddParticipantResult } from './create';
+export { addParticipant } from './create'
+export type { AddParticipantParams, AddParticipantResult } from './create'
 
-export { updateParticipantRole, resetUnreadCount } from './update';
+export { updateParticipantRole, resetUnreadCount } from './update'
 export type {
   UpdateParticipantRoleResult,
   ResetUnreadCountResult,
-} from './update';
+} from './update'
 
-export { removeParticipant } from './delete';
-export type { RemoveParticipantResult } from './delete';
+export { removeParticipant } from './delete'
+export type { RemoveParticipantResult } from './delete'
 
-export { markAsRead } from './markAsRead';
-export type { MarkAsReadParams, MarkAsReadResult } from './markAsRead';
+export { markAsRead } from './markAsRead'
+export type { MarkAsReadParams, MarkAsReadResult } from './markAsRead'

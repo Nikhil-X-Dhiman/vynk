@@ -1,113 +1,58 @@
 import { db } from '../../kysely/db';
 
 type Message = {
-  id: string;
-  conversation_id: string;
-  sender_id: string;
-  content: string | null;
-  media_type: string | null;
-  media_url: string | null;
-  reply_to: string | null;
-  is_deleted: boolean | null;
-  created_at: Date;
-  updated_at: Date;
-};
-
-type GetMessagesParams = {
-  conversationId: string;
-  limit?: number;
-  offset?: number;
-};
+  id: string
+  conversationId: string
+  senderId: string
+  content: string | null
+  mediaType: string | null
+  mediaUrl: string | null
+  replyTo: string | null
+  isDeleted: boolean | null
+  createdAt: Date
+  updatedAt: Date
+}
 
 type GetMessagesResult =
   | { success: true; data: Message[] }
   | { success: false; error: string };
 
 /**
- * Gets paginated messages for a conversation.
- * Returns messages in descending order (newest first).
+ * Gets all messages for all conversations a user is part of.
  *
- * @param params - Conversation ID and pagination options
+ * @param userId - The user ID to fetch messages for
  * @returns List of messages or error
  */
-async function getMessages(
-  params: GetMessagesParams,
-): Promise<GetMessagesResult> {
-  const { conversationId, limit = 50, offset = 0 } = params;
-
+async function getUserMessages(userId: string): Promise<GetMessagesResult> {
   try {
     const messages = await db
-      .selectFrom('message')
+      .selectFrom('message as m')
+      .innerJoin('participant as p', 'm.conversation_id', 'p.conversation_id')
       .select([
-        'id',
-        'conversation_id',
-        'sender_id',
-        'content',
-        'media_type',
-        'media_url',
-        'reply_to',
-        'is_deleted',
-        'created_at',
-        'updated_at',
+        'm.id',
+        'm.conversation_id as conversationId',
+        'm.sender_id as senderId',
+        'm.content',
+        'm.media_type as mediaType',
+        'm.media_url as mediaUrl',
+        'm.reply_to as replyTo',
+        'm.is_deleted as isDeleted',
+        'm.created_at as createdAt',
+        'm.updated_at as updatedAt',
       ])
-      .where('conversation_id', '=', conversationId)
+      .where('p.user_id', '=', userId)
       .where((eb) =>
-        eb.or([eb('is_deleted', '=', false), eb('is_deleted', 'is', null)]),
+        eb.or([eb('m.is_deleted', '=', false), eb('m.is_deleted', 'is', null)]),
       )
-      .orderBy('created_at', 'desc')
-      .limit(limit)
-      .offset(offset)
-      .execute();
+      .orderBy('m.created_at', 'desc')
+      .execute()
 
-    return { success: true, data: messages as Message[] };
+    return { success: true, data: messages as Message[] }
   } catch (error) {
-    console.error('Error fetching messages:', error);
-    return { success: false, error: 'Failed to fetch messages' };
+    console.error('Error fetching user messages:', error)
+    return { success: false, error: 'Failed to fetch messages' }
   }
 }
 
-type GetMessageByIdResult =
-  | { success: true; data: Message | undefined }
-  | { success: false; error: string };
-
-/**
- * Gets a single message by ID.
- *
- * @param messageId - The message ID
- * @returns Message data or undefined if not found
- */
-async function getMessageById(
-  messageId: string,
-): Promise<GetMessageByIdResult> {
-  try {
-    const message = await db
-      .selectFrom('message')
-      .select([
-        'id',
-        'conversation_id',
-        'sender_id',
-        'content',
-        'media_type',
-        'media_url',
-        'reply_to',
-        'is_deleted',
-        'created_at',
-        'updated_at',
-      ])
-      .where('id', '=', messageId)
-      .executeTakeFirst();
-
-    return { success: true, data: message as Message | undefined };
-  } catch (error) {
-    console.error('Error fetching message:', error);
-    return { success: false, error: 'Failed to fetch message' };
-  }
-}
-
-export { getMessages, getMessageById };
-export type {
-  Message,
-  GetMessagesParams,
-  GetMessagesResult,
-  GetMessageByIdResult,
-};
+export { getUserMessages }
+export type { Message, GetMessagesResult }

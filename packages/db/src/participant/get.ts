@@ -1,26 +1,25 @@
-import { randomUUID } from 'crypto';
-import { db } from '../../kysely/db';
+import { db } from '../../kysely/db'
 
 type Participant = {
-  id: string;
-  conversation_id: string;
-  user_id: string;
-  role: string | null;
-  last_read_message_id: string | null;
-  unread_count: number;
-  joined_at: Date;
-  updated_at: Date;
-};
+  id: string
+  conversationId: string
+  userId: string
+  role: string | null
+  unreadCount: number
+  lastReadMessageId: string | null
+  joinedAt: Date
+  updatedAt: Date
+}
 
 type GetParticipantsResult =
-  | { success: true; data: { user_id: string; role: string | null }[] }
-  | { success: false; error: string };
+  | { success: true; data: Participant[] }
+  | { success: false; error: string }
 
 /**
  * Gets all participants for a conversation.
  *
  * @param conversationId - The conversation ID
- * @returns List of participant user IDs and roles
+ * @returns List of participants
  */
 async function getParticipants(
   conversationId: string,
@@ -28,20 +27,28 @@ async function getParticipants(
   try {
     const participants = await db
       .selectFrom('participant')
-      .select(['user_id', 'role'])
+      .select([
+        'id',
+        'conversation_id as conversationId',
+        'user_id as userId',
+        'role',
+        'last_read_message_id as lastReadMessageId',
+        'joined_at as joinedAt',
+        'updated_at as updatedAt',
+      ])
       .where('conversation_id', '=', conversationId)
-      .execute();
+      .execute()
 
-    return { success: true, data: participants };
+    return { success: true, data: participants as Participant[] }
   } catch (error) {
-    console.error('Error fetching participants:', error);
-    return { success: false, error: 'Failed to fetch participants' };
+    console.error('Error fetching participants:', error)
+    return { success: false, error: 'Failed to fetch participants' }
   }
 }
 
 type GetParticipantResult =
   | { success: true; data: Participant | undefined }
-  | { success: false; error: string };
+  | { success: false; error: string }
 
 /**
  * Gets a specific participant in a conversation.
@@ -59,24 +66,60 @@ async function getParticipant(
       .selectFrom('participant')
       .select([
         'id',
-        'conversation_id',
-        'user_id',
+        'conversation_id as conversationId',
+        'user_id as userId',
         'role',
-        'last_read_message_id',
-        'unread_count',
-        'joined_at',
-        'updated_at',
+        'last_read_message_id as lastReadMessageId',
+        'joined_at as joinedAt',
+        'updated_at as updatedAt',
       ])
       .where('conversation_id', '=', conversationId)
       .where('user_id', '=', userId)
-      .executeTakeFirst();
+      .executeTakeFirst()
 
-    return { success: true, data: participant as Participant | undefined };
+    return { success: true, data: participant as Participant | undefined }
   } catch (error) {
-    console.error('Error fetching participant:', error);
-    return { success: false, error: 'Failed to fetch participant' };
+    console.error('Error fetching participant:', error)
+    return { success: false, error: 'Failed to fetch participant' }
   }
 }
 
-export { getParticipants, getParticipant };
-export type { Participant, GetParticipantsResult, GetParticipantResult };
+/**
+ * Gets all participants for all conversations the user is part of.
+ * Use for initial sync.
+ *
+ * @param userId - The user ID
+ * @returns List of participants
+ */
+async function getUserParticipants(
+  userId: string,
+): Promise<GetParticipantsResult> {
+  try {
+    const participants = await db
+      .selectFrom('participant as p1')
+      .innerJoin(
+        'participant as p2',
+        'p1.conversation_id',
+        'p2.conversation_id',
+      )
+      .select([
+        'p2.id',
+        'p2.conversation_id as conversationId',
+        'p2.user_id as userId',
+        'p2.role',
+        'p2.last_read_message_id as lastReadMessageId',
+        'p2.joined_at as joinedAt',
+        'p2.updated_at as updatedAt',
+      ])
+      .where('p1.user_id', '=', userId)
+      .execute()
+
+    return { success: true, data: participants as Participant[] }
+  } catch (error) {
+    console.error('Error fetching user participants:', error)
+    return { success: false, error: 'Failed to fetch user participants' }
+  }
+}
+
+export { getParticipants, getParticipant, getUserParticipants }
+export type { Participant, GetParticipantsResult, GetParticipantResult }

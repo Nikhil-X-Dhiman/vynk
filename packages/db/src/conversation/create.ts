@@ -1,8 +1,8 @@
-import { randomUUID } from 'crypto';
-import { db } from '../../kysely/db';
+import { v7 as uuidv7 } from 'uuid'
+import { db } from '../../kysely/db'
 
 type CreateConversationParams = {
-  /** Optional pre-generated ID (e.g. UUIDv7 from client). Falls back to randomUUID(). */
+  /** Optional pre-generated ID (e.g. UUIDv7 from client). Falls back to uuidv7(). */
   id?: string
   type: 'private' | 'group' | 'broadcast'
   title: string
@@ -14,7 +14,7 @@ type CreateConversationParams = {
 
 type CreateConversationResult =
   | { success: true; data: string }
-  | { success: false; error: string };
+  | { success: false; error: string }
 
 /**
  * Creates a new conversation with participants in a single transaction.
@@ -31,7 +31,7 @@ async function createConversation({
   groupDesc,
   participantInfo,
 }: CreateConversationParams): Promise<CreateConversationResult> {
-  const conversationId = id || randomUUID()
+  const conversationId = id || uuidv7()
 
   try {
     await db.transaction().execute(async (trx) => {
@@ -52,7 +52,7 @@ async function createConversation({
         .insertInto('participant')
         .values(
           participantInfo.map((participant) => ({
-            id: randomUUID(),
+            id: uuidv7(),
             conversation_id: conversationId,
             user_id: participant.userId,
             role: participant.role,
@@ -69,5 +69,5 @@ async function createConversation({
   }
 }
 
-export { createConversation };
-export type { CreateConversationParams, CreateConversationResult };
+export { createConversation }
+export type { CreateConversationParams, CreateConversationResult }

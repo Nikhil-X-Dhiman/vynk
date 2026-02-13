@@ -1,15 +1,15 @@
-import { randomUUID } from 'crypto';
-import { db } from '../../kysely/db';
+import { v7 as uuidv7 } from 'uuid'
+import { db } from '../../kysely/db'
 
 type RespondToFriendRequestParams = {
-  requestId: string;
-  userId: string;
-  action: 'accept' | 'reject';
-};
+  requestId: string
+  userId: string
+  action: 'accept' | 'reject'
+}
 
 type RespondToFriendRequestResult =
   | { success: true }
-  | { success: false; error: string };
+  | { success: false; error: string }
 
 /**
  * Accepts or rejects a friend request.
@@ -19,9 +19,9 @@ type RespondToFriendRequestResult =
  * @returns Success or error
  */
 async function respondToFriendRequest(
-  params: RespondToFriendRequestParams
+  params: RespondToFriendRequestParams,
 ): Promise<RespondToFriendRequestResult> {
-  const { requestId, userId, action } = params;
+  const { requestId, userId, action } = params
 
   try {
     if (action === 'accept') {
@@ -34,7 +34,7 @@ async function respondToFriendRequest(
         .where('id', '=', requestId)
         .where('friend_id', '=', userId)
         .where('status', '=', 'PENDING')
-        .execute();
+        .execute()
     } else {
       // Reject = delete the request
       await db
@@ -42,19 +42,17 @@ async function respondToFriendRequest(
         .where('id', '=', requestId)
         .where('friend_id', '=', userId)
         .where('status', '=', 'PENDING')
-        .execute();
+        .execute()
     }
 
-    return { success: true };
+    return { success: true }
   } catch (error) {
-    console.error('Error responding to friend request:', error);
-    return { success: false, error: 'Failed to respond to request' };
+    console.error('Error responding to friend request:', error)
+    return { success: false, error: 'Failed to respond to request' }
   }
 }
 
-type BlockUserResult =
-  | { success: true }
-  | { success: false; error: string };
+type BlockUserResult = { success: true } | { success: false; error: string }
 
 /**
  * Blocks a user. Updates existing friendship or creates block record.
@@ -65,13 +63,13 @@ type BlockUserResult =
  */
 async function blockUser(
   userId: string,
-  blockedUserId: string
+  blockedUserId: string,
 ): Promise<BlockUserResult> {
   try {
     await db
       .insertInto('friendship')
       .values({
-        id: randomUUID(),
+        id: uuidv7(),
         user_id: userId,
         friend_id: blockedUserId,
         status: 'BLOCKED',
@@ -81,16 +79,20 @@ async function blockUser(
         oc.columns(['user_id', 'friend_id']).doUpdateSet({
           status: 'BLOCKED',
           updated_at: new Date(),
-        })
+        }),
       )
-      .execute();
+      .execute()
 
-    return { success: true };
+    return { success: true }
   } catch (error) {
-    console.error('Error blocking user:', error);
-    return { success: false, error: 'Failed to block user' };
+    console.error('Error blocking user:', error)
+    return { success: false, error: 'Failed to block user' }
   }
 }
 
-export { respondToFriendRequest, blockUser };
-export type { RespondToFriendRequestParams, RespondToFriendRequestResult, BlockUserResult };
+export { respondToFriendRequest, blockUser }
+export type {
+  RespondToFriendRequestParams,
+  RespondToFriendRequestResult,
+  BlockUserResult,
+}

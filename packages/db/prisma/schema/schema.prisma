@@ -97,6 +97,7 @@ model Participant {
   @@unique([conversationId, userId]) // Enforcing unique (conversation, user) pair
   @@index([lastReadMessageId])
   @@index([userId, updatedAt])
+  @@index([conversationId])
   @@map("participant")
 }
 
@@ -124,6 +125,7 @@ model Message {
   @@index([conversationId, createdAt])
   @@index([senderId]) // Index for messages by a sender
   @@index([replyTo]) // Index for fetching thread/reply chains
+  @@index([conversationId])
   @@map("message")
 }
 

@@ -1,15 +1,15 @@
-import { randomUUID } from 'crypto';
-import { db } from '../../kysely/db';
+import { v7 as uuidv7 } from 'uuid'
+import { db } from '../../kysely/db'
 
 type ToggleReactionParams = {
-  messageId: string;
-  userId: string;
-  emoji: string;
-};
+  messageId: string
+  userId: string
+  emoji: string
+}
 
 type ToggleReactionResult =
   | { success: true; data: { action: 'added' | 'updated' | 'removed' } }
-  | { success: false; error: string };
+  | { success: false; error: string }
 
 /**
  * Toggles a reaction on a message.
@@ -23,7 +23,7 @@ type ToggleReactionResult =
 async function toggleMessageReaction(
   params: ToggleReactionParams,
 ): Promise<ToggleReactionResult> {
-  const { messageId, userId, emoji } = params;
+  const { messageId, userId, emoji } = params
 
   try {
     const existing = await db
@@ -31,13 +31,13 @@ async function toggleMessageReaction(
       .select(['id', 'emoji'])
       .where('message_id', '=', messageId)
       .where('user_id', '=', userId)
-      .executeTakeFirst();
+      .executeTakeFirst()
 
     if (existing) {
       // Same emoji - remove reaction
       if (existing.emoji === emoji) {
-        await db.deleteFrom('reaction').where('id', '=', existing.id).execute();
-        return { success: true, data: { action: 'removed' } };
+        await db.deleteFrom('reaction').where('id', '=', existing.id).execute()
+        return { success: true, data: { action: 'removed' } }
       }
 
       // Different emoji - update reaction
@@ -45,38 +45,38 @@ async function toggleMessageReaction(
         .updateTable('reaction')
         .set({ emoji })
         .where('id', '=', existing.id)
-        .execute();
-      return { success: true, data: { action: 'updated' } };
+        .execute()
+      return { success: true, data: { action: 'updated' } }
     }
 
     // No existing reaction - add new
     await db
       .insertInto('reaction')
       .values({
-        id: randomUUID(),
+        id: uuidv7(),
         message_id: messageId,
         user_id: userId,
         emoji,
       })
-      .execute();
+      .execute()
 
-    return { success: true, data: { action: 'added' } };
+    return { success: true, data: { action: 'added' } }
   } catch (error) {
-    console.error('Error toggling reaction:', error);
-    return { success: false, error: 'Failed to toggle reaction' };
+    console.error('Error toggling reaction:', error)
+    return { success: false, error: 'Failed to toggle reaction' }
   }
 }
 
 type Reaction = {
-  id: string;
-  user_id: string;
-  emoji: string | null;
-  created_at: Date;
-};
+  id: string
+  userId: string
+  emoji: string | null
+  createdAt: Date
+}
 
 type GetMessageReactionsResult =
   | { success: true; data: Reaction[] }
-  | { success: false; error: string };
+  | { success: false; error: string }
 
 /**
  * Gets all reactions for a message.
@@ -90,21 +90,21 @@ async function getMessageReactions(
   try {
     const reactions = await db
       .selectFrom('reaction')
-      .select(['id', 'user_id', 'emoji', 'created_at'])
+      .select(['id', 'user_id as userId', 'emoji', 'created_at as createdAt'])
       .where('message_id', '=', messageId)
-      .execute();
+      .execute()
 
-    return { success: true, data: reactions };
+    return { success: true, data: reactions as Reaction[] }
   } catch (error) {
-    console.error('Error fetching reactions:', error);
-    return { success: false, error: 'Failed to fetch reactions' };
+    console.error('Error fetching reactions:', error)
+    return { success: false, error: 'Failed to fetch reactions' }
   }
 }
 
-export { toggleMessageReaction, getMessageReactions };
+export { toggleMessageReaction, getMessageReactions }
 export type {
   ToggleReactionParams,
   ToggleReactionResult,
   Reaction,
   GetMessageReactionsResult,
-};
+}

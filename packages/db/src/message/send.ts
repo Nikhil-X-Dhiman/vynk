@@ -1,18 +1,18 @@
-import { randomUUID } from 'crypto';
-import { db } from '../../kysely/db';
+import { v7 as uuidv7 } from 'uuid'
+import { db } from '../../kysely/db'
 
 type SendMessageParams = {
-  conversationId: string;
-  senderId: string;
-  content?: string;
-  mediaUrl?: string;
-  mediaType?: 'text' | 'image' | 'video' | 'file';
-  replyTo?: string;
-};
+  conversationId: string
+  senderId: string
+  content?: string
+  mediaUrl?: string
+  mediaType?: 'text' | 'image' | 'video' | 'file'
+  replyTo?: string
+}
 
 type SendMessageResult =
   | { success: true; data: { messageId: string } }
-  | { success: false; error: string };
+  | { success: false; error: string }
 
 /**
  * Sends a message in a conversation.
@@ -26,8 +26,8 @@ async function sendMessage(
   params: SendMessageParams,
 ): Promise<SendMessageResult> {
   const { conversationId, senderId, content, mediaUrl, mediaType, replyTo } =
-    params;
-  const messageId = randomUUID();
+    params
+  const messageId = uuidv7()
 
   try {
     await db.transaction().execute(async (trx) => {
@@ -44,7 +44,7 @@ async function sendMessage(
           reply_to: replyTo ?? null,
           updated_at: new Date(),
         })
-        .execute();
+        .execute()
 
       // 2. Update conversation's last message
       await trx
@@ -54,7 +54,7 @@ async function sendMessage(
           updated_at: new Date(),
         })
         .where('id', '=', conversationId)
-        .execute();
+        .execute()
 
       // 3. Increment unread count for other participants
       await trx
@@ -65,15 +65,15 @@ async function sendMessage(
         }))
         .where('conversation_id', '=', conversationId)
         .where('user_id', '!=', senderId)
-        .execute();
-    });
+        .execute()
+    })
 
-    return { success: true, data: { messageId } };
+    return { success: true, data: { messageId } }
   } catch (error) {
-    console.error('Error sending message:', error);
-    return { success: false, error: 'Failed to send message' };
+    console.error('Error sending message:', error)
+    return { success: false, error: 'Failed to send message' }
   }
 }
 
-export { sendMessage };
-export type { SendMessageParams, SendMessageResult };
+export { sendMessage }
+export type { SendMessageParams, SendMessageResult }

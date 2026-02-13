@@ -1,19 +1,19 @@
-import { randomUUID } from 'crypto';
-import { db } from '../../kysely/db';
-import type { Media } from '../../kysely/generated/types';
+import { v7 as uuidv7 } from 'uuid'
+import { db } from '../../kysely/db'
+import type { Media } from '../../kysely/generated/types'
 
 type CreateStoryParams = {
-  userId: string;
-  type: Media;
-  contentUrl?: string;
-  caption?: string;
-  text?: string;
-  expiresAt?: Date;
-};
+  userId: string
+  type: Media
+  contentUrl?: string
+  caption?: string
+  text?: string
+  expiresAt?: Date
+}
 
 type CreateStoryResult =
   | { success: true; data: { storyId: string } }
-  | { success: false; error: string };
+  | { success: false; error: string }
 
 /**
  * Creates a new story.
@@ -25,8 +25,8 @@ type CreateStoryResult =
 async function createStory(
   params: CreateStoryParams,
 ): Promise<CreateStoryResult> {
-  const { userId, type, contentUrl, caption, text, expiresAt } = params;
-  const storyId = randomUUID();
+  const { userId, type, contentUrl, caption, text, expiresAt } = params
+  const storyId = uuidv7()
 
   try {
     await db
@@ -41,14 +41,14 @@ async function createStory(
         expires_at: expiresAt ?? null,
         updated_at: new Date(),
       })
-      .execute();
+      .execute()
 
-    return { success: true, data: { storyId } };
+    return { success: true, data: { storyId } }
   } catch (error) {
-    console.error('Error creating story:', error);
-    return { success: false, error: 'Failed to create story' };
+    console.error('Error creating story:', error)
+    return { success: false, error: 'Failed to create story' }
   }
 }
 
-export { createStory };
-export type { CreateStoryParams, CreateStoryResult };
+export { createStory }
+export type { CreateStoryParams, CreateStoryResult }
