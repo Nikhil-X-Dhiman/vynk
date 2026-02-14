@@ -18,6 +18,8 @@ import {
   getUserMessages,
   getUserParticipants,
   getAllUsers,
+  db,
+  sql,
 } from '@repo/db'
 import { checkServerAuth } from '@/lib/auth/check-server-auth'
 
@@ -56,7 +58,28 @@ export async function GET(): Promise<
     }
 
     const userId = session.user.id
+    console.log('Initial sync for user:', userId)
 
+    // DEBUG: Check total counts in DB
+    const [totalConvs, totalParticipants, totalMessages] = await Promise.all([
+      db
+        .selectFrom('conversation')
+        .select(sql<number>`count(*)`.as('count'))
+        .executeTakeFirst(),
+      db
+        .selectFrom('participant')
+        .select(sql<number>`count(*)`.as('count'))
+        .executeTakeFirst(),
+      db
+        .selectFrom('message')
+        .select(sql<number>`count(*)`.as('count'))
+        .executeTakeFirst(),
+    ])
+    console.log('[InitialSync DEBUG] Total in DB:', {
+      conversations: totalConvs?.count,
+      participants: totalParticipants?.count,
+      messages: totalMessages?.count,
+    })
     // Fetch all required data in parallel
     const [
       conversationsResult,
@@ -84,12 +107,19 @@ export async function GET(): Promise<
       return errorResponse('Failed to fetch users', 500)
     }
 
+    console.log('Initial sync data', {
+      conversations: conversationsResult.data,
+      messages: messagesResult.data,
+      participants: participantsResult.data,
+      users: usersResult.data,
+    })
     return NextResponse.json({
       success: true,
       conversations: conversationsResult.data,
       messages: messagesResult.data,
       participants: participantsResult.data,
       users: usersResult.data,
+      currentUserId: userId,
       timestamp: new Date().toISOString(),
     })
   } catch (error) {

@@ -2,8 +2,10 @@ import { v7 as uuidv7 } from 'uuid'
 import { db } from '../../kysely/db'
 
 type RecordStoryViewParams = {
+  id?: string
   storyId: string
   userId: string
+  reaction?: string
 }
 
 type RecordStoryViewResult =
@@ -20,19 +22,25 @@ type RecordStoryViewResult =
 async function recordStoryView(
   params: RecordStoryViewParams,
 ): Promise<RecordStoryViewResult> {
-  const { storyId, userId } = params
+  const { id, storyId, userId, reaction } = params
 
   try {
     await db
       .insertInto('story_view')
       .values({
-        id: uuidv7(),
+        id: id || uuidv7(),
         story_id: storyId,
         user_id: userId,
+        reaction: reaction || null,
         viewed_at: new Date(),
         updated_at: new Date(),
       })
-      .onConflict((oc) => oc.columns(['story_id', 'user_id']).doNothing())
+      .onConflict((oc) =>
+        oc.columns(['story_id', 'user_id']).doUpdateSet({
+          reaction: reaction || null,
+          updated_at: new Date(),
+        }),
+      )
       .execute()
 
     return { success: true }

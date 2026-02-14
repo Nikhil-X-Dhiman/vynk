@@ -10,7 +10,7 @@
 
 import { useCallback } from 'react';
 import { v7 as uuidv7 } from 'uuid';
-import { db, LocalMessage } from '@/lib/db';
+import { db, enqueue, LocalMessage } from '@/lib/db'
 import { getSocket } from '@/lib/services/socket/client';
 import { SOCKET_EVENTS } from '@repo/shared';
 import { useAuthStore } from '@/store/auth';
@@ -56,20 +56,36 @@ export function useSendMessage(
         // 1. Optimistic local insert
         await db.messages.add(newMsg)
 
-        // 2. Emit via socket if online (server handles self-chat: saves to DB, skips broadcast)
+        // 2. Emit via socket if online
         if (isOnline) {
           const socket = getSocket()
-          socket.emit(SOCKET_EVENTS.MESSAGE_SEND, {
-            conversationId: chatId,
-            content: text,
-            type: 'text',
-          })
+          socket.emit(
+            SOCKET_EVENTS.MESSAGE_SEND,
+            {
+              id: tempId,
+              conversationId: chatId,
+              content: text,
+              type: 'text',
+            },
+            async (ack: { success: boolean; data?: { id: string } }) => {
+              if (ack && ack.success) {
+                // Server acknowledged receipt -> status: 'sent'
+                const msg = await db.messages
+                  .where('messageId')
+                  .equals(tempId)
+                  .first()
+                if (msg) {
+                  await db.messages.update(msg.id!, { status: 'sent' })
+                }
+              }
+            },
+          )
         }
 
         // 3. Queue for background sync only when offline
         //    (when online, the socket emit in step 2 already persists server-side)
         if (!isOnline) {
-          await db.enqueue('MESSAGE_SEND', {
+          await enqueue(db, 'MESSAGE_SEND', {
             id: tempId,
             conversationId: chatId,
             content: text,

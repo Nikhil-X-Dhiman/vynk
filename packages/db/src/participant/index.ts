@@ -17,5 +17,5 @@ export type {
 export { removeParticipant } from './delete'
 export type { RemoveParticipantResult } from './delete'
 
-export { markAsRead } from './markAsRead'
-export type { MarkAsReadParams, MarkAsReadResult } from './markAsRead'
+export { markAsRead } from './mark-as-read'
+export type { MarkAsReadParams, MarkAsReadResult } from './mark-as-read'

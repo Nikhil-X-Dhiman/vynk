@@ -9,7 +9,7 @@
 
 import { useState, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
+import { db, isInitialSyncCompleted } from '@/lib/db'
 import { normalizeAvatarUrl } from '@/lib/utils/avatar';
 import type { FilterType, EnrichedConversation } from '@/components/chat/types';
 import type { LocalUser } from '@/lib/db';
@@ -59,7 +59,7 @@ export function useChatListData(): UseChatListDataResult {
     ) ?? emptyArray
 
   const isSyncCompleted =
-    useLiveQuery(() => db.isInitialSyncCompleted()) ?? false;
+    useLiveQuery(() => isInitialSyncCompleted(db)) ?? false
 
   // ── Enrichment ────────────────────────────────────────────────
 

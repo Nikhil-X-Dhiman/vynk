@@ -334,6 +334,38 @@ export function onMessageSeen(
   return () => socket.off(SOCKET_EVENTS.MESSAGE_SEEN, callback);
 }
 
+/**
+ * Registers a callback for message delivered events.
+ * @param callback - Handler for delivered events
+ * @returns Cleanup function
+ */
+export function onMessageDelivered(
+  callback: (data: {
+    messageId: string;
+    userId: string;
+    deliveredAt: string;
+  }) => void,
+): () => void {
+  const socket = getSocket();
+
+  const handler = async (data: {
+    messageId: string;
+    userId: string;
+    deliveredAt: string;
+  }) => {
+     try {
+       // Update message status to 'delivered' locally
+       await db.messages.where('messageId').equals(data.messageId).modify({ status: 'delivered' });
+     } catch (error) {
+       console.error('[Socket] Failed to update message delivery status:', error);
+     }
+     callback(data);
+  };
+
+  socket.on(SOCKET_EVENTS.MESSAGE_DELIVERED, handler);
+  return () => socket.off(SOCKET_EVENTS.MESSAGE_DELIVERED, handler);
+}
+
 // ==========================================
 // Typing Indicator Listeners
 // ==========================================
@@ -616,6 +648,7 @@ export function unregisterAllListeners(): void {
   socket.off(SOCKET_EVENTS.MESSAGE_DELETED);
   socket.off(SOCKET_EVENTS.MESSAGE_REACTION_UPDATE);
   socket.off(SOCKET_EVENTS.MESSAGE_SEEN);
+  socket.off(SOCKET_EVENTS.MESSAGE_DELIVERED)
 
   // Typing events
   socket.off(SOCKET_EVENTS.USER_TYPING);

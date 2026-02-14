@@ -2,6 +2,8 @@ import { v7 as uuidv7 } from 'uuid'
 import { db } from '../../kysely/db'
 
 type SendMessageParams = {
+  /** Optional pre-generated ID (e.g. UUIDv7 from client). */
+  id?: string
   conversationId: string
   senderId: string
   content?: string
@@ -25,9 +27,16 @@ type SendMessageResult =
 async function sendMessage(
   params: SendMessageParams,
 ): Promise<SendMessageResult> {
-  const { conversationId, senderId, content, mediaUrl, mediaType, replyTo } =
-    params
-  const messageId = uuidv7()
+  const {
+    id,
+    conversationId,
+    senderId,
+    content,
+    mediaUrl,
+    mediaType,
+    replyTo,
+  } = params
+  const messageId = id || uuidv7()
 
   try {
     await db.transaction().execute(async (trx) => {

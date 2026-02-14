@@ -20,7 +20,7 @@ import type {
   WorkboxLifecycleWaitingEvent,
   WorkboxMessageEvent,
 } from 'workbox-window/utils/WorkboxEvent';
-import { db } from '@/lib/db';
+import { db, flushQueue } from '@/lib/db'
 import {
   registerAllListeners,
   unregisterAllListeners,
@@ -224,35 +224,23 @@ function useSocketListeners(): void {
 
 /**
  * Handles app lifecycle events:
- * - `visibilitychange`: triggers delta sync when the tab becomes visible
  * - `beforeunload`: flushes the IndexedDB offline queue
  */
 function useAppLifecycle(): void {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
 
   useEffect(() => {
-    function handleVisibilityChange(): void {
-      if (document.visibilityState === 'visible') {
-        if (!isAuthenticated) return
-
-        console.log(`${LOG_APP} Tab became visible — syncing`)
-        SyncService.performDeltaSync().catch(console.error)
-      }
-    }
-
     function handleBeforeUnload(): void {
       // Best-effort flush; the service worker background sync will retry
       // if this doesn't complete before the page is torn down.
-      db.flushQueue().catch(() => {
+      flushQueue(db).catch(() => {
         /* swallow — page is unloading */
       })
     }
 
-    document.addEventListener('visibilitychange', handleVisibilityChange)
     window.addEventListener('beforeunload', handleBeforeUnload)
 
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
       window.removeEventListener('beforeunload', handleBeforeUnload)
     }
   }, [isAuthenticated])

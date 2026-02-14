@@ -3,6 +3,8 @@ import { db } from '../../kysely/db'
 import type { Media } from '../../kysely/generated/types'
 
 type CreateStoryParams = {
+  /** Optional pre-generated ID (e.g. UUIDv7 from client). */
+  id?: string
   userId: string
   type: Media
   contentUrl?: string
@@ -25,8 +27,8 @@ type CreateStoryResult =
 async function createStory(
   params: CreateStoryParams,
 ): Promise<CreateStoryResult> {
-  const { userId, type, contentUrl, caption, text, expiresAt } = params
-  const storyId = uuidv7()
+  const { id, userId, type, contentUrl, caption, text, expiresAt } = params
+  const storyId = id || uuidv7()
 
   try {
     await db

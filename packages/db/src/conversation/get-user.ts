@@ -37,7 +37,9 @@ async function getUserConversations(
         'c.last_message_id as lastMessageId',
       ])
       .where('p.user_id', '=', userId)
-      .where('c.is_deleted', '=', false)
+      .where((eb) =>
+        eb.or([eb('c.is_deleted', '=', false), eb('c.is_deleted', 'is', null)]),
+      )
       .orderBy('c.updated_at', 'desc')
       .execute()
     return { success: true, data: conversations as ConversationListItem[] };

@@ -24,6 +24,8 @@ export const SOCKET_EVENTS = {
   MESSAGE_SEND: 'message:send',
   /** Server broadcasts new message to room */
   MESSAGE_NEW: 'message:new',
+  /** Server confirms message was delivered to recipient */
+  MESSAGE_DELIVERED: 'message:delivered',
   /** Client marks message as read */
   MESSAGE_READ: 'message:read',
   /** Server confirms message was seen */

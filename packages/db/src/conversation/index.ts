@@ -17,3 +17,12 @@ export type {
 
 export { findPrivateConversation } from './find';
 export type { FindPrivateConversationResult } from './find';
+
+export { updateConversation } from './update'
+export type {
+  UpdateConversationParams,
+  UpdateConversationResult,
+} from './update'
+
+export { deleteConversation } from './delete'
+export type { DeleteConversationResult } from './delete'

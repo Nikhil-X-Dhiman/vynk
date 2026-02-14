@@ -2,6 +2,7 @@ import { v7 as uuidv7 } from 'uuid'
 import { db } from '../../kysely/db'
 
 type AddParticipantParams = {
+  id?: string
   conversationId: string
   userId: string
   role?: 'member' | 'admin'
@@ -21,13 +22,13 @@ type AddParticipantResult =
 async function addParticipant(
   params: AddParticipantParams,
 ): Promise<AddParticipantResult> {
-  const { conversationId, userId, role = 'member' } = params
+  const { id, conversationId, userId, role = 'member' } = params
 
   try {
     await db
       .insertInto('participant')
       .values({
-        id: uuidv7(),
+        id: id || uuidv7(),
         conversation_id: conversationId,
         user_id: userId,
         role,

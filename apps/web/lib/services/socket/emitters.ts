@@ -186,9 +186,17 @@ export function emitTypingStop(conversationId: string): void {
  */
 export function emitCreateConversation(
   payload: CreateConversationPayload,
-): void {
-  const socket = getSocket();
-  socket.emit(SOCKET_EVENTS.CONVERSATION_CREATE, payload);
+): Promise<{
+  success: boolean
+  data?: { conversationId: string }
+  error?: string
+}> {
+  const socket = getSocket()
+  return new Promise((resolve) => {
+    socket.emit(SOCKET_EVENTS.CONVERSATION_CREATE, payload, (response: any) => {
+      resolve(response)
+    })
+  })
 }
 
 /**

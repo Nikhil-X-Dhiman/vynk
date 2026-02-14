@@ -9,7 +9,7 @@
 
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { db } from '@/lib/db';
+import { db, createLocalConversation, enqueue } from '@/lib/db'
 import { useAuthStore } from '@/store/auth'
 import { useNetworkStatus } from './useNetworkStatus'
 import { emitCreateConversation } from '@/lib/services/socket/emitters'
@@ -45,7 +45,7 @@ export function useStartConversation(
       try {
         // 1. Create or find a local conversation in IndexedDB.
         //    New conversations get a UUIDv7 — the same ID the server will use.
-        const result = await db.createLocalConversation(userId, currentUserId)
+        const result = await createLocalConversation(db, userId, currentUserId)
 
         if (!result) {
           throw new Error(
@@ -69,10 +69,10 @@ export function useStartConversation(
         }
 
         if (isOnline) {
-          emitCreateConversation(payload)
+          await emitCreateConversation(payload)
         } else {
           // Queue for background sync if offline
-          await db.enqueue('CONVERSATION_CREATE', payload)
+          await enqueue(db, 'CONVERSATION_CREATE', payload)
         }
 
         // 4. Navigate immediately — UI uses the local conversation.

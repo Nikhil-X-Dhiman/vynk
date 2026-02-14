@@ -34,14 +34,13 @@ export function useConversationInfo(chatId: string): UseConversationInfoResult {
   const conversation = useLiveQuery(
     () => db.conversations.where('conversationId').equals(chatId).first(),
     [chatId],
-    'loading' as any,
   )
 
-  const isLoading = conversation === 'loading'
-  const exists = conversation !== 'loading' && conversation !== undefined
+  const isLoading = conversation === undefined
+  const exists = !!conversation
 
   // Normalize conversation for downstream usage
-  const conversationData = exists ? conversation : undefined
+  const conversationData = conversation
 
   const participants =
     useLiveQuery(

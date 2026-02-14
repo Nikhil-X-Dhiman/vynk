@@ -21,7 +21,12 @@
  * ```
  */
 
-import { db } from '@/lib/db';
+import {
+  db,
+  performInitialSync,
+  pullDelta,
+  isInitialSyncCompleted,
+} from '@/lib/db'
 
 // ==========================================
 // Types
@@ -78,7 +83,7 @@ export class SyncService {
     console.log('[SyncService] Starting initial sync...');
 
     try {
-      const result = await db.performInitialSync();
+      const result = await performInitialSync(db)
       this.lastSyncAt = Date.now();
       console.log('[SyncService] Initial sync completed:', result.success);
       return result;
@@ -102,11 +107,19 @@ export class SyncService {
       return { success: false, error: 'Sync already in progress' };
     }
 
+    const initialSyncCompleted = await isInitialSyncCompleted(db)
+    if (!initialSyncCompleted) {
+      console.log(
+        '[SyncService] Initial sync not completed, skipping delta sync',
+      )
+      return { success: false, error: 'Initial sync not completed' }
+    }
+
     this.isSyncing = true;
     console.log('[SyncService] Starting delta sync...');
 
     try {
-      await db.pullDelta();
+      await pullDelta(db)
       this.lastSyncAt = Date.now();
       console.log('[SyncService] Delta sync completed');
       return { success: true };
@@ -145,7 +158,7 @@ export class SyncService {
    * @returns True if initial sync hasn't been completed
    */
   static async isFirstSync(): Promise<boolean> {
-    const completed = await db.isInitialSyncCompleted();
+    const completed = await isInitialSyncCompleted(db)
     return !completed;
   }
 

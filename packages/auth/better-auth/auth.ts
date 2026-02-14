@@ -7,13 +7,24 @@ import { sendOtp } from '@repo/services';
 import { createClient } from 'redis';
 
 
+const redisUrl = env.REDIS_PASSWORD
+  ? `redis://:${env.REDIS_PASSWORD}@${env.REDIS_HOST}:${env.REDIS_PORT}`
+  : `redis://${env.REDIS_HOST}:${env.REDIS_PORT}`
+
 const redis = createClient({
-  url: `redis://${env.REDIS_HOST}:${env.REDIS_PORT}`,
-  password: env.REDIS_PASSWORD,
-});
+  url: redisUrl,
+  socket: {
+    connectTimeout: 10000,
+  },
+})
 
 redis.on('error', (err: any) => console.log('Redis Client Error', err));
-redis.connect();
+
+if (!redis.isOpen) {
+  redis.connect().catch((e: unknown) => {
+    console.warn('Failed to connect to Redis from Auth package:', e)
+  })
+}
 
 const auth = betterAuth({
   database: new Pool({

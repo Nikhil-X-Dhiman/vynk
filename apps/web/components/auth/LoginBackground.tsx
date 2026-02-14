@@ -1,71 +1,53 @@
 /**
  * @fileoverview Login Background Decorations
  *
- * Renders the animated mesh gradient blobs and frosted-glass overlay
- * that sit behind the login card. All elements are `aria-hidden` and
- * purely decorative.
- *
- * Uses `will-change-opacity` to hint at GPU compositing for the
- * pulsing animation, and `backdrop-blur-xl` for the mica/acrylic overlay.
+ * Renders a static, glossy background with mixed colors.
+ * Replaces the animated version to improve performance on low-end devices.
  *
  * @module components/auth/LoginBackground
  */
 
-// ==========================================
-// Background Decorations Component
-// ==========================================
-
-/**
- * Animated mesh gradient background with a frosted-glass overlay.
- *
- * Three gradient blobs pulse with staggered delays to create an
- * organic, breathing effect. The mica overlay on top blends
- * them into the page's background colour.
- */
 export function LoginBackground() {
   return (
     <div
-      className="absolute inset-0 z-0 overflow-hidden"
+      className="absolute inset-0 z-0 overflow-hidden bg-background"
       aria-hidden="true"
     >
-      {/* Mesh Gradient — Top-Left Purple/Indigo */}
+      {/*
+        Glossy Mixed Colors Background
+        Using static radial gradients to create a rich, mixed color effect
+        without animation.
+      */}
+
+      {/* Base gradient layer - Deep Purple/Blue mix */}
       <div
         className="
-          absolute -top-[20%] -left-[10%] h-[70%] w-[70%]
-          rounded-full bg-purple-500/25 blur-[110px]
-          animate-pulse will-change-[opacity]
-          dark:bg-purple-600/15
+          absolute inset-0
+          bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))]
+          from-purple-200/40 via-blue-100/20 to-transparent
+          dark:from-purple-900/30 dark:via-blue-900/10 dark:to-transparent
         "
       />
 
-      {/* Mesh Gradient — Bottom-Right Blue/Cyan */}
+      {/* Secondary accent layer - Pink/Rose mix */}
       <div
         className="
-          absolute -bottom-[20%] -right-[10%] h-[80%] w-[80%]
-          rounded-full bg-blue-500/25 blur-[110px]
-          animate-pulse delay-1000 will-change-[opacity]
-          dark:bg-blue-600/15
+          absolute inset-0
+          bg-[radial-gradient(ellipse_at_bottom_right,_var(--tw-gradient-stops))]
+          from-rose-200/40 via-indigo-100/20 to-transparent
+          dark:from-rose-900/30 dark:via-indigo-900/10 dark:to-transparent
         "
       />
 
-      {/* Mesh Gradient — Centre-Left Deep Indigo */}
+      {/* Glossy overlay for sheen */}
       <div
         className="
-          absolute top-[20%] -left-[20%] h-[60%] w-[60%]
-          rounded-full bg-indigo-500/15 blur-[110px]
-          animate-pulse delay-500 will-change-[opacity]
-          dark:bg-indigo-600/10
-        "
-      />
-
-      {/* Mica / Acrylic Overlay */}
-      <div
-        className="
-          absolute inset-0 size-full backdrop-blur-xl
-          bg-linear-to-b from-indigo-50/30 via-transparent to-white/85
-          dark:from-slate-950/30 dark:via-transparent dark:to-black/85
+          absolute inset-0
+          bg-gradient-to-tr from-white/10 via-transparent to-white/10
+          dark:from-black/10 dark:via-transparent dark:to-black/10
+          backdrop-blur-[100px]
         "
       />
     </div>
-  );
+  )
 }

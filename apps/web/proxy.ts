@@ -58,24 +58,8 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(new URL(ROUTES.CHATS, request.url))
     }
 
-    // Deep Check: Verify session with DB via internal API
-    // Note: This adds latency to every protected request.
-    try {
-      const response = await fetch(
-        new URL('/api/auth/check-session', request.url),
-        {
-          headers: {
-            cookie: request.headers.get('cookie') || '',
-          },
-        },
-      )
-
-      if (response.ok) {
-        return NextResponse.next()
-      }
-    } catch (error) {
-      console.error('Middleware deep check failed:', error)
-    }
+    // Allow access - Server Components will verify the session deeply
+    return NextResponse.next()
   }
 
   // Unauthenticated: redirect to login

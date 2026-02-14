@@ -1,5 +1,6 @@
 // Database clients
 export { db } from '../kysely/db';
+export { sql } from 'kysely'
 export { Pool } from '../pg/postgres';
 
 // Redis exports
@@ -22,7 +23,9 @@ export {
   getUserJoinedGroups,
   createConversation,
   findPrivateConversation,
-} from './conversation';
+  updateConversation,
+  deleteConversation,
+} from './conversation'
 export type {
   Conversation,
   GetConversationResult,
@@ -31,7 +34,10 @@ export type {
   CreateConversationParams,
   CreateConversationResult,
   FindPrivateConversationResult,
-} from './conversation';
+  UpdateConversationParams,
+  UpdateConversationResult,
+  DeleteConversationResult,
+} from './conversation'
 
 // Delivery module
 export { createDelivery } from './delivery';
@@ -57,7 +63,12 @@ export { getUserMessages } from './message'
 export type { Message, GetMessagesResult } from './message'
 
 export { deleteMessage, hardDeleteMessage } from './message';
-export type { DeleteMessageResult } from './message';
+export type {
+  DeleteMessageResult,
+  UpdateMessageParams,
+  UpdateMessageResult,
+} from './message'
+export { updateMessage } from './message'
 
 export { toggleMessageReaction, getMessageReactions } from './message';
 export type {
@@ -66,6 +77,9 @@ export type {
   Reaction,
   GetMessageReactionsResult,
 } from './message';
+
+// Reaction module
+export * from './reaction';
 
 // Participant module
 export {
@@ -170,4 +184,7 @@ export type {
 } from './friendship';
 
 export { removeFriend } from './friendship';
-export type { RemoveFriendResult } from './friendship';
+export type { RemoveFriendResult } from './friendship'
+
+// Sync module
+export * from './sync'

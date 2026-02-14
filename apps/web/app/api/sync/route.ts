@@ -18,7 +18,8 @@
 
 import { NextResponse } from 'next/server';
 import { checkServerAuth } from '@/lib/auth/check-server-auth';
-import { getSyncDelta, processSyncBatch, type QueueItem } from '@/lib/db/sync';
+import { getSyncDelta, processSyncBatch, type QueueItem } from '@repo/db'
+
 
 // ==========================================
 // Types

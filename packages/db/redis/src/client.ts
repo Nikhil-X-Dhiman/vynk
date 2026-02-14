@@ -9,7 +9,10 @@ const redisUrl =
 
 const redis = createClient({
   url: redisUrl,
-});
+  socket: {
+    connectTimeout: 10000,
+  },
+})
 
 redis.on('error', (err) => console.error('Redis Client Error', err));
 
