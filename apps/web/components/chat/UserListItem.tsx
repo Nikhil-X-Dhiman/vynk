@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * @fileoverview Single user row for the users panel.
+ * @fileoverview User List Item
  * @module components/chat/UserListItem
  */
 
@@ -15,32 +15,30 @@ interface UserListItemProps {
   onClick: (userId: string) => void;
 }
 
-/**
- * Single user row. Memoized for list performance.
- */
 export const UserListItem = React.memo(function UserListItem({
   user,
   onClick,
 }: UserListItemProps) {
   return (
     <div
-      className="flex items-center gap-3 p-3 transition-colors hover:bg-accent cursor-pointer"
+      className="flex items-center gap-3 p-3 transition-colors hover:bg-accent cursor-pointer active:bg-accent/80"
       onClick={() => onClick(user.id)}
     >
-      <Avatar className="h-10 w-10">
+      <Avatar className="h-10 w-10 border border-border">
         <AvatarImage
           src={normalizeAvatarUrl(user.avatar) || undefined}
           alt={user.name}
+          className="object-cover"
         />
-        <AvatarFallback>
-          {user.name?.[0]?.toUpperCase() || '?'}
-        </AvatarFallback>
+        <AvatarFallback>{user.name?.[0]?.toUpperCase() || '?'}</AvatarFallback>
       </Avatar>
 
       <div className="flex-1 min-w-0">
-        <h3 className="font-semibold text-foreground truncate">{user.name}</h3>
-        <p className="text-xs text-muted-foreground truncate">{user.bio}</p>
+        <h3 className="font-medium text-foreground truncate">{user.name}</h3>
+        {user.bio && (
+          <p className="text-xs text-muted-foreground truncate">{user.bio}</p>
+        )}
       </div>
     </div>
-  );
+  )
 });

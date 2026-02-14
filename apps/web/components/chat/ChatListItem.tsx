@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * @fileoverview Single conversation row in the chat list.
+ * @fileoverview Chat List Item
  * @module components/chat/ChatListItem
  */
 
@@ -17,20 +17,16 @@ interface ChatListItemProps {
   isSelected: boolean;
 }
 
-/**
- * Single conversation row. Memoized for virtualized list performance.
- * Navigates to the conversation on click; toggles back to `/chats`
- * when already selected (mobile UX).
- */
-export const ChatListItem = React.memo(function ChatListItem({
-  chat,
-  isSelected,
-}: ChatListItemProps) {
+export const ChatListItem = React.memo(function ChatListItem({ chat, isSelected }: ChatListItemProps) {
+  // Logic: passing query param or relying on path? Reference used path.
+  // If selected, clicking again goes back to list (mobile pattern).
+  const href = isSelected ? '/chats' : `/chats/${chat.conversationId}`
+
   return (
     <Link
-      href={isSelected ? '/chats' : `/chats/${chat.conversationId}`}
+      href={href}
       className={cn(
-        'flex items-center gap-3 p-3 transition-colors hover:bg-accent cursor-pointer transform-gpu',
+        'flex items-center gap-3 p-3 transition-colors hover:bg-accent cursor-pointer transform-gpu outline-none',
         isSelected && 'bg-accent',
       )}
       style={{ contain: 'content' }}
@@ -50,12 +46,12 @@ export const ChatListItem = React.memo(function ChatListItem({
 
       <div className="flex-1 min-w-0">
         <div className="flex justify-between items-baseline mb-1">
-          <h3 className="font-semibold text-foreground truncate">
+          <h3 className="font-semibold text-foreground truncate text-base">
             {chat.name}
           </h3>
           <span
             className={cn(
-              'text-xs',
+              'text-xs whitespace-nowrap ml-2',
               chat.unreadCount > 0
                 ? 'text-primary font-bold'
                 : 'text-muted-foreground',
@@ -65,14 +61,14 @@ export const ChatListItem = React.memo(function ChatListItem({
           </span>
         </div>
 
-        <div className="flex justify-between items-center">
-          <p className="text-sm text-muted-foreground truncate pr-2">
+        <div className="flex justify-between items-center h-5">
+          <p className="text-sm text-muted-foreground truncate pr-2 w-full">
             {chat.lastMessage || 'No messages yet'}
           </p>
           {chat.unreadCount > 0 && (
             <Badge
               variant="default"
-              className="flex h-5 w-5 items-center justify-center rounded-full text-[10px] p-0"
+              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] p-0"
             >
               {chat.unreadCount}
             </Badge>
@@ -80,5 +76,5 @@ export const ChatListItem = React.memo(function ChatListItem({
         </div>
       </div>
     </Link>
-  );
+  )
 });

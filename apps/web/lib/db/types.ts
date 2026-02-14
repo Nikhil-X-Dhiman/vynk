@@ -55,26 +55,6 @@ export interface LocalParticipant {
   unreadCount: number
 }
 
-export type SyncAction =
-  | 'MESSAGE_SEND'
-  | 'MESSAGE_READ'
-  | 'MESSAGE_DELETE'
-  | 'STORY_CREATE'
-  | 'STORY_READ'
-  | 'STORY_DELETE'
-  | 'REACTION_ADD'
-  | 'REACTION_REMOVE'
-  | 'CONVERSATION_CREATE'
-  | 'CONVERSATION_UPDATE'
-  | 'CONVERSATION_DELETE'
-
-export interface QueueItem {
-  id?: number
-  action: SyncAction
-  payload: any
-  timestamp: number
-}
-
 export interface Meta {
   key: string
   value: any

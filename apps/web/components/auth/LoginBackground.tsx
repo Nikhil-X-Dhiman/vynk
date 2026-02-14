@@ -1,9 +1,5 @@
 /**
- * @fileoverview Login Background Decorations
- *
- * Renders a static, glossy background with mixed colors.
- * Replaces the animated version to improve performance on low-end devices.
- *
+ * @fileoverview Login Background
  * @module components/auth/LoginBackground
  */
 
@@ -13,13 +9,6 @@ export function LoginBackground() {
       className="absolute inset-0 z-0 overflow-hidden bg-background"
       aria-hidden="true"
     >
-      {/*
-        Glossy Mixed Colors Background
-        Using static radial gradients to create a rich, mixed color effect
-        without animation.
-      */}
-
-      {/* Base gradient layer - Deep Purple/Blue mix */}
       <div
         className="
           absolute inset-0
@@ -29,7 +18,6 @@ export function LoginBackground() {
         "
       />
 
-      {/* Secondary accent layer - Pink/Rose mix */}
       <div
         className="
           absolute inset-0
@@ -39,7 +27,6 @@ export function LoginBackground() {
         "
       />
 
-      {/* Glossy overlay for sheen */}
       <div
         className="
           absolute inset-0

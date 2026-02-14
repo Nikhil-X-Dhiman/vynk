@@ -3,15 +3,10 @@
 /**
  * @fileoverview Session Provider Component
  *
- * Provides client-side session state management with:
+ * Provides client-side session state management.
  * - Synchronous hydration from server-rendered session
- * - Automatic initial / delta sync on first authenticated mount
- * - Cross-tab session re-validation on visibility change
- * - Logout propagation across tabs
- *
- * **Important:** Socket listeners and data sync triggers are handled
- * separately in `ServiceWorkerRegister`. This provider is concerned
- * only with *auth state* — keeping the Zustand store truthful.
+ * - Automatic data sync on first authenticated mount
+ * - Cross-tab session re-validation
  *
  * @module components/providers/SessionProvider
  */
@@ -26,32 +21,21 @@ import { SyncService } from '@/lib/services/sync';
 // Constants
 // ==========================================
 
-/** Minimum interval between session re-validation checks (ms) */
-const REVALIDATION_INTERVAL_MS = 60_000; // 1 minute
-
-/** Log prefix */
+const REVALIDATION_INTERVAL_MS = 60_000
 const LOG = '[Session]';
 
 // ==========================================
 // Types
 // ==========================================
 
-/**
- * Server-side session payload passed from the root layout.
- */
 export interface InitialSession {
   user: User;
   session: Session;
 }
 
-/**
- * Props for the {@link SessionProvider} component.
- */
 interface SessionProviderProps {
-  /** Child components that will have access to auth state */
-  children: React.ReactNode;
-  /** Session fetched on the server; `null` when unauthenticated */
-  initialSession: InitialSession | null;
+  children: React.ReactNode
+  initialSession: InitialSession | null
 }
 
 // ==========================================
@@ -59,33 +43,25 @@ interface SessionProviderProps {
 // ==========================================
 
 /**
- * Hydrates the auth store synchronously during render to prevent
- * a flash of unauthenticated content on initial page load.
- *
- * Runs exactly once via a ref guard — subsequent re-renders are no-ops.
+ * Hydrates auth store from server session.
+ * Runs once per mount.
  */
 function useHydrateAuth(initialSession: InitialSession | null): void {
   const hydrated = useRef(false);
 
   if (!hydrated.current) {
-    const store = useAuthStore.getState();
-
+    const store = useAuthStore.getState()
     if (initialSession?.user && initialSession?.session) {
       store.setAuth(initialSession.user, initialSession.session);
     } else {
-      store.reset();
+      store.reset()
     }
-
     hydrated.current = true;
   }
 }
 
 /**
- * Triggers the appropriate sync (initial or delta) once after the
- * first authenticated mount.
- *
- * - First-time users → full initial sync
- * - Returning users → incremental delta sync
+ * Triggers data sync when authenticated.
  */
 function useInitialSync(isAuthenticated: boolean): void {
   const triggered = useRef(false);
@@ -101,50 +77,37 @@ function useInitialSync(isAuthenticated: boolean): void {
 }
 
 /**
- * Re-validates the session against the server when the tab becomes
- * visible. Propagates logout across tabs and keeps the auth store
- * in sync with the server's source of truth.
- *
- * Throttled to at most once per {@link REVALIDATION_INTERVAL_MS}.
+ * Syncs session state across tabs.
  */
 function useCrossTabSync(): void {
   const lastCheckRef = useRef(0);
 
   useEffect(() => {
-    async function revalidateSession(): Promise<void> {
-      // Only run when the tab is actually visible
-      if (document.visibilityState !== 'visible') return;
+    async function revalidate() {
+      if (document.visibilityState !== 'visible') return
 
-      // Throttle — skip if we checked recently
-      const now = Date.now();
-      if (now - lastCheckRef.current < REVALIDATION_INTERVAL_MS) return;
-      lastCheckRef.current = now;
+      const now = Date.now()
+      if (now - lastCheckRef.current < REVALIDATION_INTERVAL_MS) return
+      lastCheckRef.current = now
 
       try {
-        const { data } = await authClient.getSession();
-        const store = useAuthStore.getState();
+        const { data } = await authClient.getSession()
+        const store = useAuthStore.getState()
 
         if (!data) {
-          // Another tab logged out — clear this tab's state
-          console.log(`${LOG} Session expired or logged out in another tab`);
-          store.reset();
-          await SyncService.clearLocalData();
+          console.log(`${LOG} Session expired/logged out`)
+          store.reset()
+          await SyncService.clearLocalData()
         } else {
-          // Keep store perfectly aligned with server reality
-          store.setAuth(data.user, data.session);
+          store.setAuth(data.user, data.session)
         }
       } catch (error) {
-        console.error(`${LOG} Session re-validation failed:`, error);
+        console.error(`${LOG} Revalidation failed:`, error)
       }
     }
 
-    // `visibilitychange` covers both tab-switch and window-focus
-    // scenarios, so a separate `focus` listener is unnecessary.
-    document.addEventListener('visibilitychange', revalidateSession);
-
-    return () => {
-      document.removeEventListener('visibilitychange', revalidateSession);
-    };
+    document.addEventListener('visibilitychange', revalidate)
+    return () => document.removeEventListener('visibilitychange', revalidate)
   }, []);
 }
 
@@ -152,54 +115,29 @@ function useCrossTabSync(): void {
 // Component
 // ==========================================
 
-/**
- * Manages client-side authentication state for the entire app.
- *
- * Mounted once in the root layout, wrapping all page content.
- * Renders only its children — no additional DOM nodes.
- *
- * Responsibilities:
- * 1. **Hydration** — syncs server-side session into the Zustand store
- *    before the first paint to prevent flicker.
- * 2. **Initial sync** — triggers a full or delta data sync on first
- *    authenticated mount.
- * 3. **Cross-tab sync** — re-validates the session when the user
- *    returns to the tab, handling logout propagation and stale tokens.
- *
- * @example
- * ```tsx
- * // In app/layout.tsx
- * const { session } = await checkServerAuth();
- *
- * <SessionProvider initialSession={session}>
- *   {children}
- * </SessionProvider>
- * ```
- */
 export default function SessionProvider({
   children,
   initialSession,
 }: SessionProviderProps): React.JSX.Element {
-  // Re-validate session on mount to catch DB changes (e.g. session deleted)
-  // that might be hidden by a cached page shell from the Service Worker.
+  // Validate session on mount
   useEffect(() => {
-    async function validateOnMount() {
+    async function validate() {
       try {
         const { data } = await authClient.getSession()
         if (!data) {
-          console.log(`${LOG} Session invalid on mount, resetting...`)
+          console.log(`${LOG} Session invalid on mount`)
           useAuthStore.getState().reset()
           await SyncService.clearLocalData()
         }
       } catch (err) {
-        console.error(`${LOG} Initial re-validation failed:`, err)
+        console.error(`${LOG} Validation failed:`, err)
       }
     }
-    validateOnMount()
+    validate()
   }, [])
 
   useHydrateAuth(initialSession)
-  useInitialSync(initialSession !== null)
+  useInitialSync(!!initialSession)
   useCrossTabSync()
 
   return <>{children}</>

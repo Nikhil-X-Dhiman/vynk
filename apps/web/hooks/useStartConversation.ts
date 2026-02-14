@@ -1,31 +1,30 @@
 /**
- * @fileoverview Hook for starting a conversation with a user.
+ * @fileoverview Hook for starting a conversation.
  *
- * Creates a local conversation with UUIDv7 and tells the server to persist it.
- * The same ID is used everywhere — no virtual-to-real swapping needed.
+ * Capabilities:
+ * - Creates local conversation immediately
+ * - Emits creation event to server via socket
+ * - Enforces online-only operation for creating new conversations
  *
  * @module hooks/useStartConversation
  */
 
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { db, createLocalConversation, enqueue } from '@/lib/db'
+import { db, createLocalConversation } from '@/lib/db' // removed enqueue
 import { useAuthStore } from '@/store/auth'
 import { useNetworkStatus } from './useNetworkStatus'
 import { emitCreateConversation } from '@/lib/services/socket/emitters'
 
 interface UseStartConversationResult {
-  /** Whether a conversation is currently being created. */
-  isCreating: boolean;
-  /** Initiate conversation with a user by their ID. */
-  startChat: (userId: string) => Promise<void>;
+  isCreating: boolean
+  startChat: (userId: string) => Promise<void>
 }
 
 /**
- * Provides a `startChat` callback that creates or finds a conversation
- * with the given user and navigates to it.
+ * Returns a callback to start a conversation.
  *
- * @param onSuccess - Optional callback when navigation happens (e.g. close users panel)
+ * @param onSuccess - Optional callback on successful navigation
  */
 export function useStartConversation(
   onSuccess?: () => void,
@@ -37,45 +36,52 @@ export function useStartConversation(
 
   const startChat = useCallback(
     async (userId: string) => {
+      // 1. Validation
       if (isCreating || !user) return
+
+      if (!isOnline) {
+        console.warn('[useStartConversation] Cannot start chat while offline')
+        // Optionally show toast here
+        return
+      }
+
       setIsCreating(true)
 
       const currentUserId = user.id
 
       try {
-        // 1. Create or find a local conversation in IndexedDB.
-        //    New conversations get a UUIDv7 — the same ID the server will use.
+        // 2. Local Creation / Lookup
         const result = await createLocalConversation(db, userId, currentUserId)
 
         if (!result) {
-          throw new Error(
-            'Failed to create conversation: target user not found locally',
-          )
+          throw new Error('Failed to create conversation locally')
         }
 
         const { conversationId, isNew } = result
 
-        // 2. If it already exists (real or previously created), just navigate.
+        // 3. If exists (real or previously created), just navigate
         if (!isNew) {
           router.push(`/chats/${conversationId}`)
           onSuccess?.()
           return
         }
 
-        // 3. New conversation — tell the server to persist it with the same ID.
+        // 4. New conversation -> Persist to server
         const payload = {
           conversationId,
           participantIds: [currentUserId, userId],
         }
 
-        if (isOnline) {
-          await emitCreateConversation(payload)
-        } else {
-          // Queue for background sync if offline
-          await enqueue(db, 'CONVERSATION_CREATE', payload)
-        }
+        // We already checked isOnline above, so we can emit directly
+        await emitCreateConversation(payload).catch((err) => {
+          console.error('[useStartConversation] Failed to emit create:', err)
+          // We navigate anyway because we have a local optimistic conversation?
+          // Or should we fail?
+          // For now, consistent with "no offline queue", if emit fails, maybe we warn?
+          // but let's proceed to navigate optimistically.
+        })
 
-        // 4. Navigate immediately — UI uses the local conversation.
+        // 5. Navigate
         router.push(`/chats/${conversationId}`)
         onSuccess?.()
       } catch (error) {

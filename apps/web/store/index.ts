@@ -14,9 +14,7 @@
 
 // Stores
 export { useAuthStore } from './auth';
-export { useLoginStore } from './login';
-export { useCallStore } from './use-call-store';
-
+export { useLoginStore } from './login'
 // Types
 export type {
   // Auth types
@@ -32,12 +30,3 @@ export type {
   loginStoreTypes,
   authStoreTypes,
 } from './types';
-
-export type {
-  // Call types
-  CallStore,
-  CallStoreState,
-  CallStoreActions,
-  CallState,
-  CallType,
-} from './use-call-store';

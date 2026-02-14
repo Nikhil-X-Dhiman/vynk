@@ -1,12 +1,7 @@
 'use client';
 
 /**
- * @fileoverview Chat List — Main Orchestrator
- *
- * Thin composition layer that wires hooks and sub-components together.
- * Includes network status banner, search, filters, conversation list,
- * users panel, and new-chat FAB.
- *
+ * @fileoverview Chat List Sidebar
  * @module components/chat/ChatList
  */
 
@@ -27,18 +22,13 @@ import { ChatListSkeleton } from './ChatListSkeleton';
 import { UsersPanel } from './UsersPanel';
 import { EmptyState } from './EmptyState';
 
-// ==========================================
-// Component
-// ==========================================
-
 export function ChatList() {
-  const [showAllUsers, setShowAllUsers] = useState(false);
+  const [showAllUsers, setShowAllUsers] = useState(false)
+  const params = useParams()
+  const selectedId = params?.id as string | undefined
+  const isOnline = useNetworkStatus()
 
-  const params = useParams();
-  const selectedId = params?.id as string | undefined;
-  const isOnline = useNetworkStatus();
-
-  // Data & filtering
+  // Data Logic
   const {
     filter,
     setFilter,
@@ -49,31 +39,29 @@ export function ChatList() {
     filteredConversations,
     filteredUsers,
     isLoading,
-  } = useChatListData();
+  } = useChatListData()
 
-  // Conversation creation
+  // New Chat Logic
   const handleCloseUsersPanel = useCallback(() => {
-    setShowAllUsers(false);
-    setUserSearchQuery('');
-  }, [setUserSearchQuery]);
+    setShowAllUsers(false)
+    setUserSearchQuery('')
+  }, [setUserSearchQuery])
 
-  const { isCreating, startChat } = useStartConversation(handleCloseUsersPanel);
+  const { isCreating, startChat } = useStartConversation(handleCloseUsersPanel)
 
   const handleToggleUsersView = useCallback(() => {
-    setShowAllUsers((prev) => !prev);
-    setUserSearchQuery('');
-  }, [setUserSearchQuery]);
-
-  // ── Render ──────────────────────────────────────────────────────
+    setShowAllUsers((prev) => !prev)
+    setUserSearchQuery('')
+  }, [setUserSearchQuery])
 
   return (
-    <div className="flex h-full w-full flex-col bg-background relative">
-      {/* Network status banner */}
+    <div className="flex h-full w-full flex-col bg-background relative overflow-hidden">
+      {/* 1. Offline Banner */}
       <NetworkStatusBanner isOnline={isOnline} />
 
-      {/* Header, search, filters — hidden when users panel is open */}
+      {/* 2. Header & Search (Hide when picking user) */}
       {!showAllUsers && (
-        <>
+        <div className="flex-none bg-background z-10">
           <ChatListHeader />
           <ChatSearchBar
             value={searchQuery}
@@ -83,11 +71,11 @@ export function ChatList() {
             active={filter}
             onChange={setFilter}
           />
-        </>
+        </div>
       )}
 
-      {/* Main list area */}
-      <div className="flex-1 overflow-hidden preserve-3d relative">
+      {/* 3. Main List Area */}
+      <div className="flex-1 overflow-hidden relative">
         {showAllUsers ? (
           <UsersPanel
             users={filteredUsers}
@@ -116,9 +104,9 @@ export function ChatList() {
         )}
       </div>
 
-      {/* Floating action button */}
+      {/* 4. FAB */}
       <Button
-        className="absolute bottom-6 right-6 rounded-full h-14 w-14 shadow-lg z-30 transition-all duration-300 hover:scale-105 bg-slate-600 text-white hover:bg-slate-700 border-2 border-white dark:border-gray-900"
+        className="absolute bottom-6 right-6 rounded-full h-14 w-14 shadow-lg z-30 transition-all duration-300 hover:scale-105 bg-slate-900 text-white hover:bg-slate-800 border-2 border-white dark:border-gray-800"
         size="icon"
         onClick={handleToggleUsersView}
         disabled={isCreating}
@@ -130,5 +118,5 @@ export function ChatList() {
         )}
       </Button>
     </div>
-  );
+  )
 }

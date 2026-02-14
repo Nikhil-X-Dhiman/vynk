@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * @fileoverview Individual message bubble component.
+ * @fileoverview Message Bubble
  * @module components/chat/MessageBubble
  */
 
@@ -16,10 +16,6 @@ interface MessageBubbleProps {
   isMe: boolean;
 }
 
-/**
- * Renders a single chat message with status indicators.
- * Memoized to avoid unnecessary re-renders in virtualized lists.
- */
 export const MessageBubble = React.memo(function MessageBubble({
   msg,
   isMe,
@@ -27,32 +23,33 @@ export const MessageBubble = React.memo(function MessageBubble({
   return (
     <div
       className={cn(
-        'flex w-full mb-2 transform-gpu px-4',
+        'flex w-full mb-2 transform-gpu',
         isMe ? 'justify-end' : 'justify-start',
       )}
       style={{ contain: 'content' }}
     >
       <div
         className={cn(
-          'relative max-w-[75%] rounded-lg px-3 py-2 text-sm shadow-sm transition-all',
+          'relative max-w-[75%] rounded-lg px-3 py-2 text-sm shadow-sm transition-all break-words',
           isMe
             ? 'bg-green-100 text-gray-900 dark:bg-green-900 dark:text-gray-100 rounded-tr-none'
             : 'bg-background border rounded-tl-none',
         )}
       >
-        <p className="mb-1 leading-relaxed break-words">{msg.content || ''}</p>
+        <p className="mb-1 leading-relaxed whitespace-pre-wrap">
+          {msg.content || ''}
+        </p>
 
-        <div className="flex items-center justify-end gap-1 text-[10px] text-muted-foreground mt-1">
+        <div className="flex items-center justify-end gap-1 text-[10px] text-muted-foreground mt-1 select-none">
           <span>{formatMessageTime(msg.timestamp || 0)}</span>
 
           {isMe && (
-            <span
-              className="ml-1"
-              title={msg.status}
-            >
+            <span className="ml-1" title={msg.status}>
               {msg.status === 'pending' && <Clock className="h-3 w-3" />}
               {msg.status === 'sent' && <Check className="h-3 w-3" />}
-              {msg.status === 'delivered' && <CheckCheck className="h-3 w-3" />}
+              {msg.status === 'delivered' && (
+                <CheckCheck className="h-3 w-3" />
+              )}
               {msg.status === 'seen' && (
                 <CheckCheck className="h-3 w-3 text-blue-500" />
               )}
@@ -61,5 +58,5 @@ export const MessageBubble = React.memo(function MessageBubble({
         </div>
       </div>
     </div>
-  )
+  );
 });

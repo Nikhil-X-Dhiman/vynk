@@ -2,18 +2,6 @@
 export { SOCKET_EVENTS } from './constants';
 export type { SocketEvent } from './constants';
 
-// Call Events
-export { CALL_EVENTS } from './call-events';
-export type {
-  CallEvent,
-  CallType,
-  CallUser,
-  CallOfferPayload,
-  CallAnswerPayload,
-  IceCandidatePayload,
-  CallEndPayload,
-} from './call-events';
-
 // Socket Types - Common
 export type {
   MediaType,

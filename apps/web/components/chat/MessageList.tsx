@@ -1,11 +1,20 @@
 'use client';
 
 /**
- * @fileoverview Virtualized message list using @tanstack/react-virtual.
+ * @fileoverview Virtualized Message List
+ *
+ * Uses @tanstack/react-virtual to efficiently render large lists of messages.
+ * Handles auto-scrolling to bottom on new messages.
+ *
  * @module components/chat/MessageList
  */
 
-import React, { useRef, useCallback, useEffect } from 'react';
+import React, {
+  useRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+} from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { LocalMessage } from '@/lib/db';
 import { MessageBubble } from './MessageBubble';
@@ -16,67 +25,46 @@ interface MessageListProps {
   currentUserId?: string;
 }
 
-/**
- * Virtualized scrollable message list. Exposes `scrollToBottom`
- * via imperative handle for programmatic scrolling.
- */
 export const MessageList = React.forwardRef<MessageListHandle, MessageListProps>(
   function MessageList({ messages, currentUserId }, ref) {
-    const parentRef = useRef<HTMLDivElement>(null);
+    const parentRef = useRef<HTMLDivElement>(null)
 
     const virtualizer = useVirtualizer({
       count: messages.length,
       getScrollElement: () => parentRef.current,
-      estimateSize: () => 50,
+      estimateSize: () => 60, // approximate height of a message bubble
       overscan: 5,
-    });
+    })
 
-    // ── Scroll helpers ────────────────────────────────────────────
+    const scrollToEnd = useCallback(
+      (behavior: 'auto' | 'smooth' = 'smooth') => {
+        if (messages.length === 0) return
+        virtualizer.scrollToIndex(messages.length - 1, {
+          align: 'end',
+          behavior,
+        })
+      },
+      [messages.length, virtualizer],
+    )
 
-    const scrollToEnd = useCallback(() => {
-      if (messages.length === 0) return;
-      virtualizer.scrollToIndex(messages.length - 1, {
-        align: 'end',
-        behavior: 'smooth',
-      });
-    }, [messages.length, virtualizer]);
+    useImperativeHandle(ref, () => ({
+      scrollToBottom: () => scrollToEnd('smooth'),
+    }))
 
-    const scrollToEndInstant = useCallback(() => {
-      if (messages.length === 0) return;
-      virtualizer.scrollToIndex(messages.length - 1, { align: 'end' });
-    }, [messages.length, virtualizer]);
-
-    React.useImperativeHandle(ref, () => ({
-      scrollToBottom: scrollToEnd,
-    }));
-
-    // ── Initial scroll ────────────────────────────────────────────
-
-    const hasInitiallyScrolled = useRef(false);
-
+    // Initial scroll to bottom on mount
+    const mountedRef = useRef(false)
     useEffect(() => {
-      if (!hasInitiallyScrolled.current && messages.length > 0) {
-        const timer = setTimeout(() => {
-          scrollToEndInstant();
-          hasInitiallyScrolled.current = true;
-        }, 150);
-        return () => clearTimeout(timer);
+      if (!mountedRef.current && messages.length > 0) {
+        // Immediate scroll on first load
+        scrollToEnd('auto')
+        mountedRef.current = true
       }
-    }, [messages.length, scrollToEndInstant]);
-
-    // Reset when messages are cleared (conversation change)
-    useEffect(() => {
-      if (messages.length === 0) {
-        hasInitiallyScrolled.current = false;
-      }
-    }, [messages.length]);
-
-    // ── Render ────────────────────────────────────────────────────
+    }, [messages.length, scrollToEnd])
 
     return (
       <div
         ref={parentRef}
-        className="h-full w-full bg-background overflow-y-auto contain-strict"
+        className="h-full w-full bg-background overflow-y-auto contain-strict scroll-smooth"
       >
         <div
           style={{
@@ -86,7 +74,9 @@ export const MessageList = React.forwardRef<MessageListHandle, MessageListProps>
           }}
         >
           {virtualizer.getVirtualItems().map((virtualItem) => {
-            const msg = messages[virtualItem.index];
+            const msg = messages[virtualItem.index]
+            if (!msg) return null
+
             return (
               <div
                 key={virtualItem.key}
@@ -99,17 +89,19 @@ export const MessageList = React.forwardRef<MessageListHandle, MessageListProps>
                   width: '100%',
                   transform: `translateY(${virtualItem.start}px)`,
                 }}
+                className="px-4 py-1"
               >
                 <MessageBubble
                   msg={msg}
                   isMe={msg.senderId === currentUserId}
                 />
               </div>
-            );
+            )
           })}
         </div>
+        {/* Spacer for bottom overlap */}
         <div className="h-4" />
       </div>
-    );
+    )
   },
 );

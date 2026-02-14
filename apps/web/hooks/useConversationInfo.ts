@@ -1,9 +1,11 @@
 /**
  * @fileoverview Hook to resolve conversation display info.
  *
- * Queries IndexedDB for the conversation, its participants, and the
- * other user (in private chats) to build a `ConversationInfo` object
- * for the chat header.
+ * Resolves:
+ * - Conversation record from DB
+ * - Participants
+ * - Other user info (for 1:1 chats)
+ * - Derived display name/avatar
  *
  * @module hooks/useConversationInfo
  */
@@ -20,17 +22,9 @@ interface UseConversationInfoResult {
   exists: boolean
 }
 
-/**
- * Resolves display information for a conversation.
- *
- * @param chatId - The conversation ID to resolve
- * @returns Conversation record, display info, loading state, and existence flag
- */
 export function useConversationInfo(chatId: string): UseConversationInfoResult {
   const { user } = useAuthStore()
 
-  // useLiveQuery returns the default value ('loading') initially.
-  // When the query completes, it returns the result (Conversation or undefined).
   const conversation = useLiveQuery(
     () => db.conversations.where('conversationId').equals(chatId).first(),
     [chatId],
@@ -38,9 +32,6 @@ export function useConversationInfo(chatId: string): UseConversationInfoResult {
 
   const isLoading = conversation === undefined
   const exists = !!conversation
-
-  // Normalize conversation for downstream usage
-  const conversationData = conversation
 
   const participants =
     useLiveQuery(
@@ -55,27 +46,38 @@ export function useConversationInfo(chatId: string): UseConversationInfoResult {
     [otherUserId],
   )
 
-  const conversationInfo: ConversationInfo | null = conversationData
-    ? {
-        name:
-          conversationData.type === 'private'
-            ? otherUserId
-              ? otherUser?.name || conversationData.displayName || 'Unknown'
-              : 'You (Saved Messages)'
-            : conversationData.title || 'Group',
-        avatar:
-          conversationData.type === 'private'
-            ? otherUserId
-              ? otherUser?.avatar || conversationData.displayAvatar || null
-              : conversationData.displayAvatar || null
-            : conversationData.groupImg || null,
-        type: conversationData.type,
-        otherUserId,
+  // Derive display info
+  let conversationInfo: ConversationInfo | null = null
+
+  if (conversation) {
+    let name = 'Unknown'
+    let avatar: string | null = null
+
+    if (conversation.type === 'private') {
+      if (otherUserId) {
+        name = otherUser?.name || conversation.displayName || 'Unknown'
+        avatar = otherUser?.avatar || conversation.displayAvatar || null
+      } else {
+        // Self chat or broken state
+        name = 'You (Saved Messages)'
+        avatar = conversation.displayAvatar || null
       }
-    : null
+    } else {
+      // Group
+      name = conversation.title || 'Group'
+      avatar = conversation.groupImg || null
+    }
+
+    conversationInfo = {
+      name,
+      avatar,
+      type: conversation.type,
+      otherUserId,
+    }
+  }
 
   return {
-    conversation: conversationData,
+    conversation,
     conversationInfo,
     isLoading,
     exists,

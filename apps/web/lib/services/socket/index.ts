@@ -4,16 +4,6 @@
  * Re-exports all socket-related functionality for convenient imports.
  *
  * @module lib/services/socket
- *
- * @example
- * ```ts
- * import {
- *   getSocket,
- *   emitMessage,
- *   onMessageReceived,
- *   registerAllListeners,
- * } from '@/lib/services/socket';
- * ```
  */
 
 // Client
@@ -29,7 +19,6 @@ export {
 export {
   // Room management
   emitJoinRoom,
-  emitJoinConversation,
   emitLeaveConversation,
   // Messages
   emitMessage,
@@ -41,22 +30,7 @@ export {
   emitTypingStop,
   // Conversations
   emitCreateConversation,
-  // Stories
-  emitStoryPublish,
-  emitStoryView,
-  emitStoryDelete,
-  emitStoryReaction,
-  // User status
-  emitGetUserStatus,
-  // Friendship
-  emitFriendRequest,
-  emitAcceptFriendRequest,
-  emitRejectFriendRequest,
-  emitRemoveFriend,
-  // Legacy
-  joinRoom,
-  sendMessage,
-} from './emitters';
+} from './emitters'
 
 // Emitter types
 export type {
@@ -65,8 +39,7 @@ export type {
   ReadMessagePayload,
   DeleteMessagePayload,
   CreateConversationPayload,
-  FriendRequestPayload,
-} from './emitters';
+} from './emitters'
 
 // Listeners
 export {
@@ -74,8 +47,6 @@ export {
   registerConnectionListeners,
   registerUserSyncListeners,
   registerConversationListeners,
-  registerStoryListeners,
-  registerFriendshipListeners,
   registerAllListeners,
   unregisterAllListeners,
   // Individual listeners
@@ -83,9 +54,10 @@ export {
   onMessageDeleted,
   onReactionUpdate,
   onMessageSeen,
+  onMessageDelivered,
   onUserTyping,
   onUserStatusChange,
-} from './listeners';
+} from './listeners'
 
 // Listener types
 export type {
@@ -93,7 +65,5 @@ export type {
   TypingPayload,
   UserStatusPayload,
   ConversationUpdatePayload,
-  StoryPayload,
-  FriendRequestPayload as IncomingFriendRequestPayload,
   MessageCallback,
-} from './listeners';
+} from './listeners'

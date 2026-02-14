@@ -1,22 +1,23 @@
 /**
- * @fileoverview Hook for sending messages with offline support.
+ * @fileoverview Hook for sending messages.
  *
- * Online: emits via socket AND queues for backup sync.
- * Offline: queues to IndexedDB; the service worker flushes on reconnect.
- * Uses UUID v7 for time-ordered, DB-friendly temp IDs.
+ * Capabilities:
+ * - Sends messages via Socket.IO
+ * - Optimistic local updates for immediate feedback
+ * - Enforces online-only operation (offline sending is disabled)
  *
  * @module hooks/useSendMessage
  */
 
 import { useCallback } from 'react';
 import { v7 as uuidv7 } from 'uuid';
-import { db, enqueue, LocalMessage } from '@/lib/db'
+import { db, LocalMessage } from '@/lib/db'
 import { getSocket } from '@/lib/services/socket/client';
 import { SOCKET_EVENTS } from '@repo/shared';
 import { useAuthStore } from '@/store/auth';
 
 /**
- * Returns a stable `sendMessage` callback for a conversation.
+ * Returns a callback to send messages.
  *
  * @param chatId - Conversation ID
  * @param isOnline - Whether the browser is online
@@ -30,12 +31,19 @@ export function useSendMessage(
 
   return useCallback(
     async (text: string) => {
+      // 1. Validation: Must be logged in and Online
       if (!user) return
+
+      if (!isOnline) {
+        // Should be disabled in UI, but safe guard here
+        console.warn('[useSendMessage] Cannot send while offline')
+        return
+      }
 
       const tempId = uuidv7()
       const now = Date.now()
 
-      // Detect self-chat: conversation has only one participant (the current user)
+      // Detect self-chat
       const participants = await db.participants
         .where('conversationId')
         .equals(chatId)
@@ -53,48 +61,34 @@ export function useSendMessage(
       }
 
       try {
-        // 1. Optimistic local insert
+        // 2. Optimistic local insert
         await db.messages.add(newMsg)
 
-        // 2. Emit via socket if online
-        if (isOnline) {
-          const socket = getSocket()
-          socket.emit(
-            SOCKET_EVENTS.MESSAGE_SEND,
-            {
-              id: tempId,
-              conversationId: chatId,
-              content: text,
-              type: 'text',
-            },
-            async (ack: { success: boolean; data?: { id: string } }) => {
-              if (ack && ack.success) {
-                // Server acknowledged receipt -> status: 'sent'
-                const msg = await db.messages
-                  .where('messageId')
-                  .equals(tempId)
-                  .first()
-                if (msg) {
-                  await db.messages.update(msg.id!, { status: 'sent' })
-                }
-              }
-            },
-          )
-        }
-
-        // 3. Queue for background sync only when offline
-        //    (when online, the socket emit in step 2 already persists server-side)
-        if (!isOnline) {
-          await enqueue(db, 'MESSAGE_SEND', {
+        // 3. Emit via socket
+        const socket = getSocket()
+        socket.emit(
+          SOCKET_EVENTS.MESSAGE_SEND,
+          {
             id: tempId,
             conversationId: chatId,
             content: text,
-            mediaType: 'text',
-            timestamp: now,
-          })
-        }
+            type: 'text',
+          },
+          async (ack: { success: boolean; data?: { id: string } }) => {
+            if (ack && ack.success) {
+              // Server acknowledged receipt -> status: 'sent'
+              const msg = await db.messages
+                .where('messageId')
+                .equals(tempId)
+                .first()
+              if (msg) {
+                await db.messages.update(msg.id!, { status: 'sent' })
+              }
+            }
+          },
+        )
 
-        // 4. Update conversation's last message
+        // 4. Update conversation's last message locally
         const conv = await db.conversations
           .where('conversationId')
           .equals(chatId)
@@ -110,13 +104,16 @@ export function useSendMessage(
       } catch (error) {
         console.error('[useSendMessage] Failed to send:', error)
 
-        // Mark message as failed (keep for retry, don't delete)
+        // Mark message as failed
         const failed = await db.messages
           .where('messageId')
           .equals(tempId)
           .first()
 
         if (failed) {
+          // In a real app we might want a 'failed' status,
+          // but for now 'pending' implies it hasn't settled.
+          // Since we don't queue, it effectively failed.
           await db.messages.update(failed.id!, { status: 'pending' })
         }
       }

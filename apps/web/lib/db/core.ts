@@ -5,7 +5,6 @@ import {
   LocalStory,
   LocalUser,
   LocalParticipant,
-  QueueItem,
   Meta,
 } from './types'
 
@@ -13,7 +12,6 @@ export class VynkLocalDB extends Dexie {
   messages!: Table<LocalMessage>
   stories!: Table<LocalStory>
   conversations!: Table<LocalConversation>
-  queue!: Table<QueueItem>
   meta!: Table<Meta>
   users!: Table<LocalUser>
   participants!: Table<LocalParticipant>
@@ -22,11 +20,11 @@ export class VynkLocalDB extends Dexie {
     super('VynkLocalDB')
 
     // Version 3: Add participants table and enhance conversations
+    // NOTE: Removed 'queue' table as offline mutation queue is deprecated.
     this.version(3).stores({
       messages: '++id, messageId, conversationId, timestamp',
       stories: '++id, storyId, expiresAt',
       conversations: '++id, conversationId, updatedAt, type',
-      queue: '++id, action, timestamp',
       meta: 'key',
       settings: 'id',
       calls: '++id, status',
@@ -46,7 +44,6 @@ export class VynkLocalDB extends Dexie {
     await this.conversations.clear()
     await this.users.clear()
     await this.participants.clear()
-    await this.queue.clear()
     await this.meta.clear()
   }
 }

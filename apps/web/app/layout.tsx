@@ -61,16 +61,8 @@ export const metadata: Metadata = {
     default: 'Vynk - Real-time Messaging',
     template: '%s | Vynk',
   },
-  description:
-    'Vynk is a modern real-time messaging application with voice and video calling capabilities.',
-  keywords: [
-    'messaging',
-    'chat',
-    'video call',
-    'voice call',
-    'real-time',
-    'pwa',
-  ],
+  description: 'Vynk is a modern real-time messaging application.',
+  keywords: ['messaging', 'chat', 'real-time', 'pwa'],
   authors: [{ name: 'Vynk Team' }],
   creator: 'Vynk',
   manifest: '/manifest.json',
@@ -82,7 +74,7 @@ export const metadata: Metadata = {
   formatDetection: {
     telephone: true,
   },
-};
+}
 
 /**
  * Viewport configuration for responsive design and PWA.

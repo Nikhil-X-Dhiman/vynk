@@ -4,29 +4,16 @@
  * @fileoverview Authentication Server Actions
  *
  * Handles the complete authentication flow:
- * 1. Send OTP to phone number
- * 2. Verify OTP and create session
- * 3. Check if user exists in app database
- * 4. Create new user profile (onboarding)
- * 5. Sign out
+ * 1. Send OTP
+ * 2. Verify OTP
+ * 3. User check
+ * 4. New User Creation
+ * 5. Sign Out
  *
  * @module app/actions/login-auth
- *
- * @example
- * ```ts
- * // Step 1: Send OTP
- * const otpResult = await sendOTPAction(formData);
- *
- * // Step 2: Verify OTP
- * const verifyResult = await verifyOTPAction(formData);
- *
- * // Step 3: Check user profile
- * const checkResult = await handleCheckUserAndSessionAction(formData);
- *
- * // Sign out
- * await signOutAction();
- * ```
  */
+
+'use server'
 
 import { auth } from '@/lib/auth/auth-server';
 import { createNewUser, findUserByPhone } from '@repo/db';
@@ -43,34 +30,23 @@ import { checkServerAuth } from '@/lib/auth/check-server-auth';
 // Constants
 // ==========================================
 
-/**
- * Twilio API pre-check timeout in milliseconds.
- */
-const NETWORK_CHECK_TIMEOUT = 5000;
-
-/**
- * Twilio API base URL for network pre-check.
- */
+const NETWORK_CHECK_TIMEOUT = 5000
 const TWILIO_API_URL = 'https://api.twilio.com';
 
 // ==========================================
 // Types
 // ==========================================
 
-/** Result for OTP send action */
 type OTPResult = { success: boolean; message: string };
 
-/** Result for OTP verification action */
 type VerifyResult =
   | { success: true; isNewUser: boolean; user: unknown }
   | { success: false; message: string };
 
-/** Result for user/session check action */
 type CheckUserResult =
   | { success: true; user: unknown; session: unknown }
   | { success: false; message?: string; user?: null };
 
-/** Result for new user creation action */
 type NewUserResult =
   | { success: true; user: unknown }
   | { success: false; message?: string; user?: null };
@@ -79,24 +55,11 @@ type NewUserResult =
 // Helpers
 // ==========================================
 
-/**
- * Formats a phone number with country code into E.164 format.
- *
- * @param countryCode - Country code (with or without '+' prefix)
- * @param phoneNumber - Local phone number
- * @returns E.164 formatted phone number (e.g., '+14155552671')
- */
 function formatE164(countryCode: string, phoneNumber: string): string {
   const cleanCode = countryCode.replace('+', '');
   return `+${cleanCode}${phoneNumber}`;
 }
 
-/**
- * Verifies that the Twilio API is reachable before attempting to send SMS.
- * Prevents unnecessary Better Auth calls when network is unavailable.
- *
- * @throws Error if network is unreachable
- */
 async function verifyNetworkConnectivity(): Promise<void> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), NETWORK_CHECK_TIMEOUT);
@@ -112,52 +75,40 @@ async function verifyNetworkConnectivity(): Promise<void> {
 }
 
 // ==========================================
-// OTP Actions
+// Actions
 // ==========================================
 
-/**
- * Sends an OTP to the provided phone number.
- *
- * Flow:
- * 1. Validates phone number and country code
- * 2. Performs network pre-check against Twilio API
- * 3. Sends OTP via Better Auth phone number plugin
- *
- * @param formData - Must contain 'countryCode' and 'phoneNumber'
- * @returns Success/failure with message
- */
 export const sendOTPAction = publicDirectAction(
   async (formData: FormData): Promise<OTPResult> => {
     try {
-      const countryCode = formData.get('countryCode')?.toString();
-      const number = formData.get('phoneNumber')?.toString()?.trim();
+      const countryCode = formData.get('countryCode')?.toString()
+      const number = formData.get('phoneNumber')?.toString()?.trim()
 
       if (!countryCode || !number) {
         return {
           success: false,
           message: 'Phone number and country code are required',
-        };
+        }
       }
 
-      const phoneNumber = formatE164(countryCode, number);
+      const phoneNumber = formatE164(countryCode, number)
 
-      // Network pre-check: catch connectivity issues early
+      // Network pre-check
       try {
-        await verifyNetworkConnectivity();
+        await verifyNetworkConnectivity()
       } catch {
         return {
           success: false,
           message:
             'Unable to reach SMS service. Please check your internet connection.',
-        };
+        }
       }
 
-      // Send OTP via Better Auth
       await auth.api.sendPhoneNumberOTP({
         body: { phoneNumber },
-      });
+      })
 
-      return { success: true, message: 'OTP sent successfully' };
+      return { success: true, message: 'OTP sent successfully' }
     } catch (error: unknown) {
       console.error('[Auth] OTP send failed:', error);
       const message =
@@ -169,18 +120,6 @@ export const sendOTPAction = publicDirectAction(
   },
 );
 
-/**
- * Verifies the OTP and creates an authenticated session.
- *
- * Flow:
- * 1. Validates phone number, country code, and OTP
- * 2. Verifies OTP via Better Auth (sets session cookie)
- * 3. Checks if user exists in app database
- * 4. Returns new user status for routing decision
- *
- * @param formData - Must contain 'phoneNumber', 'countryCode', and 'otp'
- * @returns Verification result with user data and new user flag
- */
 export const verifyOTPAction = publicDirectAction(
   async (formData: FormData): Promise<VerifyResult> => {
     try {
@@ -197,7 +136,6 @@ export const verifyOTPAction = publicDirectAction(
 
       const fullPhoneNumber = formatE164(countryCode, phoneNumber);
 
-      // Verify OTP using server-side API (sets session cookie immediately)
       const result = await auth.api.verifyPhoneNumber({
         body: { phoneNumber: fullPhoneNumber, code },
         headers: await headers(),
@@ -207,7 +145,6 @@ export const verifyOTPAction = publicDirectAction(
         return { success: false, message: 'Invalid or expired OTP' };
       }
 
-      // Check for existing user profile in app database
       const userResult = await findUserByPhone({
         phoneNumber,
         countryCode,
@@ -235,21 +172,6 @@ export const verifyOTPAction = publicDirectAction(
   },
 );
 
-// ==========================================
-// User Session Actions
-// ==========================================
-
-/**
- * Checks if the authenticated user has a profile in the app database.
- *
- * Used on app load to determine routing:
- * - User exists → go to chats
- * - User doesn't exist → go to onboarding
- * - Not authenticated → go to login
- *
- * @param formData - Must contain 'phoneNumber' and 'countryCode'
- * @returns User profile and session data
- */
 export const handleCheckUserAndSessionAction = publicDirectAction(
   async (formData: FormData): Promise<CheckUserResult> => {
     const { isAuth, session } = await checkServerAuth();
@@ -288,17 +210,9 @@ export const handleCheckUserAndSessionAction = publicDirectAction(
   },
 );
 
-/**
- * Creates a new user profile during onboarding.
- *
- * Called after phone verification when user completes their profile
- * with username, bio, and avatar selection.
- *
- * @requires Authenticated session
- * @param formData - Must contain 'phone', 'countryCode', 'username', 'bio', 'avatarURL'
- * @returns Created user data
- */
-const handleNewUserAction = protectedAction(
+// NOTE: This duplicates functionality in avatar-actions.ts but is kept for `AuthFlow` completeness.
+// Ideally, `AuthFlow` should use `avatarActions` directly for profile creation.
+export const handleNewUserAction = protectedAction(
   async (ctx: AuthContext, formData: FormData): Promise<NewUserResult> => {
     const phoneNumber = formData.get('phone')?.toString();
     const countryCode = formData.get('countryCode')?.toString();
@@ -327,26 +241,9 @@ const handleNewUserAction = protectedAction(
   },
 );
 
-// ==========================================
-// Sign Out
-// ==========================================
-
-/**
- * Signs out the current user and redirects to login page.
- *
- * Invalidates the server-side session and clears auth cookies.
- *
- * @requires Authenticated session
- */
-const signOutAction = protectedAction(async () => {
+export const signOutAction = protectedAction(async () => {
   await auth.api.signOut({
     headers: await headers(),
-  });
-  redirect('/login');
-});
-
-// ==========================================
-// Exports
-// ==========================================
-
-export { handleNewUserAction, signOutAction };
+  })
+  redirect('/login')
+})

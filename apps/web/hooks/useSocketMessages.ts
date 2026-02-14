@@ -1,9 +1,11 @@
 /**
  * @fileoverview Hook for real-time message subscription.
  *
- * Joins the conversation room via socket and listens for new messages.
- * Deduplicates incoming messages before adding to IndexedDB.
- * Only activates when the browser is online.
+ * Capabilities:
+ * - Joins conversation room via socket
+ * - Listens for new messages and delivery updates
+ * - Mark messages as read when viewed
+ * - Offline queue logic REMOVED
  *
  * @module hooks/useSocketMessages
  */
@@ -11,11 +13,10 @@
 import { useEffect } from 'react';
 import { getSocket } from '@/lib/services/socket/client';
 import { SOCKET_EVENTS } from '@repo/shared';
-import { db, enqueue } from '@/lib/db'
+import { db } from '@/lib/db'
 import { useAuthStore } from '@/store/auth'
 import { emitConversationRead } from '@/lib/services/socket/emitters'
 
-/** Shape of an incoming message from the server. */
 interface IncomingSocketMessage {
   id?: string;
   messageId?: string;
@@ -26,19 +27,8 @@ interface IncomingSocketMessage {
   timestamp?: number;
 }
 
-/**
- * Subscribes to real-time messages for a conversation.
- *
- * - Joins the conversation room on mount, leaves on unmount
- * - Deduplicates messages before writing to IndexedDB
- * - Skips subscription when offline
- *
- * @param chatId - Conversation ID to subscribe to
- * @param isOnline - Whether the browser is online
- */
 export function useSocketMessages(chatId: string, isOnline: boolean): void {
-  // 1. Mark conversation as read on mount (or when chat changes)
-  // This runs regardless of online status to update local state immediately.
+  // 1. Mark as read logic
   useEffect(() => {
     const markAsRead = async () => {
       const { user } = useAuthStore.getState()
@@ -51,52 +41,24 @@ export function useSocketMessages(chatId: string, isOnline: boolean): void {
         .filter((m) => m.status !== 'seen' && m.senderId !== user.id)
         .toArray()
 
-      let lastReadMessageId: string | undefined
-
       if (unreadMessages.length > 0) {
-        // Sort by timestamp desc to find the latest one
-        unreadMessages.sort((a, b) => b.timestamp - a.timestamp)
-        lastReadMessageId = unreadMessages[0].messageId
-
-        // Mark all as seen locally
+        // Mark locally
         await db.messages.bulkUpdate(
           unreadMessages.map((m) => ({
             key: m.id!,
             changes: { status: 'seen' },
           })),
         )
-      } else {
-        // If no unread messages, find the very last message in the conversation
-        // to ensure server knows we've seen up to that point.
-        const lastMessage = await db.messages
-          .where('conversationId')
-          .equals(chatId)
-          .reverse()
-          .sortBy('timestamp')
-          .then((msgs) => msgs[0])
-
-        if (lastMessage) {
-          lastReadMessageId = lastMessage.messageId
-        }
       }
 
-      // Sync with server
+      // Sync with server ONLY if online
       if (isOnline) {
         emitConversationRead(chatId)
       } else {
-        // Queue for background sync if offline
-        // We always queue even if no unread messages were found locally,
-        // because we might have just opened the chat and want to acknowledge up to the latest local message.
-        // However, if we have absolutely no messages locally, sending a read receipt might be useless but harmless.
-        if (lastReadMessageId) {
-          await enqueue(db, 'MESSAGE_READ', {
-            conversationId: chatId,
-            messageId: lastReadMessageId,
-          })
-        } else {
-          // Fallback: just send conversation ID, server might try to interpret it
-          await enqueue(db, 'MESSAGE_READ', { conversationId: chatId })
-        }
+        // Offline queue removed. We just don't emit read receipt.
+        // It will be handled next time user opens chat while online,
+        // or through a different sync mechanism if we implemented one (we haven't).
+        // For now, read receipts are best-effort when online.
       }
     }
 
@@ -116,7 +78,7 @@ export function useSocketMessages(chatId: string, isOnline: boolean): void {
 
       const resolvedId = msg.id || msg.messageId
 
-      // Deduplicate: skip if message already exists in local DB
+      // Deduplicate
       if (resolvedId) {
         const existing = await db.messages
           .where('messageId')
@@ -134,13 +96,10 @@ export function useSocketMessages(chatId: string, isOnline: boolean): void {
         timestamp: msg.timestamp || Date.now(),
       })
 
-      // If message is from someone else, we are online and looking at it -> Mark as seen
+      // Mark as seen if we are looking at it
       const { user } = useAuthStore.getState()
       if (user && msg.senderId !== user.id) {
-        // Emit read event
         emitConversationRead(chatId)
-
-        // Update local status immediately
         await db.messages.update(localId, { status: 'seen' })
       }
     }

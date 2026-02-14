@@ -1,8 +1,13 @@
 'use client'
 
+/**
+ * @fileoverview App Sidebar
+ * @module components/layout/Sidebar
+ */
+
 import React from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   MessageSquare,
   Phone,
@@ -14,7 +19,6 @@ import {
   Archive,
 } from 'lucide-react'
 import { authClient } from '@/lib/auth/auth-client'
-import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import {
   Tooltip,
@@ -27,6 +31,7 @@ import { ModeToggle } from '@/components/ui/ModeToggle'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils/tailwind-helpers'
 import { useLoginStore, useAuthStore } from '@/store'
+import { SyncService } from '@/lib/services/sync'
 
 interface SidebarItemProps {
   icon: React.ElementType
@@ -62,7 +67,7 @@ const SidebarItem = ({
     </Button>
   )
 
-  const wrappedContent = (
+  return (
     <Tooltip>
       <TooltipTrigger asChild>
         {href ? <Link href={href}>{content}</Link> : content}
@@ -72,8 +77,6 @@ const SidebarItem = ({
       </TooltipContent>
     </Tooltip>
   )
-
-  return wrappedContent
 }
 
 export function Sidebar() {
@@ -81,33 +84,45 @@ export function Sidebar() {
   const pathname = usePathname()
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false)
   const resetLogin = useLoginStore((state) => state.reset)
+  const resetAuth = useAuthStore((state) => state.reset)
 
+  // Clear stale login state when sidebar mounts (meaning we are authenticated)
   React.useEffect(() => {
-    // When the user reaches the authenticated area, we clear any stale login progress.
-    // This avoids flickers on the login page and handles the "session expired" edge case.
     resetLogin()
   }, [resetLogin])
+
+  const handleLogout = async () => {
+    try {
+      await authClient.signOut({
+        fetchOptions: {
+          onSuccess: async () => {
+            resetLogin()
+            resetAuth()
+            await SyncService.clearLocalData()
+            router.push('/login')
+          },
+        },
+      })
+    } catch (error) {
+      console.error('Logout failed:', error)
+      // Force cleanup anyway
+      resetLogin()
+      resetAuth()
+      router.push('/login')
+    }
+  }
 
   return (
     <TooltipProvider delayDuration={0}>
       <div className="flex h-full w-full flex-col items-center justify-between bg-muted/40 py-4 border-r">
         {/* Top Section */}
         <div className="flex flex-col gap-4 items-center">
-          {/* Chats */}
           <SidebarItem
             icon={MessageSquare}
             label="Chats"
             href="/chats"
             isActive={pathname.startsWith('/chats')}
           />
-          {/* Calls */}
-          <SidebarItem
-            icon={Phone}
-            label="Calls"
-            href="/calls"
-            isActive={pathname.startsWith('/calls')}
-          />
-          {/* Status */}
           <SidebarItem
             icon={CircleDashed}
             label="Status"
@@ -132,11 +147,7 @@ export function Sidebar() {
           <SidebarItem
             icon={Settings}
             label="Settings"
-            onClick={(e) => {
-              if (e && e.preventDefault) e.preventDefault()
-              console.log('Settings clicked, opening modal')
-              setIsSettingsOpen(true)
-            }}
+            onClick={() => setIsSettingsOpen(true)}
           />
           <SidebarItem
             icon={User}
@@ -146,19 +157,7 @@ export function Sidebar() {
           <SidebarItem
             icon={LogOut}
             label="Logout"
-            onClick={async () => {
-              await authClient.signOut({
-                fetchOptions: {
-                  onSuccess: async () => {
-                    useLoginStore.getState().reset()
-                    useAuthStore.getState().reset()
-                    const { SyncService } = await import('@/lib/services/sync')
-                    await SyncService.clearLocalData()
-                    router.push('/login')
-                  },
-                },
-              })
-            }}
+            onClick={handleLogout}
           />
         </div>
       </div>

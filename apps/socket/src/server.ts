@@ -23,8 +23,7 @@ import { registerMessageEvents } from './events/message-events';
 import { registerPresenceEvents } from './events/presence-events';
 import { registerReadEvents } from './events/read-events';
 import { registerTypingEvents } from './events/typing-events';
-import { registerStoryEvents } from './events/story-events';
-import { registerCallEvents } from './events/call-events';
+import { registerStoryEvents } from './events/story-events'
 import { registerUserEvents } from './events/user-events';
 import { registerFriendshipEvents } from './events/friendship-events';
 import { registerConversationEvents } from './events/conversation-events';
@@ -97,8 +96,7 @@ function initializeChatNamespace(): void {
       registerMessageEvents(socket);
       registerReadEvents(socket);
       registerTypingEvents(socket);
-      registerStoryEvents(socket);
-      registerCallEvents(socket);
+      registerStoryEvents(socket)
       registerUserEvents(socket);
       registerFriendshipEvents(socket);
       registerConversationEvents(socket);

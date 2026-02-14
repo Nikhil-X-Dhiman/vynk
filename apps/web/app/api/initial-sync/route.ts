@@ -3,13 +3,10 @@
  *
  * **GET /api/initial-sync**
  *
- * Returns a full dataset for the user to initialize their local offline database:
- * - Conversations metadata
- * - All messages for these conversations
- * - All participants for these conversations
- * - All registered users (for profile resolution)
+ * Returns a full dataset for the user to initialize their local offline database.
+ * Data is fetched in parallel for performance.
  *
- * Logic for cross-referencing and rendering is handled on the client.
+ * @module app/api/initial-sync/route
  */
 
 import { NextResponse } from 'next/server'
@@ -18,12 +15,14 @@ import {
   getUserMessages,
   getUserParticipants,
   getAllUsers,
-  db,
-  sql,
 } from '@repo/db'
 import { checkServerAuth } from '@/lib/auth/check-server-auth'
 
-/** Error response. */
+// ==========================================
+// Types
+// ==========================================
+
+/** Standard error response. */
 interface ErrorResponse {
   success: false
   error: string
@@ -36,16 +35,24 @@ interface InitialSyncResponse {
   messages: any[]
   participants: any[]
   users: any[]
+  currentUserId: string
   timestamp: string
 }
 
-/** Consistant JSON error response helper. */
+// ==========================================
+// Helpers
+// ==========================================
+
 function errorResponse(
   error: string,
   status: number,
 ): NextResponse<ErrorResponse> {
   return NextResponse.json({ success: false, error }, { status })
 }
+
+// ==========================================
+// Endpoint
+// ==========================================
 
 export async function GET(): Promise<
   NextResponse<InitialSyncResponse | ErrorResponse>
@@ -58,28 +65,8 @@ export async function GET(): Promise<
     }
 
     const userId = session.user.id
-    console.log('Initial sync for user:', userId)
+    console.log('[InitialSync] Starting for user:', userId)
 
-    // DEBUG: Check total counts in DB
-    const [totalConvs, totalParticipants, totalMessages] = await Promise.all([
-      db
-        .selectFrom('conversation')
-        .select(sql<number>`count(*)`.as('count'))
-        .executeTakeFirst(),
-      db
-        .selectFrom('participant')
-        .select(sql<number>`count(*)`.as('count'))
-        .executeTakeFirst(),
-      db
-        .selectFrom('message')
-        .select(sql<number>`count(*)`.as('count'))
-        .executeTakeFirst(),
-    ])
-    console.log('[InitialSync DEBUG] Total in DB:', {
-      conversations: totalConvs?.count,
-      participants: totalParticipants?.count,
-      messages: totalMessages?.count,
-    })
     // Fetch all required data in parallel
     const [
       conversationsResult,
@@ -93,26 +80,15 @@ export async function GET(): Promise<
       getAllUsers(),
     ])
 
-    // Error handling
-    if (!conversationsResult.success) {
+    // Check for errors
+    if (!conversationsResult.success)
       return errorResponse('Failed to fetch conversations', 500)
-    }
-    if (!messagesResult.success) {
+    if (!messagesResult.success)
       return errorResponse('Failed to fetch messages', 500)
-    }
-    if (!participantsResult.success) {
+    if (!participantsResult.success)
       return errorResponse('Failed to fetch participants', 500)
-    }
-    if (!usersResult.success) {
-      return errorResponse('Failed to fetch users', 500)
-    }
+    if (!usersResult.success) return errorResponse('Failed to fetch users', 500)
 
-    console.log('Initial sync data', {
-      conversations: conversationsResult.data,
-      messages: messagesResult.data,
-      participants: participantsResult.data,
-      users: usersResult.data,
-    })
     return NextResponse.json({
       success: true,
       conversations: conversationsResult.data,

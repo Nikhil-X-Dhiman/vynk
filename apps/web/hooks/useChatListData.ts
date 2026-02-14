@@ -1,55 +1,42 @@
 /**
- * @fileoverview Hook for ChatList data fetching, enrichment, and filtering.
+ * @fileoverview Hook for ChatList data fetching.
  *
- * Encapsulates all IndexedDB live queries for conversations and users,
- * plus the filter/search logic.
+ * Capabilities:
+ * - Live queries for users and conversations
+ * - Enrichment of conversation data (avatars, display names)
+ * - Filtering logic (All, Unread, Groups, etc.)
  *
  * @module hooks/useChatListData
  */
 
 import { useState, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, isInitialSyncCompleted } from '@/lib/db'
+import { db, isInitialSyncCompleted, LocalUser } from '@/lib/db'
 import { normalizeAvatarUrl } from '@/lib/utils/avatar';
-import type { FilterType, EnrichedConversation } from '@/components/chat/types';
-import type { LocalUser } from '@/lib/db';
+import type { FilterType, EnrichedConversation } from '@/components/chat/types'
 import { formatMessageTime } from '@/lib/utils/date'
 
 interface UseChatListDataResult {
-  /** Current filter tab. */
-  filter: FilterType;
-  setFilter: (f: FilterType) => void;
-
-  /** Conversation search query. */
-  searchQuery: string;
-  setSearchQuery: (q: string) => void;
-
-  /** User search query (users panel). */
-  userSearchQuery: string;
-  setUserSearchQuery: (q: string) => void;
-
-  /** Filtered + enriched conversations. */
-  filteredConversations: EnrichedConversation[];
-
-  /** Filtered users list. */
-  filteredUsers: LocalUser[];
-
-  /** True if still waiting for initial sync and no cached data. */
-  isLoading: boolean;
+  filter: FilterType
+  setFilter: (f: FilterType) => void
+  searchQuery: string
+  setSearchQuery: (q: string) => void
+  userSearchQuery: string
+  setUserSearchQuery: (q: string) => void
+  filteredConversations: EnrichedConversation[]
+  filteredUsers: LocalUser[]
+  isLoading: boolean
 }
 
-/**
- * Fetches, enriches, and filters chat list data from IndexedDB.
- */
 export function useChatListData(): UseChatListDataResult {
-  const [filter, setFilter] = useState<FilterType>('All');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [filter, setFilter] = useState<FilterType>('All')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [userSearchQuery, setUserSearchQuery] = useState('')
 
-  // ── Live queries ──────────────────────────────────────────────
-
+  // Stable empty array reference
   const emptyArray = useMemo(() => [], [])
 
+  // Live Queries
   const allUsers =
     useLiveQuery(() => db.users.orderBy('name').toArray()) ?? emptyArray
 
@@ -61,8 +48,7 @@ export function useChatListData(): UseChatListDataResult {
   const isSyncCompleted =
     useLiveQuery(() => isInitialSyncCompleted(db)) ?? false
 
-  // ── Enrichment ────────────────────────────────────────────────
-
+  // Enrichment
   const enrichedConversations: EnrichedConversation[] = useMemo(
     () =>
       rawConversations.map((conv) => ({
@@ -74,33 +60,32 @@ export function useChatListData(): UseChatListDataResult {
     [rawConversations],
   )
 
-  // ── Filtering ─────────────────────────────────────────────────
-
+  // Filtering
   const filteredConversations = useMemo(() => {
     return enrichedConversations.filter((conv) => {
+      // Search
       if (
         searchQuery &&
         !conv.name.toLowerCase().includes(searchQuery.toLowerCase())
       ) {
-        return false;
+        return false
       }
-      if (filter === 'Unread') return conv.unreadCount > 0;
-      if (filter === 'Groups') return conv.type === 'group';
-      if (filter === 'Favourites') return false; // Not yet implemented
-      return true;
-    });
-  }, [enrichedConversations, filter, searchQuery]);
+      // Filter Tabs
+      if (filter === 'Unread') return conv.unreadCount > 0
+      if (filter === 'Groups') return conv.type === 'group'
+      // 'Favourites' - implementation pending / removed for now
+      return true
+    })
+  }, [enrichedConversations, filter, searchQuery])
 
   const filteredUsers = useMemo(() => {
-    if (!userSearchQuery) return allUsers;
+    if (!userSearchQuery) return allUsers
     return allUsers.filter((u) =>
       u.name.toLowerCase().includes(userSearchQuery.toLowerCase()),
-    );
-  }, [allUsers, userSearchQuery]);
+    )
+  }, [allUsers, userSearchQuery])
 
-  // ── Loading state ─────────────────────────────────────────────
-
-  const isLoading = !isSyncCompleted && rawConversations.length === 0;
+  const isLoading = !isSyncCompleted && rawConversations.length === 0
 
   return {
     filter,
@@ -112,5 +97,5 @@ export function useChatListData(): UseChatListDataResult {
     filteredConversations,
     filteredUsers,
     isLoading,
-  };
+  }
 }

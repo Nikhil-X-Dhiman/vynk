@@ -1,63 +1,21 @@
 import {
   LocalConversation,
   LocalMessage,
-  LocalParticipant,
   LocalStory,
   LocalUser,
-  SyncAction,
+  LocalParticipant,
 } from './types'
 import type { VynkLocalDB } from './core'
 
-// ============ Queue & Sync ============
+// ============ Sync Logic (Pull Only) ============
 
-export async function enqueue(
-  db: VynkLocalDB,
-  action: SyncAction,
-  payload: any,
-) {
-  await db.queue.add({
-    action,
-    payload,
-    timestamp: Date.now(),
-  })
-  // Trigger sync immediately if online
-  if (typeof navigator !== 'undefined' && navigator.onLine) {
-    sync(db).catch(console.error)
-  }
-}
-
-export async function sync(db: VynkLocalDB) {
+/**
+ * Pulls delta updates from the server and applies them to local DB.
+ * Only fetches data changed since the last sync timestamp.
+ */
+export async function pullDelta(db: VynkLocalDB) {
   if (typeof navigator === 'undefined' || !navigator.onLine) return
 
-  try {
-    await flushQueue(db)
-    await pullDelta(db)
-  } catch (err) {
-    console.error('Sync failed', err)
-  }
-}
-
-export async function flushQueue(db: VynkLocalDB) {
-  const items = await db.queue.orderBy('timestamp').toArray()
-  if (items.length === 0) return
-
-  const response = await fetch('/api/sync', {
-    method: 'POST',
-    body: JSON.stringify(items),
-    headers: { 'Content-Type': 'application/json' },
-  })
-
-  if (!response.ok) throw new Error('Flush failed')
-
-  const result = await response.json()
-  if (result.success) {
-    // Clear processed items
-    const ids = items.map((i) => i.id!)
-    await db.queue.bulkDelete(ids)
-  }
-}
-
-export async function pullDelta(db: VynkLocalDB) {
   const meta = await db.meta.get('lastSyncedAt')
   const lastSyncedAt = meta?.value || new Date(0).toISOString()
 
@@ -66,28 +24,24 @@ export async function pullDelta(db: VynkLocalDB) {
 
   const data = await response.json()
 
-  // Apply changes - using individual updates instead of large transaction
-  // 1. Apply Conversation Changes
+  // Apply changes
   if (data.conversations?.length) {
     await syncConversations(db, data.conversations)
   }
 
-  // 2. Apply Message Changes
   if (data.messages?.length) {
     await syncMessages(db, data.messages)
   }
 
-  // 3. Apply Story Changes
   if (data.stories?.length) {
     await syncStories(db, data.stories)
   }
 
-  // 4. Apply User Changes
   if (data.users?.length) {
     await syncUsers(db, data.users)
   }
 
-  // 5. Handle Deletions
+  // Handle Deletions
   if (data.deletedMessageIds?.length) {
     await db.messages.where('messageId').anyOf(data.deletedMessageIds).delete()
   }
@@ -101,7 +55,7 @@ export async function pullDelta(db: VynkLocalDB) {
       .delete()
   }
 
-  // 6. Update Timestamp
+  // Update Timestamp
   await db.meta.put({ key: 'lastSyncedAt', value: data.timestamp })
 }
 
@@ -118,9 +72,11 @@ export async function syncConversations(
   conversations: Partial<LocalConversation>[],
 ) {
   for (const conv of conversations) {
+    if (!conv.conversationId) continue
+
     const existing = await db.conversations
       .where('conversationId')
-      .equals(conv.conversationId!)
+      .equals(conv.conversationId)
       .first()
 
     if (existing) {
@@ -292,7 +248,7 @@ export async function performInitialSync(db: VynkLocalDB) {
             isVirtual: false,
             displayName: displayName || 'Unknown',
             displayAvatar: displayAvatar || null,
-          }
+          } as LocalConversation
         },
       )
       await db.conversations.bulkPut(conversationsToStore)

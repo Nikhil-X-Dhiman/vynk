@@ -1,11 +1,18 @@
 'use client';
 
 /**
- * @fileoverview Message input bar with send/mic toggle.
+ * @fileoverview Message input bar.
+ *
+ * Capabilities:
+ * - Text input handling
+ * - Send via Enter key or button
+ * - Emoji picker integration
+ * - Disabled state support (e.g. when offline)
+ *
  * @module components/chat/MessageInput
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useImperativeHandle } from 'react'
 import { Smile, Paperclip, Mic, SendHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,11 +30,6 @@ interface MessageInputProps {
   disabled?: boolean;
 }
 
-/**
- * Input bar for composing and sending messages.
- * Toggles between mic and send button based on input state.
- * Exposes `focus()` via imperative handle.
- */
 export const MessageInput = React.forwardRef<
   MessageInputHandle,
   MessageInputProps
@@ -37,9 +39,9 @@ export const MessageInput = React.forwardRef<
   const inputRef = useRef<HTMLInputElement>(null);
   const { theme } = useTheme()
 
-  React.useImperativeHandle(ref, () => ({
+  useImperativeHandle(ref, () => ({
     focus: () => inputRef.current?.focus(),
-  }));
+  }))
 
   const handleSend = () => {
     if (!message.trim() || disabled) return;
@@ -51,12 +53,18 @@ export const MessageInput = React.forwardRef<
 
   const onEmojiClick = (emojiData: EmojiClickData) => {
     setMessage((prev) => prev + emojiData.emoji)
-    // Keep focus on input after picking emoji if desired, or let user click back
-    // inputRef.current?.focus();
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSend()
+    }
   }
 
   return (
     <div className="flex items-center gap-2 px-4 py-2 bg-muted/40 border-t">
+      {/* Emoji Picker */}
       <Popover
         open={showEmojiPicker}
         onOpenChange={setShowEmojiPicker}
@@ -66,6 +74,7 @@ export const MessageInput = React.forwardRef<
             variant="ghost"
             size="icon"
             className="text-muted-foreground"
+            disabled={disabled}
             onClick={() => setShowEmojiPicker((prev) => !prev)}
           >
             <Smile className="h-6 w-6" />
@@ -84,28 +93,33 @@ export const MessageInput = React.forwardRef<
         </PopoverContent>
       </Popover>
 
+      {/* Attachment (Visual Only for now) */}
       <Button
         variant="ghost"
         size="icon"
         className="text-muted-foreground"
+        disabled={disabled}
       >
         <Paperclip className="h-6 w-6" />
       </Button>
 
+      {/* Text Input */}
       <div className="flex-1">
         <Input
           ref={inputRef}
           type="text"
-          placeholder="Type a message"
+          placeholder={disabled ? 'You are offline' : 'Type a message'}
           className="bg-background border-none shadow-none focus-visible:ring-0"
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+          onKeyDown={handleKeyDown}
           disabled={disabled}
           autoFocus
+          autoComplete="off"
         />
       </div>
 
+      {/* Send / Mic Button */}
       {message.trim() ? (
         <Button
           onClick={handleSend}
@@ -120,6 +134,7 @@ export const MessageInput = React.forwardRef<
           variant="ghost"
           size="icon"
           className="text-muted-foreground"
+          disabled={disabled}
         >
           <Mic className="h-6 w-6" />
         </Button>
