@@ -17,17 +17,6 @@ export interface SyncMessage {
   updatedAt: number
 }
 
-export interface SyncStory {
-  storyId: string
-  userId: string
-  contentUrl: string
-  caption: string | null
-  text: string | null
-  type: string | null
-  expiresAt: number
-  createdAt: number
-}
-
 export interface SyncUser {
   id: string
   name: string
@@ -49,11 +38,9 @@ export interface SyncConversation {
 
 export interface SyncDeltaResponse {
   messages: SyncMessage[]
-  stories: SyncStory[]
   users: SyncUser[]
   conversations: SyncConversation[]
   deletedMessageIds: string[]
-  deletedStoryIds: string[]
   deletedConversationIds: string[]
   timestamp: string
 }
@@ -87,78 +74,55 @@ export async function getSyncDelta(
     .execute()
     .then((rows) => rows.map((r) => r.conversation_id))
 
-  const [
-    messages,
-    stories,
-    deletedMessages,
-    deletedStories,
-    conversations,
-    deletedConvs,
-    usersResult,
-  ] = await Promise.all([
-    // Changed messages in user's conversations
-    userConversationIds.length > 0
-      ? db
-          .selectFrom('message')
-          .selectAll()
-          .where('updated_at', '>', since)
-          .where('is_deleted', '=', false)
-          .where('conversation_id', 'in', userConversationIds)
-          .execute()
-      : Promise.resolve([]),
+  const [messages, deletedMessages, conversations, deletedConvs, usersResult] =
+    await Promise.all([
+      // Changed messages in user's conversations
+      userConversationIds.length > 0
+        ? db
+            .selectFrom('message')
+            .selectAll()
+            .where('updated_at', '>', since)
+            .where('is_deleted', '=', false)
+            .where('conversation_id', 'in', userConversationIds)
+            .execute()
+        : Promise.resolve([]),
 
-    // Changed stories (visible to user)
-    db
-      .selectFrom('story')
-      .selectAll()
-      .where('updated_at', '>', since)
-      .where('is_deleted', '=', false)
-      .execute(),
+      // Deleted message IDs in user's conversations
+      userConversationIds.length > 0
+        ? db
+            .selectFrom('message')
+            .select('id')
+            .where('updated_at', '>', since)
+            .where('is_deleted', '=', true)
+            .where('conversation_id', 'in', userConversationIds)
+            .execute()
+        : Promise.resolve([]),
 
-    // Deleted message IDs in user's conversations
-    userConversationIds.length > 0
-      ? db
-          .selectFrom('message')
-          .select('id')
-          .where('updated_at', '>', since)
-          .where('is_deleted', '=', true)
-          .where('conversation_id', 'in', userConversationIds)
-          .execute()
-      : Promise.resolve([]),
+      // Changed conversations the user participates in
+      userConversationIds.length > 0
+        ? db
+            .selectFrom('conversation')
+            .selectAll()
+            .where('updated_at', '>', since)
+            .where('is_deleted', '=', false)
+            .where('id', 'in', userConversationIds)
+            .execute()
+        : Promise.resolve([]),
 
-    // Deleted story IDs
-    db
-      .selectFrom('story')
-      .select('id')
-      .where('updated_at', '>', since)
-      .where('is_deleted', '=', true)
-      .execute(),
+      // Deleted conversation IDs
+      userConversationIds.length > 0
+        ? db
+            .selectFrom('conversation')
+            .select('id')
+            .where('updated_at', '>', since)
+            .where('is_deleted', '=', true)
+            .where('id', 'in', userConversationIds)
+            .execute()
+        : Promise.resolve([]),
 
-    // Changed conversations the user participates in
-    userConversationIds.length > 0
-      ? db
-          .selectFrom('conversation')
-          .selectAll()
-          .where('updated_at', '>', since)
-          .where('is_deleted', '=', false)
-          .where('id', 'in', userConversationIds)
-          .execute()
-      : Promise.resolve([]),
-
-    // Deleted conversation IDs
-    userConversationIds.length > 0
-      ? db
-          .selectFrom('conversation')
-          .select('id')
-          .where('updated_at', '>', since)
-          .where('is_deleted', '=', true)
-          .where('id', 'in', userConversationIds)
-          .execute()
-      : Promise.resolve([]),
-
-    // Changed users
-    getUsersDelta({ since, excludeUserId: userId }),
-  ])
+      // Changed users
+      getUsersDelta({ since, excludeUserId: userId }),
+    ])
 
   const users = usersResult.success ? usersResult.data : []
 
@@ -174,16 +138,6 @@ export async function getSyncDelta(
       status: 'sent' as const,
       timestamp: new Date(m.created_at).getTime(),
       updatedAt: new Date(m.updated_at).getTime(),
-    })),
-    stories: stories.map((s) => ({
-      storyId: s.id,
-      userId: s.user_id,
-      contentUrl: s.content_url ?? '',
-      caption: s.caption ?? null,
-      text: s.text ?? null,
-      type: s.type ?? null,
-      expiresAt: s.expires_at ? new Date(s.expires_at).getTime() : 0,
-      createdAt: new Date(s.created_at).getTime(),
     })),
     users: users.map((u) => ({
       id: u.id,
@@ -203,7 +157,6 @@ export async function getSyncDelta(
       unreadCount: 0,
     })),
     deletedMessageIds: deletedMessages.map((m) => m.id),
-    deletedStoryIds: deletedStories.map((s) => s.id),
     deletedConversationIds: deletedConvs.map((c) => c.id),
     timestamp: new Date().toISOString(),
   }

@@ -30,35 +30,11 @@ export type { UserStatusPayload, GetUserStatusPayload } from './socket-types';
 // Socket Types - Room
 export type { JoinRoomPayload } from './socket-types';
 
-// Socket Types - Stories
-export type {
-  StoryPublishPayload,
-  StoryNewPayload,
-  StoryViewPayload,
-  StoryViewedPayload,
-  StoryDeletePayload,
-  StoryDeletedPayload,
-  StoryReactionPayload,
-  StoryReactionUpdatePayload,
-  StoryCallback,
-} from './socket-types';
-
 // Socket Types - User Sync
 export type {
   LocalUserPayload,
   UserDeltaRequestPayload,
   UserDeltaResponsePayload,
-} from './socket-types';
-
-// Socket Types - Friendship
-export type {
-  FriendRequestSendPayload,
-  FriendRequestReceivedPayload,
-  FriendRequestRespondPayload,
-  FriendRequestAcceptedPayload,
-  FriendRemovePayload,
-  FriendRemovedPayload,
-  FriendshipCallback,
 } from './socket-types';
 
 // Socket Types - Conversations

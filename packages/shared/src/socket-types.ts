@@ -118,64 +118,6 @@ export interface JoinRoomPayload {
 }
 
 // =============================================================================
-// Story Events
-// =============================================================================
-
-export interface StoryPublishPayload {
-  mediaUrl?: string;
-  type: MediaType;
-  caption?: string;
-  text?: string;
-  expiresAt?: Date | string;
-}
-
-export interface StoryNewPayload {
-  storyId: string;
-  userId: string;
-  contentUrl?: string;
-  type?: MediaType;
-  caption?: string;
-  text?: string;
-  createdAt: Date | string;
-  expiresAt?: Date | string;
-}
-
-export interface StoryViewPayload {
-  storyId: string;
-  ownerId: string;
-}
-
-export interface StoryViewedPayload {
-  storyId: string;
-  viewerId: string;
-  viewedAt: Date | string;
-}
-
-export interface StoryDeletePayload {
-  storyId: string;
-}
-
-export interface StoryDeletedPayload {
-  storyId: string;
-  userId: string;
-}
-
-export interface StoryReactionPayload {
-  storyId: string;
-  ownerId: string;
-  emoji: string;
-}
-
-export interface StoryReactionUpdatePayload {
-  storyId: string;
-  userId: string;
-  emoji: string;
-  action: 'added' | 'removed';
-}
-
-export type StoryCallback = SocketCallback<{ storyId: string }>;
-
-// =============================================================================
 // User Sync Events
 // =============================================================================
 
@@ -196,47 +138,6 @@ export interface UserDeltaResponsePayload {
   users: LocalUserPayload[];
   syncedAt: number;
 }
-
-// =============================================================================
-// Friendship Events
-// =============================================================================
-
-export interface FriendRequestSendPayload {
-  targetUserId: string;
-}
-
-export interface FriendRequestReceivedPayload {
-  requestId: string;
-  fromUserId: string;
-  fromUserName: string;
-  fromUserAvatar?: string;
-  createdAt: Date | string;
-}
-
-export interface FriendRequestRespondPayload {
-  requestId: string;
-  fromUserId: string;
-}
-
-export interface FriendRequestAcceptedPayload {
-  friendshipId: string;
-  userId: string;
-  userName: string;
-  userAvatar?: string;
-}
-
-export interface FriendRemovePayload {
-  friendId: string;
-}
-
-export interface FriendRemovedPayload {
-  userId: string;
-}
-
-export type FriendshipCallback = SocketCallback<{
-  requestId?: string;
-  friendshipId?: string;
-}>;
 
 // =============================================================================
 // Conversation Events
@@ -270,6 +171,10 @@ export interface ConversationLeavePayload {
 export interface ConversationLeftPayload {
   conversationId: string;
   userId: string;
+}
+
+export interface ConversationReadPayload {
+  conversationId: string
 }
 
 export type ConversationCallback = SocketCallback<{ conversationId: string }>;

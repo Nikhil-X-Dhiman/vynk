@@ -29,7 +29,7 @@ export const SOCKET_EVENTS = {
   /** Client marks message as read */
   MESSAGE_READ: 'message:read',
   /** Server confirms message was seen */
-  MESSAGE_SEEN: 'message:seen',
+  MESSAGE_SEEN: 'user:seen',
   /** Client deletes a message */
   MESSAGE_DELETE: 'message:delete',
   /** Server broadcasts message deletion */
@@ -56,8 +56,6 @@ export const SOCKET_EVENTS = {
   USER_ONLINE: 'user:online',
   /** Server notifies user went offline */
   USER_OFFLINE: 'user:offline',
-  /** Server confirms message was seen by user */
-  USER_SEEN: 'user:seen',
   /** Client requests user status */
   GET_USER_STATUS: 'user:get-status',
 
@@ -82,28 +80,6 @@ export const SOCKET_EVENTS = {
   CONVERSATION_SEEN: 'conversation:seen',
 
   // ===========================================================================
-  // Stories
-  // ===========================================================================
-  /** Client publishes a story */
-  STORY_PUBLISH: 'story:publish',
-  /** Server broadcasts new story */
-  STORY_NEW: 'story:new',
-  /** Client views a story */
-  STORY_VIEW: 'story:view',
-  /** Server notifies story owner of view */
-  STORY_VIEWED: 'story:viewed',
-  /** Client deletes a story */
-  STORY_DELETE: 'story:delete',
-  /** Server broadcasts story deletion */
-  STORY_DELETED: 'story:deleted',
-  /** Legacy read event */
-  STORY_READ: 'story:read',
-  /** Client reacts to story */
-  STORY_REACTION: 'story:reaction',
-  /** Server broadcasts story reaction */
-  STORY_REACTION_UPDATE: 'story:reaction-update',
-
-  // ===========================================================================
   // User Sync
   // ===========================================================================
   /** Server sends initial user list on connect */
@@ -114,26 +90,6 @@ export const SOCKET_EVENTS = {
   USER_DELTA_REQUEST: 'user:delta-request',
   /** Server sends delta user updates */
   USER_DELTA_RESPONSE: 'user:delta-response',
-
-  // ===========================================================================
-  // Friendship
-  // ===========================================================================
-  /** Client sends friend request */
-  FRIEND_REQUEST_SEND: 'friend:request-send',
-  /** Server notifies target of friend request */
-  FRIEND_REQUEST_RECEIVED: 'friend:request-received',
-  /** Client accepts friend request */
-  FRIEND_REQUEST_ACCEPT: 'friend:request-accept',
-  /** Server notifies both of accepted request */
-  FRIEND_REQUEST_ACCEPTED: 'friend:request-accepted',
-  /** Client rejects friend request */
-  FRIEND_REQUEST_REJECT: 'friend:request-reject',
-  /** Server notifies requester of rejection */
-  FRIEND_REQUEST_REJECTED: 'friend:request-rejected',
-  /** Client removes friend */
-  FRIEND_REMOVE: 'friend:remove',
-  /** Server notifies removed friend */
-  FRIEND_REMOVED: 'friend:removed',
 } as const
 
 export type SocketEvent = (typeof SOCKET_EVENTS)[keyof typeof SOCKET_EVENTS];

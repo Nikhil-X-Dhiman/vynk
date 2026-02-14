@@ -26,7 +26,4 @@ export type {
   LoginStoreState,
   LoginStoreActions,
   LoginStep,
-  // Legacy aliases (deprecated)
-  loginStoreTypes,
-  authStoreTypes,
-} from './types';
+} from './types'

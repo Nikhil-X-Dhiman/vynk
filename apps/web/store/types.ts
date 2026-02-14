@@ -99,12 +99,7 @@ export interface AuthStoreActions {
  */
 export interface AuthStore extends AuthStoreState, AuthStoreActions {}
 
-// ==========================================
-// Legacy Type Aliases (for backwards compatibility)
-// ==========================================
 
-/** @deprecated Use `LoginStore` instead */
-export type loginStoreTypes = LoginStore;
-
-/** @deprecated Use `AuthStore` instead */
-export type authStoreTypes = AuthStore;
+// ==========================================
+// Complete Stores
+// ==========================================

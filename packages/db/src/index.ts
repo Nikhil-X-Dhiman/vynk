@@ -39,22 +39,6 @@ export type {
   DeleteConversationResult,
 } from './conversation'
 
-// Delivery module
-export { createDelivery } from './delivery';
-export type { CreateDeliveryParams, CreateDeliveryResult } from './delivery';
-
-export { getMessageDeliveryStatus } from './delivery';
-export type {
-  DeliveryStatus,
-  GetMessageDeliveryStatusResult,
-} from './delivery';
-
-export { updateDeliveryStatus } from './delivery';
-export type {
-  UpdateDeliveryStatusParams,
-  UpdateDeliveryStatusResult,
-} from './delivery';
-
 // Message module
 export { sendMessage } from './message';
 export type { SendMessageParams, SendMessageResult } from './message';
@@ -77,9 +61,6 @@ export type {
   Reaction,
   GetMessageReactionsResult,
 } from './message';
-
-// Reaction module
-export * from './reaction';
 
 // Participant module
 export {
@@ -108,40 +89,6 @@ export type { RemoveParticipantResult } from './participant';
 export { markAsRead } from './participant';
 export type { MarkAsReadParams, MarkAsReadResult } from './participant';
 
-// Story module
-export { createStory } from './story';
-export type { CreateStoryParams, CreateStoryResult } from './story';
-
-export { getFriendsStories, getStoryViewers, getStoryViewCount } from './story';
-export type {
-  Story,
-  GetFriendsStoriesResult,
-  StoryViewer,
-  GetStoryViewersResult,
-  GetStoryViewCountResult,
-} from './story';
-
-export { deleteStory } from './story';
-export type { DeleteStoryResult } from './story';
-
-export { recordStoryView } from './story';
-export type { RecordStoryViewParams, RecordStoryViewResult } from './story';
-
-export { toggleStoryReaction, getStoryReactions } from './story';
-export type {
-  ToggleStoryReactionParams,
-  ToggleStoryReactionResult,
-  StoryReaction,
-  GetStoryReactionsResult,
-} from './story';
-
-// Settings module
-export { getSettings } from './settings';
-export type { Settings, GetSettingsResult } from './settings';
-
-export { updateSettings, deleteSettings } from './settings';
-export type { UpdateSettingsParams, UpdateSettingsResult } from './settings';
-
 // User module
 export { findUsersByIds } from './user';
 export type { UserBasic, FindUsersByIdsResult } from './user';
@@ -160,31 +107,6 @@ export type {
   UpdateUserProfileResult,
   DeleteUserResult,
 } from './user';
-
-// Friendship module
-export { sendFriendRequest } from './friendship';
-export type {
-  SendFriendRequestParams,
-  SendFriendRequestResult,
-} from './friendship';
-
-export { getFriends, getPendingFriendRequests } from './friendship';
-export type {
-  Friend,
-  GetFriendsResult,
-  FriendRequest,
-  GetPendingRequestsResult,
-} from './friendship';
-
-export { respondToFriendRequest, blockUser } from './friendship';
-export type {
-  RespondToFriendRequestParams,
-  RespondToFriendRequestResult,
-  BlockUserResult,
-} from './friendship';
-
-export { removeFriend } from './friendship';
-export type { RemoveFriendResult } from './friendship'
 
 // Sync module
 export * from './sync'

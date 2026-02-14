@@ -22,10 +22,8 @@ import { RoomService } from './services/room-service';
 import { registerMessageEvents } from './events/message-events';
 import { registerPresenceEvents } from './events/presence-events';
 import { registerReadEvents } from './events/read-events';
-import { registerTypingEvents } from './events/typing-events';
-import { registerStoryEvents } from './events/story-events'
-import { registerUserEvents } from './events/user-events';
-import { registerFriendshipEvents } from './events/friendship-events';
+import { registerTypingEvents } from './events/typing-events'
+import { registerUserEvents } from './events/user-events'
 import { registerConversationEvents } from './events/conversation-events';
 
 import { SOCKET_EVENTS } from '@repo/shared';
@@ -95,10 +93,8 @@ function initializeChatNamespace(): void {
       registerPresenceEvents(socket);
       registerMessageEvents(socket);
       registerReadEvents(socket);
-      registerTypingEvents(socket);
-      registerStoryEvents(socket)
-      registerUserEvents(socket);
-      registerFriendshipEvents(socket);
+      registerTypingEvents(socket)
+      registerUserEvents(socket)
       registerConversationEvents(socket);
 
       // Disconnect handler

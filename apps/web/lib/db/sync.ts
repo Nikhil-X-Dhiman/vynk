@@ -1,7 +1,6 @@
 import {
   LocalConversation,
   LocalMessage,
-  LocalStory,
   LocalUser,
   LocalParticipant,
 } from './types'
@@ -33,10 +32,6 @@ export async function pullDelta(db: VynkLocalDB) {
     await syncMessages(db, data.messages)
   }
 
-  if (data.stories?.length) {
-    await syncStories(db, data.stories)
-  }
-
   if (data.users?.length) {
     await syncUsers(db, data.users)
   }
@@ -44,9 +39,6 @@ export async function pullDelta(db: VynkLocalDB) {
   // Handle Deletions
   if (data.deletedMessageIds?.length) {
     await db.messages.where('messageId').anyOf(data.deletedMessageIds).delete()
-  }
-  if (data.deletedStoryIds?.length) {
-    await db.stories.where('storyId').anyOf(data.deletedStoryIds).delete()
   }
   if (data.deletedConversationIds?.length) {
     await db.conversations
@@ -109,26 +101,6 @@ export async function syncMessages(
       await db.messages.update(existing.id!, msg)
     } else {
       await db.messages.add(msg as LocalMessage)
-    }
-  }
-}
-
-export async function syncStories(
-  db: VynkLocalDB,
-  stories: Partial<LocalStory>[],
-) {
-  for (const story of stories) {
-    if (!story.storyId) continue
-
-    const existing = await db.stories
-      .where('storyId')
-      .equals(story.storyId)
-      .first()
-
-    if (existing) {
-      await db.stories.update(existing.id!, story)
-    } else {
-      await db.stories.add(story as LocalStory)
     }
   }
 }

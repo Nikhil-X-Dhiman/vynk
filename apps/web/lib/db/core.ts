@@ -2,7 +2,6 @@ import Dexie, { Table } from 'dexie'
 import {
   LocalConversation,
   LocalMessage,
-  LocalStory,
   LocalUser,
   LocalParticipant,
   Meta,
@@ -10,7 +9,6 @@ import {
 
 export class VynkLocalDB extends Dexie {
   messages!: Table<LocalMessage>
-  stories!: Table<LocalStory>
   conversations!: Table<LocalConversation>
   meta!: Table<Meta>
   users!: Table<LocalUser>
@@ -23,7 +21,6 @@ export class VynkLocalDB extends Dexie {
     // NOTE: Removed 'queue' table as offline mutation queue is deprecated.
     this.version(3).stores({
       messages: '++id, messageId, conversationId, timestamp',
-      stories: '++id, storyId, expiresAt',
       conversations: '++id, conversationId, updatedAt, type',
       meta: 'key',
       settings: 'id',
@@ -33,14 +30,8 @@ export class VynkLocalDB extends Dexie {
     })
   }
 
-  async cleanupOldStories() {
-    const now = Date.now()
-    await this.stories.where('expiresAt').below(now).delete()
-  }
-
   async clearAllData() {
     await this.messages.clear()
-    await this.stories.clear()
     await this.conversations.clear()
     await this.users.clear()
     await this.participants.clear()

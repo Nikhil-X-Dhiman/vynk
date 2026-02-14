@@ -116,12 +116,45 @@ export function useSocketMessages(chatId: string, isOnline: boolean): void {
         .modify({ status: 'delivered' })
     }
 
+    const handleMessageSeen = async (data: {
+      messageId: string
+      conversationId: string
+      userId: string
+    }) => {
+      if (data.conversationId !== chatId) return
+
+      // If the OTHER user saw it, mark our messages as seen
+      const { user } = useAuthStore.getState()
+      if (user && data.userId !== user.id) {
+        // Find the message to get timestamp
+        const message = await db.messages
+          .where('messageId')
+          .equals(data.messageId)
+          .first()
+
+        if (message) {
+          await db.messages
+            .where('conversationId')
+            .equals(chatId)
+            .filter(
+              (m) =>
+                m.timestamp <= message.timestamp &&
+                m.senderId === user.id &&
+                m.status !== 'seen',
+            )
+            .modify({ status: 'seen' })
+        }
+      }
+    }
+
     socket.on(SOCKET_EVENTS.MESSAGE_NEW, handleNewMessage)
     socket.on(SOCKET_EVENTS.MESSAGE_DELIVERED, handleMessageDelivered)
+    socket.on(SOCKET_EVENTS.MESSAGE_SEEN, handleMessageSeen)
 
     return () => {
       socket.off(SOCKET_EVENTS.MESSAGE_NEW, handleNewMessage)
       socket.off(SOCKET_EVENTS.MESSAGE_DELIVERED, handleMessageDelivered)
+      socket.off(SOCKET_EVENTS.MESSAGE_SEEN, handleMessageSeen)
       socket.emit(SOCKET_EVENTS.CONVERSATION_LEAVE, {
         conversationId: chatId,
       })

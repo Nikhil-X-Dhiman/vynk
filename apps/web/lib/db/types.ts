@@ -11,12 +11,6 @@ export interface LocalMessage {
   timestamp: number
 }
 
-export interface LocalStory {
-  id?: number
-  storyId?: string
-  contentUrl: string
-  expiresAt: number
-}
 
 export interface LocalConversation {
   id?: number
