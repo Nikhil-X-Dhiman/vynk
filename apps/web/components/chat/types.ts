@@ -3,7 +3,7 @@
  * @module components/chat/types
  */
 
-import type { LocalConversation, LocalUser } from '@/lib/db'
+import type { LocalConversation, LocalUser } from '@/lib/db/types'
 
 export interface ConversationInfo {
   name: string;

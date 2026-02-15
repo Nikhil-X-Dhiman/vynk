@@ -8,8 +8,12 @@
  */
 
 import { getSocket } from './client';
-import { SOCKET_EVENTS } from '@repo/shared';
-import { db, LocalUser } from '@/lib/db'
+import {
+  SOCKET_EVENTS,
+  type TypingPayload,
+  type UserStatusPayload,
+} from '@repo/shared'
+import { db } from '@/lib/db'
 import { SyncService } from '@/lib/services/sync';
 import { useAuthStore } from '@/store/auth'
 
@@ -18,127 +22,89 @@ import { useAuthStore } from '@/store/auth'
 // ==========================================
 
 export interface IncomingMessage {
-  id: string;
-  conversationId: string;
-  senderId: string;
-  content: string;
-  mediaUrl?: string;
-  mediaType?: 'text' | 'image' | 'video' | 'file';
-  createdAt: string;
-  replyTo?: string;
+  id: string
+  clientMessageId?: string // Add this
+  conversationId: string
+  senderId: string
+  content: string
+  mediaUrl?: string
+  mediaType?: 'text' | 'image' | 'video' | 'file'
+  createdAt: string
+  replyTo?: string
 }
 
-export interface TypingPayload {
-  userId: string;
-  userName: string;
-  conversationId: string;
-  isTyping: boolean;
-}
+// ...
 
-export interface UserStatusPayload {
-  userId: string;
-  isOnline: boolean;
-  lastSeen?: string;
-}
-
-export interface ConversationUpdatePayload {
-  conversationId: string;
-  title?: string;
-  groupImg?: string;
-  lastMessage?: IncomingMessage;
-}
-
-export type MessageCallback = (message: IncomingMessage) => void
-
-// ==========================================
-// Connection Listeners
-// ==========================================
 
 export function registerConnectionListeners(): void {
-  const socket = getSocket();
-
+  const socket = getSocket()
   socket.on('connect', () => {
-    console.log('[Socket] Connected:', socket.id);
-    SyncService.performDeltaSync().catch(console.error);
-  });
-
-  socket.on('disconnect', (reason) => {
-    console.log('[Socket] Disconnected:', reason);
-  });
-
-  socket.on('reconnect', () => {
-    console.log('[Socket] Reconnected')
-    SyncService.performDeltaSync().catch(console.error)
+    console.log('[Socket] Connected')
+  })
+  socket.on('disconnect', () => {
+    console.log('[Socket] Disconnected')
   })
 }
-
-// ==========================================
-// User Sync Listeners
-// ==========================================
 
 export function registerUserSyncListeners(): void {
-  const socket = getSocket();
-
-  socket.on(SOCKET_EVENTS.USER_LIST_INITIAL, async (users: LocalUser[]) => {
-    try {
-      await db.users.bulkPut(users)
-    } catch (error) {
-      console.error('[Sync] User list sync failed:', error)
-    }
-  });
-
-  socket.on(SOCKET_EVENTS.USER_NEW, async (user: LocalUser) => {
-    try {
-      await db.users.put(user)
-    } catch (error) {
-      console.error('[Sync] New user sync failed:', error)
-    }
-  });
-
-  socket.on('sync:trigger', async () => {
-    await SyncService.performDeltaSync()
-  })
+  // TODO: Implement global user sync listeners if needed
+  // e.g. handling global online/offline status updates for the user list
 }
 
-// ==========================================
-// Message Listeners
-// ==========================================
+export function registerMessageListeners(): void {
+  const socket = getSocket()
 
-export function onMessageReceived(callback: MessageCallback): () => void {
-  const socket = getSocket();
-
-  const handler = async (message: IncomingMessage) => {
+  // 1. New Message
+  socket.on(SOCKET_EVENTS.MESSAGE_NEW, async (message: IncomingMessage) => {
     try {
       const currentUserId = useAuthStore.getState().user?.id
 
       // Deduplicate or reconcile with pending messages
-      const existing = await db.messages
+      // 1. Check if message already exists by SERVER ID
+      let existing = await db.messages
         .where('messageId')
         .equals(message.id)
         .first()
 
+      // 2. If not found, check if we have a pending message with matching CLIENT ID
+      // (This is the robust fix for duplication)
+      if (!existing && message.clientMessageId) {
+        existing = await db.messages
+          .where('messageId')
+          .equals(message.clientMessageId)
+          .first()
+      }
+
       if (existing) {
+        // We found a match (either already synced or pending). Update it.
         await db.messages.update(existing.id!, {
+          messageId: message.id, // Update to server ID
           status: 'delivered',
-          content: message.content,
+          content: message.content, // Ensure content is synced
           mediaUrl: message.mediaUrl,
           timestamp: new Date(message.createdAt).getTime(),
         })
       } else {
-        const pendingMatch =
-          currentUserId && message.senderId === currentUserId
-            ? await db.messages
-                .where('conversationId')
-                .equals(message.conversationId)
-                .filter(
-                  (m) =>
-                    m.status === 'pending' && m.content === message.content,
-                )
-                .first()
-            : null
+        // Fallback: Content matching (legacy behavior or if clientMessageId missing)
+        let pendingMatchId: number | undefined
 
-        if (pendingMatch) {
-          await db.messages.update(pendingMatch.id!, {
+        if (currentUserId && message.senderId === currentUserId) {
+          const matchingKeys = await db.messages
+            .where('conversationId')
+            .equals(message.conversationId)
+            .filter(
+              (m) => m.status === 'pending' && m.content === message.content,
+            )
+            .primaryKeys()
+
+          if (matchingKeys.length > 0) {
+            // We cast to number because the 'messages' table has '++id' auto-incrementing primary key
+            pendingMatchId = matchingKeys[0] as number
+          }
+        }
+
+        if (pendingMatchId !== undefined) {
+          await db.messages.update(pendingMatchId, {
             messageId: message.id,
             status: 'delivered',
             timestamp: new Date(message.createdAt).getTime(),
@@ -149,9 +115,9 @@ export function onMessageReceived(callback: MessageCallback): () => void {
             conversationId: message.conversationId,
             senderId: message.senderId,
             content: message.content,
-            mediaUrl: message.mediaUrl,
-            mediaType: message.mediaType,
-            replyTo: message.replyTo,
+            mediaUrl: message.mediaUrl || null,
+            mediaType: message.mediaType || null,
+            replyTo: message.replyTo || null,
             timestamp: new Date(message.createdAt).getTime(),
             status: 'delivered',
           })
@@ -178,9 +144,85 @@ export function onMessageReceived(callback: MessageCallback): () => void {
     } catch (error) {
       console.error('[Socket] Message storage failed:', error)
     }
-    callback(message)
-  }
+  })
 
+  // 2. Message Deleted
+  socket.on(
+    SOCKET_EVENTS.MESSAGE_DELETED,
+    async (data: { messageId: string; conversationId: string }) => {
+      try {
+        await db.messages.where('messageId').equals(data.messageId).delete()
+      } catch (error) {
+        console.error('[Socket] Delete message failed:', error)
+      }
+    },
+  )
+
+  // 3. Message Delivered
+  socket.on(
+    SOCKET_EVENTS.MESSAGE_DELIVERED,
+    async (data: { messageId: string }) => {
+      try {
+        await db.messages
+          .where('messageId')
+          .equals(data.messageId)
+          .modify({ status: 'delivered' })
+      } catch (error) {
+        console.error('[Socket] Status update failed:', error)
+      }
+    },
+  )
+
+  // 4. Message Seen
+  socket.on(
+    SOCKET_EVENTS.MESSAGE_SEEN,
+    async (data: {
+      messageId: string
+      conversationId: string
+      userId: string
+    }) => {
+      // If the OTHER user saw it, mark our messages as seen
+      const { user } = useAuthStore.getState()
+      if (user && data.userId !== user.id) {
+        try {
+          // Find the message to get timestamp
+          const message = await db.messages
+            .where('messageId')
+            .equals(data.messageId)
+            .first()
+
+          if (message) {
+            await db.messages
+              .where('conversationId')
+              .equals(data.conversationId)
+              .filter(
+                (m) =>
+                  m.timestamp <= message.timestamp &&
+                  m.senderId === user.id &&
+                  m.status !== 'seen',
+              )
+              .modify({ status: 'seen' })
+          }
+        } catch (error) {
+          console.error('[Socket] Seen update failed:', error)
+        }
+      }
+    },
+  )
+
+  // 5. Reaction Update
+  socket.on(SOCKET_EVENTS.MESSAGE_REACTION_UPDATE, async (data: any) => {
+    // TODO: Implement reaction storage if DB supports it
+    console.log('[Socket] Reaction update:', data)
+  })
+}
+
+
+// Retain listener helpers for UI-specific callbacks if needed,
+// using a simplified version that DOES NOT store to DB to avoid double-writes.
+export function onMessageReceived(callback: (message: IncomingMessage) => void): () => void {
+  const socket = getSocket();
+  const handler = (message: IncomingMessage) => callback(message)
   socket.on(SOCKET_EVENTS.MESSAGE_NEW, handler)
   return () => socket.off(SOCKET_EVENTS.MESSAGE_NEW, handler);
 }
@@ -189,15 +231,7 @@ export function onMessageDeleted(
   callback: (data: { messageId: string; conversationId: string }) => void,
 ): () => void {
   const socket = getSocket();
-  const handler = async (data: {
-    messageId: string
-    conversationId: string
-  }) => {
-    try {
-      await db.messages.where('messageId').equals(data.messageId).delete()
-    } catch (error) {
-      console.error('[Socket] Delete message failed:', error)
-    }
+  const handler = (data: { messageId: string; conversationId: string }) => {
     callback(data)
   }
   socket.on(SOCKET_EVENTS.MESSAGE_DELETED, handler)
@@ -235,15 +269,7 @@ export function onMessageDelivered(
   }) => void,
 ): () => void {
   const socket = getSocket()
-  const handler = async (data: { messageId: string }) => {
-    try {
-      await db.messages
-        .where('messageId')
-        .equals(data.messageId)
-        .modify({ status: 'delivered' })
-    } catch (error) {
-      console.error('[Socket] Status update failed:', error)
-    }
+  const handler = (data: { messageId: string }) => {
     callback(data as any)
   }
   socket.on(SOCKET_EVENTS.MESSAGE_DELIVERED, handler)
@@ -302,6 +328,26 @@ export function registerConversationListeners(): void {
       if (existing) {
         await db.conversations.update(existing.id!, { isVirtual: false })
       } else {
+        // Resolve display info for private chats
+        let displayName = data.groupName || ''
+        let displayAvatar = data.groupImg || null
+
+        if (!data.isGroup && data.participants?.length) {
+          const currentUserId = useAuthStore.getState().user?.id
+          if (currentUserId) {
+            const otherUserId = data.participants.find(
+              (id: string) => id !== currentUserId,
+            )
+            if (otherUserId) {
+              const otherUser = await db.users.get(otherUserId)
+              if (otherUser) {
+                displayName = otherUser.name
+                displayAvatar = otherUser.avatar
+              }
+            }
+          }
+        }
+
         await db.conversations.add({
           conversationId,
           title: data.groupName || '',
@@ -310,6 +356,8 @@ export function registerConversationListeners(): void {
           updatedAt: Date.now(),
           unreadCount: 0,
           isVirtual: false,
+          displayName: displayName || 'Unknown',
+          displayAvatar: displayAvatar,
         })
 
         if (data.participants?.length) {
@@ -357,6 +405,7 @@ export function registerAllListeners(): void {
   registerConnectionListeners();
   registerUserSyncListeners();
   registerConversationListeners()
+  registerMessageListeners()
 }
 
 export function unregisterAllListeners(): void {

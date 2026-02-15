@@ -12,7 +12,8 @@
 import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db, LocalMessage } from '@/lib/db'
+import { db } from '@/lib/db/core'
+import type { LocalMessage } from '@/lib/db/types'
 import { useAuthStore } from '@/store/auth';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { useConversationInfo } from '@/hooks/useConversationInfo';

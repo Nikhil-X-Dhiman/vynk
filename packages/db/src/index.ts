@@ -86,7 +86,7 @@ export type {
 export { removeParticipant } from './participant';
 export type { RemoveParticipantResult } from './participant';
 
-export { markAsRead } from './participant';
+export { markAsRead, markConversationAsRead } from './participant'
 export type { MarkAsReadParams, MarkAsReadResult } from './participant';
 
 // User module
@@ -101,12 +101,14 @@ export type {
   GetUsersDeltaResult,
 } from './user';
 
-export { updateUserProfile, deleteUser } from './user';
+export { updateUserProfile, deleteUser, getFriends } from './user'
 export type {
   UpdateUserProfileParams,
   UpdateUserProfileResult,
   DeleteUserResult,
-} from './user';
+  Friend,
+  GetFriendsResult,
+} from './user'
 
 // Sync module
 export * from './sync'

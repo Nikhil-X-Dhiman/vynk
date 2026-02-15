@@ -11,7 +11,8 @@
 
 import { useCallback } from 'react';
 import { v7 as uuidv7 } from 'uuid';
-import { db, LocalMessage } from '@/lib/db'
+import { db } from '@/lib/db/core'
+import type { LocalMessage } from '@/lib/db/types'
 import { getSocket } from '@/lib/services/socket/client';
 import { SOCKET_EVENTS } from '@repo/shared';
 import { useAuthStore } from '@/store/auth';
@@ -64,35 +65,62 @@ export function useSendMessage(
         // 2. Optimistic local insert
         await db.messages.add(newMsg)
 
+        // 3. Prepare payload data
+        const conv = await db.conversations
+          .where('conversationId')
+          .equals(chatId)
+          .first()
+
+        const conversationType = conv?.type || 'private'
+
+        // Find receiver for private chats
+        let receiverId: string | undefined
+        if (conversationType === 'private') {
+          const otherParticipant = participants.find(
+            (p) => p.userId !== user.id,
+          )
+          receiverId = otherParticipant?.userId || user.id // Self-chat fallback
+        }
+
         // 3. Emit via socket
         const socket = getSocket()
         socket.emit(
           SOCKET_EVENTS.MESSAGE_SEND,
           {
-            id: tempId,
+            id: tempId, // Keeping this for backward compat if used anywhere else (unlikely)
+            clientMessageId: tempId, // New field for robust deduplication
             conversationId: chatId,
             content: text,
-            type: 'text',
+            mediaType: 'text',
+            type: conversationType, // 'private' or 'group'
+            receiverId,
           },
-          async (ack: { success: boolean; data?: { id: string } }) => {
-            if (ack && ack.success) {
+          async (ack: { success: boolean; data?: { messageId: string } }) => {
+            if (ack && ack.success && ack.data?.messageId) {
+              const serverMessageId = ack.data.messageId
+
               // Server acknowledged receipt -> status: 'sent'
+              // AND we must update the messageId to match the server's ID
+              // so that subsequent events (delivered/read) can find it.
+
               const msg = await db.messages
                 .where('messageId')
                 .equals(tempId)
                 .first()
+
               if (msg) {
-                await db.messages.update(msg.id!, { status: 'sent' })
+                // We have to delete and re-add because messageId is part of the key path or index
+                // Actually in core.ts: messages: '++id, messageId, conversationId, timestamp'
+                // messageId is indexed but not the primary key. Primary key is 'id'.
+                // So we can just update.
+                await db.messages.update(msg.id!, {
+                  status: 'sent',
+                  messageId: serverMessageId,
+                })
               }
             }
           },
         )
-
-        // 4. Update conversation's last message locally
-        const conv = await db.conversations
-          .where('conversationId')
-          .equals(chatId)
-          .first()
 
         if (conv) {
           await db.conversations.update(conv.id!, {

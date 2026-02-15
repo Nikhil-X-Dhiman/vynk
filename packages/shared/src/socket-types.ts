@@ -23,23 +23,26 @@ export interface SocketCallback<T = unknown> {
 // =============================================================================
 
 export interface MessageSendPayload {
-  conversationId: string;
-  content?: string;
-  mediaUrl?: string;
-  mediaType?: MediaType;
-  replyTo?: string;
-  receiverId?: string;
-  type?: ConversationType;
+  conversationId: string
+  clientMessageId?: string // Optimistic ID for deduplication
+  content?: string
+  mediaUrl?: string
+  mediaType?: MediaType
+  replyTo?: string
+  receiverId?: string
+  type?: ConversationType
 }
 
 export interface MessageNewPayload {
-  messageId: string;
-  conversationId: string;
-  senderId: string;
-  content?: string;
-  mediaUrl?: string;
-  mediaType?: MediaType;
-  createdAt: Date | string;
+  messageId: string
+  clientMessageId?: string // Echoed back
+  conversationId: string
+  senderId: string
+  content?: string
+  mediaUrl?: string
+  mediaType?: MediaType
+  createdAt: Date | string
+  replyTo?: string
 }
 
 export interface MessageDeletePayload {

@@ -13,7 +13,7 @@
 import { useEffect } from 'react';
 import { getSocket } from '@/lib/services/socket/client';
 import { SOCKET_EVENTS } from '@repo/shared';
-import { db } from '@/lib/db'
+import { db } from '@/lib/db/core'
 import { useAuthStore } from '@/store/auth'
 import { emitConversationRead } from '@/lib/services/socket/emitters'
 
@@ -76,85 +76,46 @@ export function useSocketMessages(chatId: string, isOnline: boolean): void {
     const handleNewMessage = async (msg: IncomingSocketMessage) => {
       if (msg.conversationId !== chatId) return
 
-      const resolvedId = msg.id || msg.messageId
+      // Global listener handles storage.
+      // We just need to mark as seen if we are looking at it.
 
-      // Deduplicate
-      if (resolvedId) {
-        const existing = await db.messages
-          .where('messageId')
-          .equals(resolvedId)
-          .first()
-        if (existing) return
-      }
-
-      const localId = await db.messages.add({
-        messageId: resolvedId,
-        conversationId: msg.conversationId,
-        senderId: msg.senderId,
-        content: msg.content || msg.text || '',
-        status: 'delivered',
-        timestamp: msg.timestamp || Date.now(),
-      })
-
-      // Mark as seen if we are looking at it
       const { user } = useAuthStore.getState()
       if (user && msg.senderId !== user.id) {
         emitConversationRead(chatId)
-        await db.messages.update(localId, { status: 'seen' })
-      }
-    }
 
-    const handleMessageDelivered = async (data: {
-      messageId: string
-      conversationId: string
-    }) => {
-      if (data.conversationId !== chatId) return
+        // We might need to wait for the message to be stored by the global listener before we can update it to 'seen'.
+        // Or we can just try to update it.
 
-      await db.messages
-        .where('messageId')
-        .equals(data.messageId)
-        .modify({ status: 'delivered' })
-    }
-
-    const handleMessageSeen = async (data: {
-      messageId: string
-      conversationId: string
-      userId: string
-    }) => {
-      if (data.conversationId !== chatId) return
-
-      // If the OTHER user saw it, mark our messages as seen
-      const { user } = useAuthStore.getState()
-      if (user && data.userId !== user.id) {
-        // Find the message to get timestamp
-        const message = await db.messages
+        const existing = await db.messages
           .where('messageId')
-          .equals(data.messageId)
+          .equals(msg.id || msg.messageId || '')
           .first()
 
-        if (message) {
-          await db.messages
-            .where('conversationId')
-            .equals(chatId)
-            .filter(
-              (m) =>
-                m.timestamp <= message.timestamp &&
-                m.senderId === user.id &&
-                m.status !== 'seen',
-            )
-            .modify({ status: 'seen' })
+        if (existing && existing.id) {
+          await db.messages.update(existing.id, { status: 'seen' })
         }
       }
     }
 
+    // We can rely on global listeners for storage and status updates.
+    // But we need to keep this listener to trigger 'read' receipts for the active chat.
+
+    // However, if we rely on useLiveQuery in the UI, we don't need to manually update state here.
+
+    // Use a lighter listener just for read receipts?
+    // Actually, let's just let the global listener do the storage.
+    // This hook will watch the DB (via useLiveQuery in component) and emit read receipts when new unread messages appear.
+
+    // BUT, valid point: useLiveQuery updates the UI.
+    // Does this hook need to listen to socket events at all?
+    // Yes, to join/leave the room.
+
     socket.on(SOCKET_EVENTS.MESSAGE_NEW, handleNewMessage)
-    socket.on(SOCKET_EVENTS.MESSAGE_DELIVERED, handleMessageDelivered)
-    socket.on(SOCKET_EVENTS.MESSAGE_SEEN, handleMessageSeen)
+    // Delivered/Seen are handled globally in DB. UI updates via LiveQuery.
+    // ensuring we don't duplicate logic.
 
     return () => {
       socket.off(SOCKET_EVENTS.MESSAGE_NEW, handleNewMessage)
-      socket.off(SOCKET_EVENTS.MESSAGE_DELIVERED, handleMessageDelivered)
-      socket.off(SOCKET_EVENTS.MESSAGE_SEEN, handleMessageSeen)
       socket.emit(SOCKET_EVENTS.CONVERSATION_LEAVE, {
         conversationId: chatId,
       })

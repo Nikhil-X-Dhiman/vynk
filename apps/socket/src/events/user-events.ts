@@ -74,14 +74,14 @@ export function registerUserEvents(socket: Socket): void {
         const formattedUsers = result.data.map((user) => ({
           id: user.id,
           name: user.name || '',
-          avatar: user.avatar,
+          avatar: user.avatarUrl,
           phoneNumber: user.phoneNumber || undefined,
           bio: user.bio || undefined,
           updatedAt:
             user.updatedAt instanceof Date
               ? user.updatedAt.getTime()
               : new Date(user.updatedAt).getTime(),
-        }));
+        }))
 
         callback?.({
           users: formattedUsers,
@@ -109,19 +109,24 @@ export function registerUserEvents(socket: Socket): void {
  */
 async function sendInitialUserList(socket: Socket): Promise<void> {
   try {
-    const users = await db
-      .selectFrom('user')
-      .select([
-        'id',
-        'user_name',
-        'avatar_url',
-        'updated_at',
-        'phone_number',
-        'bio',
-      ])
-      .execute();
+    const result = await getAllUsers()
 
-    const formattedUsers = users.map(formatUser);
+    if (!result.success) {
+      throw new Error(result.error)
+    }
+
+    const formattedUsers: LocalUserPayload[] = result.data.map((user) => ({
+      id: user.id,
+      name: user.name,
+      avatar: user.avatarUrl,
+      phoneNumber: user.phoneNumber,
+      bio: user.bio || undefined,
+      updatedAt:
+        user.updatedAt instanceof Date
+          ? user.updatedAt.getTime()
+          : new Date(user.updatedAt).getTime(),
+    }))
+
     socket.emit(SOCKET_EVENTS.USER_LIST_INITIAL, formattedUsers);
 
     logger.debug('Sent initial user list', {

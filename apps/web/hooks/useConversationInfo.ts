@@ -11,7 +11,7 @@
  */
 
 import { useLiveQuery } from 'dexie-react-hooks';
-import { db } from '@/lib/db';
+import { db } from '@/lib/db/core'
 import { useAuthStore } from '@/store/auth';
 import type { ConversationInfo } from '@/components/chat/types';
 

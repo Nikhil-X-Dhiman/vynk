@@ -15,3 +15,6 @@ export type {
   UpdateUserProfileResult,
   DeleteUserResult,
 } from './update';
+
+export { getFriends } from './get-friends'
+export type { Friend, GetFriendsResult } from './get-friends'

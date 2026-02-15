@@ -76,6 +76,7 @@ export function registerMessageEvents(socket: Socket): void {
       try {
         const {
           conversationId,
+          clientMessageId,
           content,
           mediaUrl,
           mediaType,
@@ -124,12 +125,14 @@ export function registerMessageEvents(socket: Socket): void {
         const messageId = result.data.messageId
         const messageData = {
           messageId,
+          clientMessageId, // Echo back
           conversationId,
           senderId: userId,
           content,
           mediaUrl,
           mediaType,
           createdAt: new Date().toISOString(),
+          replyTo,
         }
 
         // Self-message: sender is the only recipient — skip room emission
